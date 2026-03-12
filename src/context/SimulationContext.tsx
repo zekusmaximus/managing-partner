@@ -176,7 +176,12 @@ const initialState: SimulationState = {
 };
 
 // Create the context
-const SimulationContext = createContext<SimulationState | undefined>(undefined);
+type SimulationContextType = {
+  state: SimulationState;
+  setState: React.Dispatch<React.SetStateAction<SimulationState>>;
+};
+
+const SimulationContext = createContext<SimulationContextType | undefined>(undefined);
 
 // Provider component
 export const SimulationProvider = ({ children }: { children: ReactNode }) => {

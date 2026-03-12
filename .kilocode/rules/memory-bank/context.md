@@ -1,87 +1,45 @@
-# Active Context: Next.js Starter Template
+# Active Context: Managing Partner - Government Relations Simulator
 
 ## Current State
 
-**Template Status**: ✅ Ready for development
+**Project Status**: ✅ In Development - Business Simulation Game
 
-The template is a clean Next.js 16 starter with TypeScript and Tailwind CSS 4. It's ready for AI-assisted expansion to build any type of application.
+This is a business simulation game where players manage a government relations firm. The application features:
+- Dashboard with financial charts (Recharts)
+- Financial management, HR, Clients, Inbox pages
+- SimulationContext for global state management
+- MUI for UI components
 
 ## Recently Completed
 
-- [x] Base Next.js 16 setup with App Router
-- [x] TypeScript configuration with strict mode
-- [x] Tailwind CSS 4 integration
-- [x] ESLint configuration
-- [x] Memory bank documentation
-- [x] Recipe system for common features
+- [x] Fixed react-router-dom import (changed to Next.js Link)
+- [x] Fixed SimulationContext setState implementation
+- [x] Created missing pages (finances, hr, clients, inbox)
+- [x] Created comprehensive README.md
+- [x] Implemented Advance Month functionality
 
 ## Current Structure
 
 | File/Directory | Purpose | Status |
 |----------------|---------|--------|
-| `src/app/page.tsx` | Home page | ✅ Ready |
-| `src/app/layout.tsx` | Root layout | ✅ Ready |
-| `src/app/globals.css` | Global styles | ✅ Ready |
-| `.kilocode/` | AI context & recipes | ✅ Ready |
+| `src/app/page.tsx` | Home/Dashboard | ✅ Ready |
+| `src/app/finances/page.tsx` | Finances page | ✅ Ready |
+| `src/app/hr/page.tsx` | HR page | ✅ Ready |
+| `src/app/clients/page.tsx` | Clients page | ✅ Ready |
+| `src/app/inbox/page.tsx` | Inbox page | ✅ Ready |
+| `src/components/layout/TopNav.tsx` | Top navigation | ✅ Ready |
+| `src/components/layout/SideNav.tsx` | Side navigation | ✅ Ready |
+| `src/context/SimulationContext.tsx` | Global simulation state | ✅ Ready |
+| `src/pages/Dashboard.tsx` | Main dashboard component | ✅ Ready |
+| `README.md` | Project documentation | ✅ Ready |
 
 ## Current Focus
 
-The template is ready. Next steps depend on user requirements:
-
-1. What type of application to build
-2. What features are needed
-3. Design/branding preferences
-
-## Quick Start Guide
-
-### To add a new page:
-
-Create a file at `src/app/[route]/page.tsx`:
-```tsx
-export default function NewPage() {
-  return <div>New page content</div>;
-}
-```
-
-### To add components:
-
-Create `src/components/` directory and add components:
-```tsx
-// src/components/ui/Button.tsx
-export function Button({ children }: { children: React.ReactNode }) {
-  return <button className="px-4 py-2 bg-blue-600 text-white rounded">{children}</button>;
-}
-```
-
-### To add a database:
-
-Follow `.kilocode/recipes/add-database.md`
-
-### To add API routes:
-
-Create `src/app/api/[route]/route.ts`:
-```tsx
-import { NextResponse } from "next/server";
-
-export async function GET() {
-  return NextResponse.json({ message: "Hello" });
-}
-```
-
-## Available Recipes
-
-| Recipe | File | Use Case |
-|--------|------|----------|
-| Add Database | `.kilocode/recipes/add-database.md` | Data persistence with Drizzle + SQLite |
-
-## Pending Improvements
-
-- [ ] Add more recipes (auth, email, etc.)
-- [ ] Add example components
-- [ ] Add testing setup recipe
+Building a business simulation game where players take on the role of Managing Partner at a government relations firm. Focus on gameplay mechanics, UI/UX, and simulation logic.
 
 ## Session History
 
 | Date | Changes |
 |------|---------|
 | Initial | Template created with base setup |
+| 2026-03-11 | Bug fixes: react-router-dom to Next.js Link, SimulationContext setState, created missing pages, created README, implemented Advance Month |

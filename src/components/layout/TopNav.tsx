@@ -3,11 +3,16 @@ import { AppBar, Toolbar, Typography, Button, Box, Stack } from '@mui/material';
 import { useSimulation } from '@/context/SimulationContext';
 
 export const TopNav = () => {
-  const { state } = useSimulation();
+  const { state, setState } = useSimulation();
 
   const handleAdvanceMonth = () => {
-    // This will be implemented later with the actual simulation logic
-    console.log('Advancing month');
+    setState((prev) => {
+      const newMonth = prev.month + 1;
+      if (newMonth > 12) {
+        return { ...prev, month: 1, year: prev.year + 1 };
+      }
+      return { ...prev, month: newMonth };
+    });
   };
 
   return (

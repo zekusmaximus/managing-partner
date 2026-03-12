@@ -1,7 +1,7 @@
 import React from 'react';
 import { Drawer, List, ListItem, ListItemIcon, ListItemText, Divider, Toolbar, Typography } from '@mui/material';
 import { DashboardOutlined, AttachMoneyOutlined, GroupOutlined, BusinessCenterOutlined, InboxOutlined } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 export const SideNav = () => {
   return (
@@ -13,31 +13,31 @@ export const SideNav = () => {
       </Toolbar>
       <Divider />
       <List>
-        <ListItem button component={Link} to="/" sx={{ textAlign: 'left' }}>
+        <ListItem button component={Link} href="/" sx={{ textAlign: 'left' }}>
           <ListItemIcon>
             <DashboardOutlined />
           </ListItemIcon>
           <ListItemText primary="Dashboard" />
         </ListItem>
-        <ListItem button component={Link} to="/finances" sx={{ textAlign: 'left' }}>
+        <ListItem button component={Link} href="/finances" sx={{ textAlign: 'left' }}>
           <ListItemIcon>
             <AttachMoneyOutlined />
           </ListItemIcon>
           <ListItemText primary="Finances" />
         </ListItem>
-        <ListItem button component={Link} to="/hr" sx={{ textAlign: 'left' }}>
+        <ListItem button component={Link} href="/hr" sx={{ textAlign: 'left' }}>
           <ListItemIcon>
             <GroupOutlined />
           </ListItemIcon>
           <ListItemText primary="HR/Roster" />
         </ListItem>
-        <ListItem button component={Link} to="/clients" sx={{ textAlign: 'left' }}>
+        <ListItem button component={Link} href="/clients" sx={{ textAlign: 'left' }}>
           <ListItemIcon>
             <BusinessCenterOutlined />
           </ListItemIcon>
           <ListItemText primary="Clients" />
         </ListItem>
-        <ListItem button component={Link} to="/inbox" sx={{ textAlign: 'left' }}>
+        <ListItem button component={Link} href="/inbox" sx={{ textAlign: 'left' }}>
           <ListItemIcon>
             <InboxOutlined />
           </ListItemIcon>
