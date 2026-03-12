@@ -17,6 +17,7 @@ This is a business simulation game where players manage a government relations f
 - [x] Created missing pages (finances, hr, clients, inbox)
 - [x] Created comprehensive README.md
 - [x] Implemented Advance Month functionality
+- [x] Fixed TypeScript errors: MUI v6 ListItem button prop (converted to ListItemButton), Recharts tooltip formatter types
 
 ## Current Structure
 
@@ -43,3 +44,4 @@ Building a business simulation game where players take on the role of Managing P
 |------|---------|
 | Initial | Template created with base setup |
 | 2026-03-11 | Bug fixes: react-router-dom to Next.js Link, SimulationContext setState, created missing pages, created README, implemented Advance Month |
+| 2026-03-11 | Fixed TypeScript errors: MUI v6 ListItem button prop, Recharts tooltip formatter types in inbox, clients, finances, Dashboard pages |
