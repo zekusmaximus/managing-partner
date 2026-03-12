@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { Drawer, List, ListItem, ListItemIcon, ListItemText, Divider, Toolbar, Typography, ListItemButton, Badge, Box } from '@mui/material';
 import { Dashboard, AttachMoney, Groups, BusinessCenter, Inbox } from '@mui/icons-material';

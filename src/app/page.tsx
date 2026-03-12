@@ -1,4 +1,4 @@
-import { Dashboard } from '@/pages/Dashboard';
+import { Dashboard } from '@/components/dashboard/Dashboard';
 import { TopNav } from '@/components/layout/TopNav';
 import { SideNav } from '@/components/layout/SideNav';
 
