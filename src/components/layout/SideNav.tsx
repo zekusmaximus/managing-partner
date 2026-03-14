@@ -6,13 +6,14 @@ import { Dashboard, AttachMoney, Groups, BusinessCenter, Inbox } from '@mui/icon
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSimulation } from '@/context/SimulationContext';
+import TutorialProgressBar from '@/components/tutorial/TutorialProgressBar';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: <Dashboard /> },
-  { path: '/finances', label: 'Finances', icon: <AttachMoney /> },
-  { path: '/hr', label: 'HR/Roster', icon: <Groups /> },
-  { path: '/clients', label: 'Clients', icon: <BusinessCenter /> },
-  { path: '/inbox', label: 'Inbox', icon: <Inbox />, showBadge: true },
+  { path: '/', label: 'Dashboard', icon: <Dashboard />, tutorialTarget: 'sidenav-dashboard' },
+  { path: '/finances', label: 'Finances', icon: <AttachMoney />, tutorialTarget: 'sidenav-finances' },
+  { path: '/hr', label: 'HR/Roster', icon: <Groups />, tutorialTarget: 'sidenav-hr' },
+  { path: '/clients', label: 'Clients', icon: <BusinessCenter />, tutorialTarget: 'sidenav-clients' },
+  { path: '/inbox', label: 'Inbox', icon: <Inbox />, showBadge: true, tutorialTarget: 'sidenav-inbox' },
 ];
 
 export const SideNav = () => {
@@ -46,9 +47,9 @@ export const SideNav = () => {
         {navItems.map((item) => {
           const isActive = pathname === item.path;
           return (
-            <ListItem key={item.path} disablePadding sx={{ px: 1, py: 0.5 }}>
-              <ListItemButton 
-                component={Link} 
+            <ListItem key={item.path} disablePadding sx={{ px: 1, py: 0.5 }} data-tutorial-target={item.tutorialTarget}>
+              <ListItemButton
+                component={Link}
                 href={item.path}
                 selected={isActive}
                 sx={{ 
@@ -88,6 +89,7 @@ export const SideNav = () => {
         })}
       </List>
       <Divider />
+      <TutorialProgressBar />
       <Box sx={{ p: 2, mt: 'auto' }}>
         <Typography variant="caption" color="text.secondary">
           Managing Partner v1.0

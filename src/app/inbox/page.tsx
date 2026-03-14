@@ -7,6 +7,7 @@ import { Box, Typography, Grid, Card, CardContent, CardHeader, Button, List, Lis
 import { Email, Warning, Info, Work, CheckCircle, CircleOutlined, PriorityHigh, Send } from '@mui/icons-material';
 import { useSimulation } from '@/context/SimulationContext';
 import type { InboxMessage } from '@/context/SimulationContext';
+import HelpTooltip from '@/components/help/HelpTooltip';
 
 export default function Inbox() {
   const { state, markInboxMessageRead, handleInboxChoice, advanceMonth } = useSimulation();
@@ -77,13 +78,13 @@ export default function Inbox() {
               Inbox
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Chip 
-                label={`${unreadCount} unread`} 
-                color={unreadCount > 0 ? 'primary' : 'default'} 
+              <Chip
+                label={`${unreadCount} unread`}
+                color={unreadCount > 0 ? 'primary' : 'default'}
               />
-              <Chip 
-                label={`${actionRequired} requires action`} 
-                color={actionRequired > 0 ? 'warning' : 'default'} 
+              <Chip
+                label={<>{actionRequired} requires action <HelpTooltip helpId="inbox-action-required" /></>}
+                color={actionRequired > 0 ? 'warning' : 'default'}
               />
               <Button 
                 variant="outlined" 
@@ -97,7 +98,7 @@ export default function Inbox() {
 
           <Grid container spacing={3} sx={{ flex: 1, overflow: 'hidden' }}>
             {/* Message List */}
-            <Grid size={{ xs: 12, md: 5 }} sx={{ overflow: 'hidden' }}>
+            <Grid size={{ xs: 12, md: 5 }} sx={{ overflow: 'hidden' }} data-tutorial-target="inbox-message-list">
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardHeader 
                   title="Messages" 
@@ -177,7 +178,7 @@ export default function Inbox() {
             </Grid>
 
             {/* Message Detail */}
-            <Grid size={{ xs: 12, md: 7 }} sx={{ overflow: 'hidden' }}>
+            <Grid size={{ xs: 12, md: 7 }} sx={{ overflow: 'hidden' }} data-tutorial-target="inbox-detail">
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 {selectedMessage ? (
                   <>

@@ -60,7 +60,7 @@ export const TopNav = () => {
             </Typography>
           </Box>
           
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1, mr: 2 }}>
+          <Box data-tutorial-target="reputation-display" sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1, mr: 2 }}>
             <Typography variant="body2" color="inherit" sx={{ opacity: 0.8 }}>
               Rep:
             </Typography>
@@ -85,11 +85,12 @@ export const TopNav = () => {
             </Typography>
           </Box>
 
-          <Button 
-            variant="contained" 
-            color="secondary" 
-            size="medium" 
+          <Button
+            variant="contained"
+            color="secondary"
+            size="medium"
             onClick={advanceMonth}
+            data-tutorial-target="advance-month"
             sx={{ fontWeight: 600 }}
           >
             Advance Month →
