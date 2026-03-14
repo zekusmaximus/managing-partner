@@ -3,10 +3,13 @@
 import React, { useState } from 'react';
 import { TopNav } from '@/components/layout/TopNav';
 import { SideNav } from '@/components/layout/SideNav';
-import { Box, Typography, Grid, Card, CardContent, CardHeader, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, IconButton, Tooltip } from '@mui/material';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { Box, Typography, Grid, Card, CardContent, CardHeader, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Tooltip } from '@mui/material';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import { useSimulation } from '@/context/SimulationContext';
 import type { Employee } from '@/context/SimulationContext';
+import { getEmployeeTotalCost, getEmployeeBenefits, getEmployeePayrollTax } from '@/types/simulation';
+import HelpTooltip from '@/components/help/HelpTooltip';
+import StaffingEconomics from '@/components/hr/StaffingEconomics';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -19,7 +22,7 @@ export default function HR() {
   const [newSalary, setNewSalary] = useState<number>(0);
 
   // Calculate stats
-  const totalPayroll = state.employees.reduce((sum, e) => sum + e.salary, 0);
+  const totalPayroll = state.employees.reduce((sum, e) => sum + getEmployeeTotalCost(e), 0);
   const avgEfficacy = state.employees.length > 0
     ? state.employees.reduce((sum, e) => sum + e.efficacy, 0) / state.employees.length
     : 0;
@@ -48,7 +51,7 @@ export default function HR() {
   };
 
   const handleFire = (employee: Employee) => {
-    if (confirm(`Are you sure you want to fire ${employee.name}?`)) {
+    if (confirm(`Are you sure you want to fire ${employee.name}? Severance cost: $2,000`)) {
       fireEmployee(employee.id);
     }
   };
@@ -87,16 +90,17 @@ export default function HR() {
               Human Resources
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button 
-                variant="contained" 
-                color="primary" 
+              <Button
+                variant="contained"
+                color="primary"
                 onClick={() => setOpenHireDialog(true)}
+                data-tutorial-target="hire-employee-btn"
               >
                 + Hire Employee
               </Button>
-              <Button 
-                variant="outlined" 
-                color="primary" 
+              <Button
+                variant="outlined"
+                color="primary"
                 onClick={advanceMonth}
               >
                 Advance Month →
@@ -109,7 +113,7 @@ export default function HR() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">Total Employees</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Total Employees <HelpTooltip helpId="hr-total-employees" /></Typography>
                   <Typography variant="h4" color="primary">
                     {state.employees.length}
                   </Typography>
@@ -120,10 +124,11 @@ export default function HR() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">Total Payroll</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Total Payroll <HelpTooltip helpId="hr-payroll" /></Typography>
                   <Typography variant="h5" color="error.main">
                     ${totalPayroll.toLocaleString()}/mo
                   </Typography>
+                  <Typography variant="caption" color="text.secondary">Incl. benefits & taxes</Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -131,7 +136,7 @@ export default function HR() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">Avg Efficacy</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Avg Efficacy <HelpTooltip helpId="hr-efficacy" /></Typography>
                   <Typography variant="h5" color={avgEfficacy >= 70 ? 'success.main' : avgEfficacy >= 50 ? 'warning.main' : 'error.main'}>
                     {avgEfficacy.toFixed(0)}%
                   </Typography>
@@ -142,12 +147,17 @@ export default function HR() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">High Burnout Risk</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">High Burnout Risk <HelpTooltip helpId="hr-burnout" /></Typography>
                   <Typography variant="h5" color={highBurnoutCount > 0 ? 'error.main' : 'success.main'}>
                     {highBurnoutCount}
                   </Typography>
                 </CardContent>
               </Card>
+            </Grid>
+
+            {/* Staffing Economics */}
+            <Grid size={{ xs: 12 }} data-tutorial-target="staffing-economics">
+              <StaffingEconomics />
             </Grid>
 
             {/* Role Distribution Chart */}
@@ -179,7 +189,7 @@ export default function HR() {
             </Grid>
 
             {/* Burnout by Role Chart */}
-            <Grid size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, md: 4 }} data-tutorial-target="burnout-chart">
               <Card sx={{ height: '100%' }}>
                 <CardHeader title="Avg Burnout by Role" />
                 <CardContent>
@@ -207,9 +217,9 @@ export default function HR() {
                 <CardContent>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">Average Efficacy</Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={avgEfficacy} 
+                    <LinearProgress
+                      variant="determinate"
+                      value={avgEfficacy}
                       sx={{ height: 10, borderRadius: 5, mt: 1 }}
                       color={avgEfficacy >= 70 ? 'success' : avgEfficacy >= 50 ? 'warning' : 'error'}
                     />
@@ -217,9 +227,9 @@ export default function HR() {
                   </Box>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">Average Burnout</Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={avgBurnout} 
+                    <LinearProgress
+                      variant="determinate"
+                      value={avgBurnout}
                       sx={{ height: 10, borderRadius: 5, mt: 1 }}
                       color={avgBurnout >= 60 ? 'error' : avgBurnout >= 40 ? 'warning' : 'success'}
                     />
@@ -230,10 +240,10 @@ export default function HR() {
             </Grid>
 
             {/* Employee Table */}
-            <Grid size={{ xs: 12 }}>
+            <Grid size={{ xs: 12 }} data-tutorial-target="employee-table">
               <Card>
-                <CardHeader 
-                  title="Employee Roster" 
+                <CardHeader
+                  title="Employee Roster"
                   subheader="Manage your team members"
                 />
                 <CardContent>
@@ -247,6 +257,7 @@ export default function HR() {
                           <TableCell>Burnout</TableCell>
                           <TableCell>Client Affinity</TableCell>
                           <TableCell>Salary</TableCell>
+                          <TableCell>Total Cost <HelpTooltip helpId="hr-total-cost" /></TableCell>
                           <TableCell align="center">Actions</TableCell>
                         </TableRow>
                       </TableHead>
@@ -259,17 +270,17 @@ export default function HR() {
                               </Typography>
                             </TableCell>
                             <TableCell>
-                              <Chip 
-                                label={employee.role} 
-                                size="small" 
+                              <Chip
+                                label={employee.role}
+                                size="small"
                                 color={getRoleColor(employee.role) as any}
                               />
                             </TableCell>
                             <TableCell>
                               <Box sx={{ display: 'flex', alignItems: 'center', width: 120 }}>
-                                <LinearProgress 
-                                  variant="determinate" 
-                                  value={employee.efficacy} 
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={employee.efficacy}
                                   sx={{ flex: 1, mr: 1, height: 8, borderRadius: 4 }}
                                   color={employee.efficacy >= 70 ? 'success' : employee.efficacy >= 50 ? 'warning' : 'error'}
                                 />
@@ -280,9 +291,9 @@ export default function HR() {
                             </TableCell>
                             <TableCell>
                               <Box sx={{ display: 'flex', alignItems: 'center', width: 120 }}>
-                                <LinearProgress 
-                                  variant="determinate" 
-                                  value={employee.burnout} 
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={employee.burnout}
                                   sx={{ flex: 1, mr: 1, height: 8, borderRadius: 4 }}
                                   color={employee.burnout >= 60 ? 'error' : employee.burnout >= 40 ? 'warning' : 'success'}
                                 />
@@ -292,29 +303,36 @@ export default function HR() {
                               </Box>
                             </TableCell>
                             <TableCell>
-                              <Chip 
-                                label={`${employee.clientAffinity}%`} 
+                              <Chip
+                                label={`${employee.clientAffinity}%`}
                                 size="small"
                                 color={employee.clientAffinity >= 70 ? 'success' : employee.clientAffinity >= 50 ? 'warning' : 'error'}
                               />
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" fontWeight="bold">
+                              <Typography variant="body2">
                                 ${employee.salary.toLocaleString()}
                               </Typography>
                             </TableCell>
+                            <TableCell>
+                              <Tooltip title={`Salary: $${employee.salary.toLocaleString()} + Benefits: $${getEmployeeBenefits(employee).toLocaleString()} + Payroll Tax: $${getEmployeePayrollTax(employee).toLocaleString()}`}>
+                                <Typography variant="body2" fontWeight="bold">
+                                  ${getEmployeeTotalCost(employee).toLocaleString()}
+                                </Typography>
+                              </Tooltip>
+                            </TableCell>
                             <TableCell align="center">
                               <Tooltip title="Adjust Salary">
-                                <Button 
-                                  size="small" 
+                                <Button
+                                  size="small"
                                   onClick={() => handleSalaryClick(employee)}
                                 >
                                   Salary
                                 </Button>
                               </Tooltip>
                               <Tooltip title="Fire Employee">
-                                <Button 
-                                  size="small" 
+                                <Button
+                                  size="small"
                                   color="error"
                                   onClick={() => handleFire(employee)}
                                 >
@@ -351,7 +369,8 @@ export default function HR() {
             <MenuItem value="Support">Support ($3,500-$5,000)</MenuItem>
           </TextField>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            A new employee will be hired with random stats in the selected role.
+            A new employee will be hired with random stats. Hiring cost: $5,000 (recruiting/onboarding).
+            Total cost includes 25% benefits + 7.65% payroll tax on top of base salary.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -376,6 +395,7 @@ export default function HR() {
           />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             Current salary: ${selectedEmployee?.salary.toLocaleString()}/month
+            {selectedEmployee && ` (Total cost: $${getEmployeeTotalCost(selectedEmployee).toLocaleString()}/month)`}
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -388,4 +408,3 @@ export default function HR() {
     </div>
   );
 }
-

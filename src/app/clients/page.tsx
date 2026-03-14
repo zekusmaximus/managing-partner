@@ -7,6 +7,7 @@ import { Box, Typography, Grid, Card, CardContent, CardHeader, Button, Table, Ta
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import { useSimulation } from '@/context/SimulationContext';
 import type { Client } from '@/context/SimulationContext';
+import HelpTooltip from '@/components/help/HelpTooltip';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
@@ -123,7 +124,7 @@ export default function Clients() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">Monthly Revenue</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Monthly Revenue <HelpTooltip helpId="clients-fee" /></Typography>
                   <Typography variant="h5" color="success.main">
                     ${totalMonthlyRevenue.toLocaleString()}
                   </Typography>
@@ -134,7 +135,7 @@ export default function Clients() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">Avg Satisfaction</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Avg Satisfaction <HelpTooltip helpId="clients-satisfaction" /></Typography>
                   <Typography variant="h5" color={avgSatisfaction >= 70 ? 'success.main' : avgSatisfaction >= 50 ? 'warning.main' : 'error.main'}>
                     {avgSatisfaction.toFixed(0)}%
                   </Typography>
@@ -145,7 +146,7 @@ export default function Clients() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">Expiring Contracts</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Expiring Contracts <HelpTooltip helpId="clients-contract" /></Typography>
                   <Typography variant="h5" color={expiringContracts > 0 ? 'error.main' : 'success.main'}>
                     {expiringContracts}
                   </Typography>
@@ -154,7 +155,7 @@ export default function Clients() {
             </Grid>
 
             {/* Revenue by Type Chart */}
-            <Grid size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, md: 4 }} data-tutorial-target="client-type-chart">
               <Card sx={{ height: '100%' }}>
                 <CardHeader title="Revenue by Client Type" />
                 <CardContent>
@@ -182,7 +183,7 @@ export default function Clients() {
             </Grid>
 
             {/* Contract Timeline */}
-            <Grid size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, md: 4 }} data-tutorial-target="contract-chart">
               <Card sx={{ height: '100%' }}>
                 <CardHeader title="Contract Expiry Timeline" />
                 <CardContent>
@@ -239,10 +240,10 @@ export default function Clients() {
             </Grid>
 
             {/* Client Table */}
-            <Grid size={{ xs: 12 }}>
+            <Grid size={{ xs: 12 }} data-tutorial-target="client-table">
               <Card>
-                <CardHeader 
-                  title="Client Roster" 
+                <CardHeader
+                  title="Client Roster"
                   subheader="Manage your clients and track satisfaction"
                 />
                 <CardContent>

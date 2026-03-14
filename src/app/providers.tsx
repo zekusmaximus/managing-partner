@@ -3,6 +3,10 @@
 import React, { ReactNode } from "react";
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { SimulationProvider } from "@/context/SimulationContext";
+import { TutorialProvider } from "@/context/TutorialContext";
+import WelcomeModal from "@/components/tutorial/WelcomeModal";
+import TutorialOverlay from "@/components/tutorial/TutorialOverlay";
+import HelpFab from "@/components/help/HelpFab";
 
 const theme = createTheme({
   palette: {
@@ -42,7 +46,14 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <SimulationProvider>{children}</SimulationProvider>
+      <SimulationProvider>
+        <TutorialProvider>
+          {children}
+          <WelcomeModal />
+          <TutorialOverlay />
+          <HelpFab />
+        </TutorialProvider>
+      </SimulationProvider>
     </ThemeProvider>
   );
 }
