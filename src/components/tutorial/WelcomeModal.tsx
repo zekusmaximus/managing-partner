@@ -32,6 +32,7 @@ export default function WelcomeModal() {
       }}
     >
       <DialogTitle
+        component="div"
         sx={{
           textAlign: 'center',
           pt: 4,
@@ -39,10 +40,10 @@ export default function WelcomeModal() {
         }}
       >
         <AccountBalance sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+        <Typography component="h2" variant="h4" sx={{ fontWeight: 700 }}>
           Managing Partner
         </Typography>
-        <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
+        <Typography component="p" variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
           Government Relations Firm Simulator
         </Typography>
       </DialogTitle>
