@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { IconButton, Popover, Typography, Box, Chip, Stack } from '@mui/material';
 import { InfoOutlined } from '@mui/icons-material';
 import { getHelpItem } from '@/data/contextualHelp';
@@ -12,6 +12,8 @@ interface HelpTooltipProps {
 
 export default function HelpTooltip({ helpId, size = 'small' }: HelpTooltipProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const popoverId = useId();
+  const titleId = `${popoverId}-title`;
   const helpItem = getHelpItem(helpId);
 
   if (!helpItem) return null;
@@ -22,22 +24,30 @@ export default function HelpTooltip({ helpId, size = 'small' }: HelpTooltipProps
     <>
       <IconButton
         size={size}
+        aria-label={`Help: ${helpItem.metricName}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? popoverId : undefined}
         onClick={(e) => {
           e.stopPropagation();
           setAnchorEl(e.currentTarget);
         }}
+        onKeyDown={(e) => e.stopPropagation()}
         sx={{
           ml: 0.5,
           verticalAlign: 'middle',
           color: 'action.active',
           opacity: 0.6,
           '&:hover': { opacity: 1 },
-          p: size === 'small' ? 0.25 : 0.5,
+          minWidth: 32,
+          minHeight: 32,
+          p: 0.5,
         }}
       >
         <InfoOutlined sx={{ fontSize: size === 'small' ? 16 : 20 }} />
       </IconButton>
       <Popover
+        id={popoverId}
         open={open}
         anchorEl={anchorEl}
         onClose={() => setAnchorEl(null)}
@@ -45,11 +55,13 @@ export default function HelpTooltip({ helpId, size = 'small' }: HelpTooltipProps
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{
           paper: {
-            sx: { maxWidth: 380, p: 2.5 },
+            role: 'dialog',
+            'aria-labelledby': titleId,
+            sx: { maxWidth: 'min(380px, calc(100vw - 32px))', p: 2.5 },
           },
         }}
       >
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+        <Typography id={titleId} variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
           {helpItem.metricName}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>

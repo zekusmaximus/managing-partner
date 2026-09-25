@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useSimulation } from '@/context/SimulationContext';
 import { getARTotal } from '@/types/simulation';
 import HelpTooltip from '@/components/help/HelpTooltip';
+import { isValidAmount } from '@/lib/simulation/engine';
 
 export default function ARManager() {
   const { state, writeOffAR, collectAR } = useSimulation();
@@ -14,6 +15,7 @@ export default function ARManager() {
 
   const { arAging, clients, financialHistory } = state;
   const totalAR = getARTotal(arAging);
+  const validWriteOff = isValidAmount(writeOffAmount) && writeOffAmount <= arAging.ninetyPlus;
 
   // DSO calculation: (total AR / avg daily revenue)
   const avgMonthlyRevenue = financialHistory.length > 0
@@ -49,6 +51,7 @@ export default function ARManager() {
   });
 
   const handleWriteOff = () => {
+    if (!validWriteOff) return;
     writeOffAR(writeOffAmount);
     setWriteOffOpen(false);
     setWriteOffAmount(0);
@@ -132,7 +135,7 @@ export default function ARManager() {
       </Paper>
 
       {/* Client-by-Client AR Table */}
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} data-tutorial-target="ar-aging-table">
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -189,12 +192,14 @@ export default function ARManager() {
             fullWidth
             value={writeOffAmount}
             onChange={(e) => setWriteOffAmount(Number(e.target.value))}
+            error={!validWriteOff}
             helperText={`Maximum: $${Math.round(arAging.ninetyPlus).toLocaleString()} (90+ day balance)`}
+            slotProps={{ htmlInput: { min: 0, max: arAging.ninetyPlus, step: 1 } }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWriteOffOpen(false)}>Cancel</Button>
-          <Button onClick={handleWriteOff} variant="contained" color="error">Write Off</Button>
+          <Button onClick={handleWriteOff} variant="contained" color="error" disabled={!validWriteOff}>Write Off</Button>
         </DialogActions>
       </Dialog>
     </Box>

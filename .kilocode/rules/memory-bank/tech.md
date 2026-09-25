@@ -1,143 +1,37 @@
-# Technical Context: Next.js Starter Template
+# Technical Context: Managing Partner
 
-## Technology Stack
+## Stack
 
-| Technology   | Version | Purpose                         |
-| ------------ | ------- | ------------------------------- |
-| Next.js      | 16.x    | React framework with App Router |
-| React        | 19.x    | UI library                      |
-| TypeScript   | 5.9.x   | Type-safe JavaScript            |
-| Tailwind CSS | 4.x     | Utility-first CSS               |
-| Bun          | Latest  | Package manager & runtime       |
+| Technology | Purpose |
+| --- | --- |
+| Next.js 16 and React 19 | App Router and UI runtime |
+| TypeScript 5 | Types and quality checks |
+| MUI 7 and Emotion | Components and theme |
+| Recharts 3 | Charts |
+| Tailwind CSS 4 | Available utility styling |
+| Bun | Package manager and test runner |
 
-## Development Environment
+## Requirements and Commands
 
-### Prerequisites
-
-- Bun installed (`curl -fsSL https://bun.sh/install | bash`)
-- Node.js 20+ (for compatibility)
-
-### Commands
+Use Bun for dependency management. If using Node.js directly, Next.js 16 requires Node 20.9 or later. Do not start `bun dev` or `next dev` in the managed sandbox; it supplies the preview.
 
 ```bash
-bun install        # Install dependencies
-bun dev            # Start dev server (http://localhost:3000)
-bun build          # Production build
-bun start          # Start production server
-bun lint           # Run ESLint
-bun typecheck      # Run TypeScript type checking
+bun install
+bun test
+bun typecheck
+bun lint
+bun run build
 ```
 
-## Project Configuration
+## Storage and Integrations
 
-### Next.js Config (`next.config.ts`)
+The app uses a versioned `localStorage` save for one browser. It has no server API, account system, or database. The optional database recipe applies only if server-side or cross-device persistence is later requested.
 
-- App Router enabled
-- Default settings for flexibility
+## Key Directories
 
-### TypeScript Config (`tsconfig.json`)
-
-- Strict mode enabled
-- Path alias: `@/*` → `src/*`
-- Target: ESNext
-
-### Tailwind CSS 4 (`postcss.config.mjs`)
-
-- Uses `@tailwindcss/postcss` plugin
-- CSS-first configuration (v4 style)
-
-### ESLint (`eslint.config.mjs`)
-
-- Uses `eslint-config-next`
-- Flat config format
-
-## Key Dependencies
-
-### Production Dependencies
-
-```json
-{
-  "next": "^16.1.3", // Framework
-  "react": "^19.2.3", // UI library
-  "react-dom": "^19.2.3" // React DOM
-}
-```
-
-### Dev Dependencies
-
-```json
-{
-  "typescript": "^5.9.3",
-  "@types/node": "^24.10.2",
-  "@types/react": "^19.2.7",
-  "@types/react-dom": "^19.2.3",
-  "@tailwindcss/postcss": "^4.1.17",
-  "tailwindcss": "^4.1.17",
-  "eslint": "^9.39.1",
-  "eslint-config-next": "^16.0.0"
-}
-```
-
-## File Structure
-
-```
-/
-├── .gitignore              # Git ignore rules
-├── package.json            # Dependencies and scripts
-├── bun.lock                # Bun lockfile
-├── next.config.ts          # Next.js configuration
-├── tsconfig.json           # TypeScript configuration
-├── postcss.config.mjs      # PostCSS (Tailwind) config
-├── eslint.config.mjs       # ESLint configuration
-├── public/                 # Static assets
-│   └── .gitkeep
-└── src/                    # Source code
-    └── app/                # Next.js App Router
-        ├── layout.tsx      # Root layout
-        ├── page.tsx        # Home page
-        ├── globals.css     # Global styles
-        └── favicon.ico     # Site icon
-```
-
-## Technical Constraints
-
-### Starting Point
-
-- Minimal structure - expand as needed
-- No database by default (use recipe to add)
-- No authentication by default (add when needed)
-
-### Browser Support
-
-- Modern browsers (ES2020+)
-- No IE11 support
-
-## Performance Considerations
-
-### Image Optimization
-
-- Use Next.js `Image` component for optimization
-- Place images in `public/` directory
-
-### Bundle Size
-
-- Tree-shaking enabled by default
-- Tailwind CSS purges unused styles
-
-### Core Web Vitals
-
-- Server Components reduce client JavaScript
-- Streaming and Suspense for better UX
-
-## Deployment
-
-### Build Output
-
-- Server-rendered pages by default
-- Can be configured for static export
-
-### Environment Variables
-
-- None required for base template
-- Add as needed for features
-- Use `.env.local` for local development
+- `src/app/`: routes and root providers
+- `src/components/`: layout, dashboard, finance, HR, tutorial, and help UI
+- `src/context/`: session, simulation, and tutorial contexts
+- `src/lib/simulation/`: pure game transitions and financial calculations
+- `src/lib/session/`: save validation, serialization, and tutorial defaults
+- `src/types/`: shared simulation types

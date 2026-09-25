@@ -5,6 +5,7 @@ import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { useSimulation } from '@/context/SimulationContext';
 import HelpTooltip from '@/components/help/HelpTooltip';
+import { isValidAmount } from '@/lib/simulation/engine';
 
 export default function BudgetTracker() {
   const { state, setBudget } = useSimulation();
@@ -27,7 +28,7 @@ export default function BudgetTracker() {
   const totalVariance = totalActual - totalPlanned;
 
   const getVarianceColor = (variance: number, planned: number) => {
-    if (planned === 0) return 'default';
+    if (planned === 0) return variance > 0 ? 'error' : 'default';
     const pct = variance / planned;
     if (pct > 0.1) return 'error';
     if (pct > 0) return 'warning';
@@ -41,6 +42,7 @@ export default function BudgetTracker() {
   };
 
   const handleSave = () => {
+    if (!isValidAmount(editAmount, true)) return;
     setBudget(editCategory, editAmount);
     setEditOpen(false);
   };
@@ -87,7 +89,7 @@ export default function BudgetTracker() {
           <TableBody>
             {quarterBudget.map(b => {
               const variance = b.actualQuarterlySpend - b.plannedQuarterly;
-              const pctUsed = b.plannedQuarterly > 0 ? (b.actualQuarterlySpend / b.plannedQuarterly * 100) : 0;
+              const pctUsed = b.plannedQuarterly > 0 ? (b.actualQuarterlySpend / b.plannedQuarterly * 100) : null;
               return (
                 <TableRow key={b.category} hover>
                   <TableCell>{b.category}</TableCell>
@@ -102,9 +104,9 @@ export default function BudgetTracker() {
                   </TableCell>
                   <TableCell align="right">
                     <Chip
-                      label={`${pctUsed.toFixed(0)}%`}
+                      label={pctUsed === null ? (b.actualQuarterlySpend > 0 ? 'Unbudgeted' : '—') : `${pctUsed.toFixed(0)}%`}
                       size="small"
-                      color={pctUsed > 100 ? 'error' : pctUsed > 80 ? 'warning' : 'success'}
+                      color={pctUsed === null ? (b.actualQuarterlySpend > 0 ? 'error' : 'default') : pctUsed > 100 ? 'error' : pctUsed > 80 ? 'warning' : 'success'}
                     />
                   </TableCell>
                   <TableCell align="center">
@@ -129,7 +131,7 @@ export default function BudgetTracker() {
               </TableCell>
               <TableCell align="right">
                 <Chip
-                  label={`${totalPlanned > 0 ? (totalActual / totalPlanned * 100).toFixed(0) : 0}%`}
+                  label={totalPlanned > 0 ? `${(totalActual / totalPlanned * 100).toFixed(0)}%` : totalActual > 0 ? 'Unbudgeted' : '—'}
                   size="small"
                   color={totalActual > totalPlanned ? 'error' : 'success'}
                 />
@@ -150,12 +152,14 @@ export default function BudgetTracker() {
             fullWidth
             value={editAmount}
             onChange={(e) => setEditAmount(Number(e.target.value))}
+            error={!isValidAmount(editAmount, true)}
+            slotProps={{ htmlInput: { min: 0, step: 1 } }}
             sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">Save</Button>
+          <Button onClick={handleSave} variant="contained" disabled={!isValidAmount(editAmount, true)}>Save</Button>
         </DialogActions>
       </Dialog>
     </Box>

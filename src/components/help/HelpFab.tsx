@@ -13,11 +13,12 @@ export default function HelpFab() {
       <Tooltip title="GR Glossary & Help" placement="left">
         <Fab
           color="primary"
+          aria-label="Open government relations glossary and help"
           onClick={() => setGlossaryOpen(true)}
           sx={{
             position: 'fixed',
-            bottom: 24,
-            right: 24,
+            bottom: { xs: 16, sm: 24 },
+            right: { xs: 16, sm: 24 },
             zIndex: 1200,
           }}
         >

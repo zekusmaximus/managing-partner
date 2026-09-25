@@ -1,17 +1,16 @@
 "use client";
 
 import React, { useState } from 'react';
-import { TopNav } from '@/components/layout/TopNav';
-import { SideNav } from '@/components/layout/SideNav';
-import { Box, Typography, Grid, Card, CardContent, CardHeader, Button, List, ListItem, ListItemText, ListItemIcon, ListItemButton, Chip, Divider, Paper, Badge } from '@mui/material';
-import { Email, Warning, Info, Work, CheckCircle, CircleOutlined, PriorityHigh, Send } from '@mui/icons-material';
+import { Box, Typography, Grid, Card, CardHeader, Button, List, ListItem, ListItemText, ListItemIcon, ListItemButton, Chip, Divider } from '@mui/material';
+import { Email, CheckCircle, CircleOutlined, PriorityHigh } from '@mui/icons-material';
 import { useSimulation } from '@/context/SimulationContext';
 import type { InboxMessage } from '@/context/SimulationContext';
 import HelpTooltip from '@/components/help/HelpTooltip';
 
 export default function Inbox() {
-  const { state, markInboxMessageRead, handleInboxChoice, advanceMonth } = useSimulation();
-  const [selectedMessage, setSelectedMessage] = useState<InboxMessage | null>(null);
+  const { state, markInboxMessageRead, handleInboxChoice } = useSimulation();
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const selectedMessage = state.inbox.find(message => message.id === selectedMessageId) ?? null;
 
   const unreadCount = state.inbox.filter(m => !m.read).length;
   const actionRequired = state.inbox.filter(m => m.requiresAction).length;
@@ -25,35 +24,21 @@ export default function Inbox() {
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'request': return <RequestIcon />;
-      case 'alert': return <Warning color="warning" />;
-      case 'opportunity': return <Work color="primary" />;
-      default: return <Info />;
-    }
-  };
-
   const formatDate = (date: Date) => {
     const d = new Date(date);
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const handleMessageClick = (message: InboxMessage) => {
-    setSelectedMessage(message);
+    setSelectedMessageId(message.id);
     if (!message.read) {
       markInboxMessageRead(message.id);
     }
   };
 
   const handleChoiceClick = (choiceId: string) => {
-    if (selectedMessage) {
-      handleInboxChoice(selectedMessage.id, choiceId);
-      // Update selected message after handling
-      const updatedMessage = state.inbox.find(m => m.id === selectedMessage.id);
-      if (updatedMessage) {
-        setSelectedMessage({ ...updatedMessage, read: true, requiresAction: false });
-      }
+    if (selectedMessageId) {
+      handleInboxChoice(selectedMessageId, choiceId);
     }
   };
 
@@ -68,16 +53,12 @@ export default function Inbox() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <TopNav />
-      <div style={{ display: 'flex', flex: 1 }}>
-        <SideNav />
-        <Box sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}>
             <Typography variant="h4" component="h1">
               Inbox
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
               <Chip
                 label={`${unreadCount} unread`}
                 color={unreadCount > 0 ? 'primary' : 'default'}
@@ -86,26 +67,19 @@ export default function Inbox() {
                 label={<>{actionRequired} requires action <HelpTooltip helpId="inbox-action-required" /></>}
                 color={actionRequired > 0 ? 'warning' : 'default'}
               />
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                onClick={advanceMonth}
-              >
-                Advance Month →
-              </Button>
             </Box>
           </Box>
 
-          <Grid container spacing={3} sx={{ flex: 1, overflow: 'hidden' }}>
+          <Grid container spacing={2} sx={{ minWidth: 0 }}>
             {/* Message List */}
-            <Grid size={{ xs: 12, md: 5 }} sx={{ overflow: 'hidden' }} data-tutorial-target="inbox-message-list">
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Grid size={{ xs: 12, md: 5 }} sx={{ minWidth: 0, height: { md: 'calc(100dvh - 210px)' } }} data-tutorial-target="inbox-message-list">
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 280 }}>
                 <CardHeader 
                   title="Messages" 
                   subheader={`${state.inbox.length} total message(s)`}
                 />
                 <Divider />
-                <Box sx={{ flex: 1, overflow: 'auto' }}>
+                <Box sx={{ flex: 1, minHeight: 0, maxHeight: { xs: 320, md: 'none' }, overflowY: 'auto' }}>
                   {sortedMessages.length === 0 ? (
                     <Box sx={{ p: 3, textAlign: 'center' }}>
                       <Email sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
@@ -121,7 +95,7 @@ export default function Inbox() {
                             disablePadding
                           >
                             <ListItemButton 
-                              selected={selectedMessage?.id === message.id}
+                              selected={selectedMessageId === message.id}
                               onClick={() => handleMessageClick(message)}
                               sx={{ 
                                 bgcolor: !message.read ? 'action.hover' : 'transparent',
@@ -178,14 +152,14 @@ export default function Inbox() {
             </Grid>
 
             {/* Message Detail */}
-            <Grid size={{ xs: 12, md: 7 }} sx={{ overflow: 'hidden' }} data-tutorial-target="inbox-detail">
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Grid size={{ xs: 12, md: 7 }} sx={{ minWidth: 0, height: { md: 'calc(100dvh - 210px)' } }} data-tutorial-target="inbox-detail">
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 320 }}>
                 {selectedMessage ? (
                   <>
                     <CardHeader 
                       title={selectedMessage.title}
                       subheader={
-                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                           <Chip 
                             label={selectedMessage.type} 
                             size="small" 
@@ -205,7 +179,7 @@ export default function Inbox() {
                       }
                     />
                     <Divider />
-                    <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+                    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: { xs: 2, sm: 3 } }}>
                       <Typography variant="body1" paragraph>
                         {selectedMessage.description}
                       </Typography>
@@ -222,20 +196,15 @@ export default function Inbox() {
                           <Grid container spacing={2}>
                             {selectedMessage.choices.map((choice) => (
                               <Grid size={{ xs: 12 }} key={choice.id}>
-                                <Card 
-                                  variant="outlined" 
-                                  sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                                <Button
+                                  variant="outlined"
+                                  fullWidth
+                                  sx={{ display: 'block', textAlign: 'left', textTransform: 'none', p: 2, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
                                   onClick={() => handleChoiceClick(choice.id)}
                                 >
-                                  <CardContent>
-                                    <Typography variant="body1" fontWeight="bold">
-                                      {choice.label}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                      {choice.effect}
-                                    </Typography>
-                                  </CardContent>
-                                </Card>
+                                  <Typography variant="body1" fontWeight="bold">{choice.label}</Typography>
+                                  <Typography variant="body2" color="text.secondary">{choice.effect}</Typography>
+                                </Button>
                               </Grid>
                             ))}
                           </Grid>
@@ -246,7 +215,9 @@ export default function Inbox() {
                         <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
                           <CheckCircle />
                           <Typography variant="body2">
-                            This message has been addressed.
+                            {selectedMessage.choices.length > 0
+                              ? 'This message has been addressed.'
+                              : 'No action is needed for this message.'}
                           </Typography>
                         </Box>
                       )}
@@ -260,7 +231,7 @@ export default function Inbox() {
                         Select a message to read
                       </Typography>
                       <Typography variant="body2">
-                        Click on a message from the list to view its contents
+                        Choose a message from the list to view its contents
                       </Typography>
                     </Box>
                   </Box>
@@ -269,17 +240,6 @@ export default function Inbox() {
             </Grid>
           </Grid>
         </Box>
-      </div>
-    </div>
-  );
-}
-
-// Helper component for request icon
-function RequestIcon() {
-  return (
-    <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-      <Send color="action" />
-    </Box>
   );
 }
 

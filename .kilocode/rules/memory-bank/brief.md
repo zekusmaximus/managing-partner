@@ -1,48 +1,25 @@
-# Project Brief: Next.js Starter Template
+# Project Brief: Managing Partner
 
 ## Purpose
 
-This is a minimal Next.js starter template designed for AI-assisted development. It provides a clean foundation that can be extended to build any type of web application through interaction with an AI assistant.
+Managing Partner is an educational browser simulation of running a mid-size government relations firm in Washington, D.C. Players make recurring decisions about cash, clients, staffing, vendors, and partner economics, then advance the calendar to see the consequences.
 
 ## Target Users
 
-- Developers wanting a clean Next.js starting point
-- Users building applications through AI-assisted coding
-- Teams needing a standardized, modern Next.js setup
+- People learning how government relations firms operate
+- Instructors and learners exploring management trade-offs
+- Players who want a guided, scenario-based business simulation
 
-## Core Use Case
+## Core Requirements
 
-Users describe what they want to build to an AI assistant, which then expands this template by:
+- A dashboard and dedicated finances, HR, clients, and inbox views
+- Monthly simulation steps that update money, team, clients, reputation, alerts, and decisions
+- A guided tutorial and contextual explanations for industry terms and metrics
+- One coherent local save for simulation and tutorial progress, with a confirmed New Game reset
+- Usable desktop and mobile layouts, keyboard-accessible actions, and passing quality checks
 
-1. Adding components and pages as needed
-2. Installing additional dependencies
-3. Setting up databases, authentication, etc. using recipes
-4. Customizing styling and branding
+## Current Constraints
 
-## Key Requirements
-
-### Must Have
-
-- Modern Next.js 16 setup with App Router
-- TypeScript for type safety
-- Tailwind CSS 4 for styling
-- ESLint for code quality
-- Clean, minimal starting structure
-- Bun as package manager
-
-### Nice to Have
-
-- Recipe system for common additions (database, auth)
-- Memory bank for AI context persistence
-- Clear development guidelines
-
-## Success Metrics
-
-- Clean, zero-error TypeScript setup
-- Passing lint and type checks
-
-## Constraints
-
-- Minimal dependencies by default
-- Framework: Next.js 16 + React 19 + Tailwind CSS 4
-- Package manager: Bun
+- Next.js App Router, React, TypeScript, MUI, Recharts, and Bun
+- One browser-local save slot; no accounts, database, or cross-device sync
+- A simplified educational financial model, not a full accounting system

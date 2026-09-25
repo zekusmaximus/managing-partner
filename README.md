@@ -1,10 +1,12 @@
 # Managing Partner - Government Relations Simulator
 
-> A hyper-accurate, serious educational simulator for executive management techniques in government relations firms.
+> An educational business simulation about managing a government relations firm.
 
 ## Overview
 
 **Managing Partner** is a business simulation game where players take on the role of a managing partner at a mid-size government relations firm in Washington, D.C. Make strategic decisions about finances, human resources, and client relationships to grow your firm's reputation and profitability. An interactive tutorial system guides new players through the fundamentals of GR industry management.
+
+This is a playable prototype with a simplified financial model. Progress is saved in the current browser; a confirmed **New Game** action resets the simulation and tutorial together.
 
 ## Features
 
@@ -15,6 +17,7 @@
 - **Inbox System**: Handle scenario-based decisions including compensation requests, vendor contracts, budget overruns, and new business opportunities
 - **Interactive Tutorial**: 34-step guided tutorial across 4 phases teaching GR industry fundamentals and firm management
 - **Help System**: Searchable glossary with 55+ industry terms, contextual help tooltips on every metric, and a floating help button
+- **Local Save**: Simulation decisions and tutorial progress resume together after a reload
 
 ## Tech Stack
 
@@ -31,7 +34,7 @@
 
 ### Prerequisites
 
-- Bun (recommended) or Node.js 18+
+- Bun for the commands below. Next.js 16 also requires Node.js 20.9+ if run with Node directly.
 
 ### Installation
 
@@ -68,8 +71,9 @@ src/
 │   ├── dashboard/
 │   │   └── Dashboard.tsx         # Main dashboard with KPIs & charts
 │   ├── layout/
+│   │   ├── AppShell.tsx          # Shared header, sidebar, and mobile drawer
 │   │   ├── TopNav.tsx            # Top navigation with alerts & inbox count
-│   │   └── SideNav.tsx           # Side navigation with tutorial progress
+│   │   └── SideNav.tsx           # Navigation, tutorial progress, and New Game
 │   ├── finances/
 │   │   ├── PLStatement.tsx       # Income statement
 │   │   ├── BudgetTracker.tsx     # Quarterly budget tracking
@@ -88,8 +92,12 @@ src/
 │       ├── GlossaryDrawer.tsx    # Searchable glossary drawer
 │       └── HelpTooltip.tsx       # Contextual help on metrics
 ├── context/
-│   ├── SimulationContext.tsx      # Core game state & logic
-│   └── TutorialContext.tsx        # Tutorial state & persistence
+│   ├── SessionContext.tsx         # One versioned browser-local save
+│   ├── SimulationContext.tsx      # Simulation actions
+│   └── TutorialContext.tsx        # Tutorial actions
+├── lib/
+│   ├── simulation/               # Pure transitions and shared financial metrics
+│   └── session/                  # Save loading, validation, and defaults
 ├── data/
 │   ├── tutorialSteps.ts          # 34 tutorial steps across 4 phases
 │   ├── learningObjectives.ts     # 13 learning objectives
@@ -116,7 +124,7 @@ The game tracks the following:
 
 ### Financial Model
 
-- Cash-flow-driven accounting — collections drive cash position, not accrued revenue
+- Simplified accrual P&L and cash tracking — client fees are billed as revenue; collections drive cash
 - AR aging in 4 buckets (0-30, 31-60, 61-90, 90+ days) with collection rates based on client payment profiles
 - Payroll: salary + 25% benefits + 7.65% FICA
 - Line of credit with 8% annual interest (auto-draw/repay)
@@ -132,7 +140,7 @@ A 34-step interactive tutorial spanning 4 phases:
 3. **Month 2 — Client Management & Decision-Making**: Client types, satisfaction, and inbox decisions
 4. **Month 3 — Strategic Thinking**: Trend analysis, resource allocation, reputation, and hiring decisions
 
-Covers 13 learning objectives from understanding GR industry basics to strategic firm management. Progress persists across sessions via localStorage.
+Covers 13 learning objectives from understanding GR industry basics to strategic firm management. Game and tutorial progress are saved together in this browser; saves do not sync across devices.
 
 ## Available Scripts
 
@@ -143,6 +151,7 @@ Covers 13 learning objectives from understanding GR industry basics to strategic
 | `bun run start` | Start production server |
 | `bun run lint` | Run ESLint |
 | `bun run typecheck` | Run TypeScript type checking |
+| `bun test` | Run focused simulation and save-state tests |
 
 ## Contributing
 

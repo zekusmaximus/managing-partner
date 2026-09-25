@@ -82,7 +82,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'Cash on Hand',
     content:
-      'Cash on Hand is your firm\'s available operating capital — the money in your bank account right now. In the GR industry, firms aim to maintain 3-6 months of operating expenses as a cash buffer.\n\nYour current reserve is $250,000. With monthly expenses around $37,000, that gives you roughly 6-7 months of runway. This is a comfortable position, but it can erode quickly if you lose a major client or hire aggressively.',
+      'Cash on Hand is your firm\'s available operating capital — the money in your bank account right now. In the GR industry, firms aim to maintain 3-6 months of operating expenses as a cash buffer.\n\nYour current reserve is {{cash}}. At the current expense rate of {{expenses}} per month, cash alone covers about {{runway}} months before collections. Available credit is a separate buffer. This position can change quickly if you lose a major client or hire aggressively.',
     targetSelector: '[data-tutorial-target="stat-cash"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m1-cash-mgmt'],
@@ -91,9 +91,9 @@ export const tutorialSteps: TutorialStep[] = [
     id: 'm1-revenue-card',
     phase: 'month1',
     page: '/',
-    title: 'Monthly Revenue',
+    title: 'Collections and Revenue',
     content:
-      'Your Monthly Revenue comes from client retainers — the fixed fees your clients pay each month for your advocacy services. This is called Monthly Recurring Revenue (MRR) in the industry.\n\nFor a firm your size, $100K+ MRR is solid. This number rises when you add clients and falls when you lose them. Revenue stability is the foundation of everything else.',
+      'Clients are billed each month for your advocacy services. The Collections card shows the cash received this month, while the Billed line shows the value of this month\'s client fees. The difference becomes accounts receivable until clients pay.\n\nCollections may lag behind billing, so compare both numbers when judging how much cash the firm can spend.',
     targetSelector: '[data-tutorial-target="stat-revenue"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m1-financials'],
@@ -102,9 +102,9 @@ export const tutorialSteps: TutorialStep[] = [
     id: 'm1-profit-card',
     phase: 'month1',
     page: '/',
-    title: 'Net Profit',
+    title: 'Operating Margin',
     content:
-      'Net Profit is what remains after subtracting all expenses (primarily payroll) from revenue. Healthy GR firms target 20-35% profit margins.\n\nYour profit funds three critical needs: partner compensation (your paycheck), cash reserves (for lean months), and firm growth (hiring, marketing, new capabilities). If profit dips below 15%, your firm is in a precarious position.',
+      'Operating margin is operating income divided by billed revenue. Operating income is what remains after payroll and operating costs, before the partner draw and credit-line interest.\n\nUse the P&L statement to see those costs and the separate net income figure. A falling margin leaves less room for partner compensation, cash reserves, and growth.',
     targetSelector: '[data-tutorial-target="stat-profit"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m1-financials'],
@@ -293,9 +293,9 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/inbox',
     title: 'Making Decisions',
     content:
-      'Each decision has real consequences that ripple through your firm. Consider the trade-offs:\n\n\u2022 Approving a raise costs money now but retains talent\n\u2022 Scheduling a client meeting takes time but may save the relationship\n\u2022 Pursuing new business aggressively uses resources but grows revenue\n\nClick on a message to see its details and available choices. Think carefully before deciding.',
-    targetSelector: '[data-tutorial-target="inbox-detail"]',
-    position: 'left',
+      'Each decision has real consequences that ripple through your firm. Consider the trade-offs:\n\n\u2022 Approving a raise costs money now but retains talent\n\u2022 Scheduling a client meeting takes time but may save the relationship\n\u2022 Pursuing new business aggressively uses resources but grows revenue\n\nClick a message in the highlighted list to see its details and available choices. Think carefully before deciding.',
+    targetSelector: '[data-tutorial-target="inbox-message-list"]',
+    position: 'bottom',
     learningObjectiveIds: ['lo-m2-decisions', 'lo-m2-tradeoffs'],
   },
   {

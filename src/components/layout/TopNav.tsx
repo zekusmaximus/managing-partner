@@ -1,103 +1,81 @@
 "use client";
 
-import React from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, Stack, Badge, IconButton, Tooltip } from '@mui/material';
-import { Email, Notifications } from '@mui/icons-material';
+import { AppBar, Toolbar, Typography, Button, Box, Badge, IconButton, Tooltip } from '@mui/material';
+import { Email, Menu, Notifications } from '@mui/icons-material';
 import Link from 'next/link';
 import { useSimulation } from '@/context/SimulationContext';
+import { useTutorial } from '@/context/TutorialContext';
 
-export const TopNav = () => {
+const monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { state, advanceMonth } = useSimulation();
-
-  const unreadCount = state.inbox.filter(m => !m.read).length;
+  const { onMonthAdvanced } = useTutorial();
+  const unreadCount = state.inbox.filter(message => !message.read).length;
   const alertCount = state.alerts.length;
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                      'July', 'August', 'September', 'October', 'November', 'December'];
+  const handleAdvanceMonth = () => {
+    advanceMonth();
+    onMonthAdvanced();
+  };
 
   return (
-    <AppBar position="static" sx={{ bgcolor: '#1976d2' }}>
-      <Toolbar>
-        <Box sx={{ flexGrow: 1 }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="h6" color="inherit" sx={{ fontWeight: 600 }}>
-              Managing Partner
-            </Typography>
-            <Typography variant="body2" color="inherit" sx={{ opacity: 0.9 }}>
-              {monthNames[state.month - 1]} {state.year}
-            </Typography>
-          </Stack>
-        </Box>
-        
-        <Stack direction="row" spacing={2} alignItems="center">
-          {/* Alerts */}
-          <Tooltip title={`${alertCount} alert(s)`}>
-            <IconButton color="inherit" sx={{ mr: 1 }}>
-              <Badge badgeContent={alertCount} color="error">
-                <Notifications />
-              </Badge>
-            </IconButton>
-          </Tooltip>
-
-          {/* Inbox */}
-          <Link href="/inbox" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <Tooltip title={`${unreadCount} unread message(s)`}>
-              <IconButton color="inherit" sx={{ mr: 2 }}>
-                <Badge badgeContent={unreadCount} color="primary">
-                  <Email />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-          </Link>
-
-          {/* Stats */}
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1, mr: 2 }}>
-            <Typography variant="body2" color="inherit" sx={{ opacity: 0.8 }}>
-              Cash:
-            </Typography>
-            <Typography variant="body1" color="inherit" sx={{ fontWeight: 600 }}>
-              ${state.financials.cashOnHand.toLocaleString()}
-            </Typography>
+    <AppBar position="static" sx={{ bgcolor: 'primary.main', flexShrink: 0 }}>
+      <Toolbar sx={{ gap: { xs: 0.5, sm: 1 }, flexWrap: { xs: 'wrap', md: 'nowrap' }, py: { xs: 0.75, md: 0 } }}>
+        <IconButton
+          color="inherit"
+          edge="start"
+          aria-label="Open navigation menu"
+          onClick={onOpenMenu}
+          sx={{ display: { md: 'none' }, mr: 0.5 }}
+        >
+          <Menu />
+        </IconButton>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700, fontSize: { xs: '1rem', sm: '1.25rem' }, whiteSpace: 'nowrap' }}>
+          Managing Partner
+        </Typography>
+        <Typography variant="body2" sx={{ display: { xs: 'none', md: 'block' }, opacity: 0.9, whiteSpace: 'nowrap' }}>
+          {monthNames[state.month - 1]} {state.year}
+        </Typography>
+        <Tooltip title={`${alertCount} alert${alertCount === 1 ? '' : 's'}`}>
+          <IconButton component={Link} href="/#alerts" color="inherit" aria-label={`Go to dashboard alerts, ${alertCount} active`} size="small">
+            <Badge badgeContent={alertCount} color="error"><Notifications /></Badge>
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={`${unreadCount} unread message${unreadCount === 1 ? '' : 's'}`}>
+          <IconButton component={Link} href="/inbox" color="inherit" aria-label={`Open inbox, ${unreadCount} unread`} size="small">
+            <Badge badgeContent={unreadCount} color="error"><Email /></Badge>
+          </IconButton>
+        </Tooltip>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'space-between', md: 'flex-end' }, gap: { xs: 1, md: 2 }, width: { xs: '100%', md: 'auto' }, minWidth: 0 }}>
+          <Typography variant="body2" sx={{ display: { md: 'none' }, opacity: 0.95, whiteSpace: 'nowrap' }}>
+            {monthNames[state.month - 1]} {state.year}
+          </Typography>
+          <Typography variant="body2" sx={{ display: { xs: 'none', lg: 'block' }, whiteSpace: 'nowrap' }}>
+            Cash: ${state.financials.cashOnHand.toLocaleString()}
+          </Typography>
+          <Box data-tutorial-target="reputation-display" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, whiteSpace: 'nowrap' }}>
+            <Typography variant="body2">Rep:</Typography>
+            <Typography variant="body2" fontWeight={700}>{state.reputation}</Typography>
           </Box>
-          
-          <Box data-tutorial-target="reputation-display" sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1, mr: 2 }}>
-            <Typography variant="body2" color="inherit" sx={{ opacity: 0.8 }}>
-              Rep:
-            </Typography>
-            <Typography variant="body1" color="inherit" sx={{ fontWeight: 600 }}>
-              {state.reputation}
-            </Typography>
-          </Box>
-
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1, mr: 2 }}>
-            <Typography variant="body2" color="inherit" sx={{ opacity: 0.8 }}>
-              Profit:
-            </Typography>
-            <Typography 
-              variant="body1" 
-              color="inherit" 
-              sx={{ 
-                fontWeight: 600,
-                color: state.financials.netProfit >= 0 ? '#4caf50' : '#f44336'
-              }}
-            >
-              ${state.financials.netProfit.toLocaleString()}
-            </Typography>
-          </Box>
-
+          <Typography variant="body2" sx={{ display: { xs: 'none', lg: 'block' }, whiteSpace: 'nowrap' }}>
+            Profit: ${state.financials.netProfit.toLocaleString()}
+          </Typography>
           <Button
             variant="contained"
             color="secondary"
-            size="medium"
-            onClick={advanceMonth}
+            size="small"
+            onClick={handleAdvanceMonth}
             data-tutorial-target="advance-month"
-            sx={{ fontWeight: 600 }}
+            sx={{ fontWeight: 700, whiteSpace: 'nowrap', px: { xs: 1, sm: 2 }, fontSize: { xs: '0.72rem', sm: '0.875rem' } }}
           >
-            Advance Month →
+            Advance Month
           </Button>
-        </Stack>
+        </Box>
       </Toolbar>
     </AppBar>
   );
-};
-
+}

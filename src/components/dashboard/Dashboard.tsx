@@ -6,6 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useSimulation } from '@/context/SimulationContext';
 import { getEmployeeTotalCost, getARTotal, getLOCAvailable } from '@/types/simulation';
 import HelpTooltip from '@/components/help/HelpTooltip';
+import { calculateProfitAndLoss } from '@/lib/simulation/metrics';
 
 export const Dashboard = () => {
   const { state, dismissAlert } = useSimulation();
@@ -34,9 +35,7 @@ export const Dashboard = () => {
   // Enhanced KPIs
   const totalAR = getARTotal(state.arAging);
   const locAvailable = getLOCAvailable(state.lineOfCredit);
-  const operatingMargin = state.financials.grossRevenue > 0
-    ? ((state.financials.grossRevenue - state.financials.operatingExpenses) / state.financials.grossRevenue * 100)
-    : 0;
+  const operatingMargin = calculateProfitAndLoss(state.financialHistory.slice(-1)).operatingMarginPercent;
 
   // DSO
   const avgMonthlyRevenue = state.financialHistory.length > 0
@@ -53,7 +52,7 @@ export const Dashboard = () => {
             <Grid size={{ xs: 12, sm: 6, md: 2 }} data-tutorial-target="stat-cash">
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary">Cash + LOC <HelpTooltip helpId="dashboard-cash" /></Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Cash on Hand <HelpTooltip helpId="dashboard-cash" /></Typography>
                   <Typography variant="h5" color={state.financials.cashOnHand < 50000 ? 'error' : 'primary'}>
                     ${state.financials.cashOnHand.toLocaleString()}
                   </Typography>
@@ -149,7 +148,7 @@ export const Dashboard = () => {
 
         {/* Alerts/Action Items */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card>
+          <Card id="alerts">
             <CardHeader
               title="Alerts & Notifications"
               subheader={`${state.alerts.length} active alert(s)`}
