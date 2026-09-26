@@ -10,9 +10,9 @@ Washington, D.C., and makes monthly decisions about finances, staff, clients, an
 events to grow the firm's reputation and profitability. It doubles as an educational tool,
 with a 34-step interactive tutorial and a searchable industry glossary.
 
-There is **no backend, no database, and no API layer**. The entire game is client-side
-React state held in context and (for tutorial progress only) `localStorage`. Treat the
-simulation as a pure in-memory model.
+There is **no backend, no database, and no API layer**. The game runs in client-side
+React state. One versioned browser-local save holds the simulation and tutorial together;
+version 1 saves migrate to version 2. There are no accounts or cross-device saves.
 
 ## Tech Stack
 
@@ -37,11 +37,12 @@ bun run build       # production build
 bun run start       # serve production build
 bun run lint        # ESLint (eslint-config-next)
 bun run typecheck   # tsc --noEmit
+bun test            # focused simulation and save tests
 ```
 
-**Before committing, always run `bun run typecheck` and `bun run lint`.** Type errors and
-lint errors break the build. Most past bugs in this repo were TypeScript/Next.js
-server-client-boundary issues caught by these checks.
+**Before committing, run `bun test`, `bun run typecheck`, `bun run lint`, and
+`bun run build`.** Type errors and lint errors break the build. Most past bugs in this
+repo were TypeScript/Next.js server-client-boundary issues caught by these checks.
 
 > Note: In the managed/sandbox environment the dev server is started automatically — do not
 > run `bun run dev` / `next dev` yourself there. When working locally, `bun run dev` is fine.
@@ -52,7 +53,7 @@ server-client-boundary issues caught by these checks.
 src/
 ├── app/                       # Next.js App Router (routes + root wiring)
 │   ├── layout.tsx             # Root layout, fonts, metadata, wraps <Providers>
-│   ├── providers.tsx          # "use client" — MUI ThemeProvider + Simulation/Tutorial providers + global overlays
+│   ├── providers.tsx          # "use client" — theme, session/simulation/tutorial providers, shell, overlays
 │   ├── globals.css            # Tailwind import + global styles
 │   ├── page.tsx               # Route "/"  → Dashboard
 │   ├── finances/page.tsx      # Route "/finances" → 5-tab financial view
@@ -61,14 +62,18 @@ src/
 │   └── inbox/page.tsx         # Route "/inbox"    → decision inbox
 ├── components/
 │   ├── dashboard/Dashboard.tsx
-│   ├── layout/                # TopNav, SideNav (shell on every page)
+│   ├── layout/                # AppShell, TopNav, SideNav
 │   ├── finances/              # PLStatement, BudgetTracker, ARManager, CashFlowView, PartnerEconomicsView
 │   ├── hr/StaffingEconomics.tsx
 │   ├── tutorial/              # WelcomeModal, TutorialOverlay, TutorialProgressBar, LearningObjectivesCard
 │   └── help/                  # HelpFab, GlossaryDrawer, HelpTooltip
 ├── context/
-│   ├── SimulationContext.tsx  # ★ Core game state + all mutation logic (~1000 lines)
-│   └── TutorialContext.tsx    # Tutorial flow + localStorage persistence
+│   ├── SessionContext.tsx     # One browser-local snapshot + New Game
+│   ├── SimulationContext.tsx  # Component-facing game actions + scenario generation
+│   └── TutorialContext.tsx    # Tutorial flow; state stored by SessionContext
+├── lib/
+│   ├── simulation/           # Pure month transitions, inbox decisions, metrics, initial state
+│   └── session/              # Versioned save validation, migration, tutorial defaults
 ├── data/                      # Static content (no logic)
 │   ├── tutorialSteps.ts       # 34 steps across 4 phases
 │   ├── learningObjectives.ts  # 13 objectives + TutorialPhase type
@@ -82,10 +87,15 @@ The `@/*` path alias maps to `src/*` (see `tsconfig.json`). Always import with `
 
 ## Architecture & Key Conventions
 
-### 1. SimulationContext is the single source of truth
-`src/context/SimulationContext.tsx` owns the entire game state (`SimulationState`) and every
-function that mutates it. **All game logic flows through this file.** Pages and components are
-presentational: they read state and call action functions from the `useSimulation()` hook.
+### 1. SessionContext owns the saved state
+`src/context/SessionContext.tsx` owns one snapshot with `SimulationState` and tutorial state.
+It loads after client hydration, saves both together, and resets both with New Game.
+`src/lib/session/save.ts` validates the data, restores dates, and migrates version 1 pooled
+receivables as explicitly unassigned balances. Keep these states in the same snapshot.
+
+`SimulationContext` exposes gameplay actions through `useSimulation()`. Month advancement,
+inbox decisions, receivable operations, and financial selectors live in testable functions
+under `src/lib/simulation/`; do not move those calculations back into page components.
 
 Exposed actions (from the provider value): `advanceMonth`, `hireEmployee`, `fireEmployee`,
 `adjustSalary`, `addClient`, `removeClient`, `updateClientSatisfaction`,
@@ -97,45 +107,48 @@ Conventions when extending it:
 - Mutations use `setState(prevState => ...)` with **immutable updates** (spread, `map`,
   `filter`) — never mutate `prevState`.
 - Actions are wrapped in `useCallback`.
-- `advanceMonth()` is the heart of the game: it runs the monthly tick (collections & AR
+- `advanceMonth()` calls the pure monthly transition: collections and per-client AR
   aging, payroll, operating/vendor costs, partner draw, line-of-credit auto draw/repay,
-  budget tracking, reputation recalculation, financial-history snapshot) and then
-  regenerates `alerts` and `inbox` messages. Keep the numbered step structure intact and add
-  new mechanics as additional steps.
+  budget tracking, reputation recalculation, financial-history snapshot, then alerts
+  and inbox messages.
+- Inbox messages carry typed scenario subjects and optional persisted `resolution` feedback.
+  Decisions must use the named subject's state and show the actual result, including random
+  outcomes and unavailable subjects. A resolved message must not apply twice.
 - `useSimulation()` throws if used outside `SimulationProvider`.
 
-### 2. Types and pure financial logic live in `src/types/simulation.ts`
-This file holds all interfaces **and** the financial constants and pure helper functions.
-Put reusable, side-effect-free calculations here rather than inlining them:
+### 2. Types and pure financial logic
+`src/types/simulation.ts` holds interfaces, financial constants, and small helpers.
+`src/lib/simulation/` holds transitions and shared metrics. Put reusable,
+side-effect-free calculations in one of these places rather than inlining them in UI:
 - Constants: `BENEFITS_RATE` (0.25), `PAYROLL_TAX_RATE` (0.0765), `HIRING_COST` (5000),
   `SEVERANCE_COST` (2000), `AR_COLLECTION_RATES`.
 - Helpers: `getEmployeeTotalCost`, `getEmployeeBenefits`, `getEmployeePayrollTax`,
   `getOperatingCostsTotal`, `getARTotal`, `getLOCAvailable`, `getLOCMonthlyInterest`.
 
-`SimulationContext` re-exports the types so consumers can import either from `@/types/simulation`
-or `@/context/SimulationContext`.
+`SimulationContext` re-exports types so consumers can import either from
+`@/types/simulation` or `@/context/SimulationContext`.
 
 ### 3. Server vs. Client Components
 Next.js App Router defaults to Server Components. Anything using state, context, hooks
 (`useSimulation`, `usePathname`), MUI interactivity, or browser APIs **must** start with
-`"use client";`. Pages that render the nav shell + interactive content are client components;
-`layout.tsx` and the simple route `page.tsx` files stay server where possible, delegating
-interactivity to `providers.tsx` and client components. Several historical bugs came from
-missing `"use client"` — when in doubt, check whether a hook is used.
+`"use client";`. The shared shell is mounted in `providers.tsx`; route pages supply their
+own content. Keep simple route files server-side when possible. Several historical bugs
+came from missing client boundaries.
 
 ### 4. Global app wiring
-`src/app/providers.tsx` (client) composes everything: MUI `ThemeProvider` + `CssBaseline`,
-then `SimulationProvider` → `TutorialProvider`, and mounts the always-on overlays
-(`WelcomeModal`, `TutorialOverlay`, `HelpFab`). Add new global providers/overlays here.
+`src/app/providers.tsx` (client) composes MUI `ThemeProvider` + `CssBaseline`, then
+`SessionProvider` → `SimulationProvider` → `TutorialProvider`, wraps content in `AppShell`,
+and mounts the always-on overlays (`WelcomeModal`, `TutorialOverlay`, `HelpFab`).
 
 ### 5. Page layout pattern
-Every page renders the same shell: a flex column with `<TopNav />` on top and a flex row of
-`<SideNav />` + page content. Follow this pattern for new pages and add the route to
-`SideNav` navigation.
+`AppShell` renders the full-width header above the desktop sidebar. At smaller widths,
+`SideNav` becomes a temporary drawer. The shell owns navigation, the date, and the single
+Advance Month control; new pages provide content only and add their route to `SideNav`.
 
 ### 6. Tutorial system
-- `TutorialContext` manages flow (status, current step/phase, completion %, pause/resume) and
-  persists to `localStorage` under key `managing-partner-tutorial`.
+- `TutorialContext` manages flow (status, current step/phase, completion %, pause/resume).
+  `SessionContext` saves tutorial progress with the simulation; the old tutorial-only key
+  is discarded.
 - Tutorial content is data, not code: edit `src/data/tutorialSteps.ts`. Each step targets a
   page and a CSS `targetSelector` (or `center`), and may require a `navigate` /
   `advance_month` action. Steps reference `learningObjectiveIds` from
@@ -150,24 +163,33 @@ Searchable glossary lives in `src/data/glossaryTerms.ts`; per-metric help text i
 ## Domain Model (quick reference)
 
 - **Time**: `month` (1–12) + `year`; quarter = `ceil(month/3)`. Game starts month 1, 2026.
-- **Financials**: cash-flow driven — collections (not accrued revenue) move cash. AR aged in
-  4 buckets (current/30/60/90+) with collection rates by client `paymentProfile`
-  (`prompt`/`normal`/`slow`). Line of credit auto draws/repays at 8% annual interest.
+- **Financials**: client fees are recognized as invoiced revenue; collections move cash.
+  Receivables age in 4 buckets (current/30/60/90+) per client with collection rates by
+  `paymentProfile` (`prompt`/`normal`/`slow`). Former-client balances remain until settled;
+  opening and migrated balances with unknown provenance stay unassigned. The aggregate
+  `arAging` buckets must equal the sum of the receivable accounts. The line of credit
+  auto draws/repays at 8% annual interest.
 - **Employees**: roles `Lobbyist | Attorney | Support`; metrics efficacy, burnout, salary,
   clientAffinity. Fully-loaded cost = salary × (1 + 0.25 benefits + 0.0765 FICA).
 - **Clients**: types `Trade Association | Corporation | Non-Profit`; satisfaction, monthly
   fee, contract months remaining.
 - **Reputation** (0–100): recomputed each month as 60% avg client satisfaction + 40% avg
   employee efficacy, with small random drift.
-- **Inbox**: scenario events with `choices`; `handleInboxChoice` applies effects to state.
+- **Inbox**: typed scenario events with `choices`; `handleInboxChoice` applies effects once
+  and records the selected action and actual outcome for the inbox detail view.
 - `financialHistory` keeps the last 12 monthly snapshots (used for dashboard charts).
+
+The model does not yet provide a full tax payable or penalty schedule, comprehensive
+classification of one-time expenses, or explicit cash-flow categories for distributions
+and credit-line movements. Treat these as future accounting work, not implemented rules.
 
 ## Workflow for Changes
 
 1. Make changes on the designated feature branch (see repo/task instructions).
-2. Keep game logic in `SimulationContext`, pure math/types in `types/simulation.ts`, and
-   static content in `data/`.
-3. Run `bun run typecheck` and `bun run lint` — both must pass.
+2. Keep component actions in `SimulationContext`, pure transitions and metrics in
+   `lib/simulation/`, types and small helpers in `types/simulation.ts`, and static content
+   in `data/`.
+3. Run `bun test`, `bun run typecheck`, `bun run lint`, and `bun run build` — all must pass.
 4. Commit with a clear, descriptive message and push.
 5. Do **not** open a pull request unless explicitly asked.
 

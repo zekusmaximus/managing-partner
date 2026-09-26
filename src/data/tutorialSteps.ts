@@ -115,7 +115,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'Firm Reputation',
     content:
-      'Reputation is everything in government relations. It determines whether clients renew their contracts, whether prospects choose your firm over competitors, and whether top talent wants to work for you.\n\nYour reputation is built on two pillars: client satisfaction (60%) and employee performance (40%). Think of it as your firm\'s "brand" on K Street.',
+      'Reputation is an important signal in government relations. In this simulation it summarizes two pillars: client satisfaction (60%) and employee efficacy (40%). Think of it as a quick read on how your firm is doing with clients and staff.',
     targetSelector: '[data-tutorial-target="stat-reputation"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m1-gr-role'],
@@ -150,7 +150,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/finances',
     title: 'Accounts Receivable',
     content:
-      'Accounts Receivable (AR) is money clients owe you for services already rendered. In the GR industry, standard payment terms are net-30 (due within 30 days).\n\nThe AR aging table breaks down outstanding invoices by how overdue they are. AR beyond 60 days is a red flag — it signals collection problems that can threaten your cash position even when the firm is profitable on paper.',
+      'Accounts Receivable (AR) is money clients owe you for services already rendered. In the GR industry, standard payment terms are net-30 (due within 30 days).\n\nEach client row shows its recorded balance by age. Prior balances without a known client appear separately as unassigned, and former clients remain until their balance is resolved. AR beyond 60 days is a red flag — it can threaten cash even when the firm is profitable on paper.',
     targetSelector: '[data-tutorial-target="ar-aging-table"]',
     position: 'top',
     learningObjectiveIds: ['lo-m1-cash-mgmt'],
@@ -185,7 +185,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/hr',
     title: 'The Burnout Crisis',
     content:
-      'Burnout is a real and serious issue in the GR industry. Long hours, high-stakes advocacy, constant travel, and the pressure of representing client interests before powerful officials all take a toll.\n\nWatch these burnout numbers carefully. When burnout exceeds 60%, employee performance drops significantly. Above 80%, you risk losing the employee entirely. Managing workload and compensation is how you fight burnout.',
+      'Burnout is a real and serious issue in the GR industry. Long hours, high-stakes advocacy, constant travel, and the pressure of representing client interests before powerful officials all take a toll.\n\nWatch these numbers carefully. In the simulation, higher burnout reduces employee efficacy as months advance. Staff decisions can also raise burnout or support performance.',
     targetSelector: '[data-tutorial-target="burnout-chart"]',
     position: 'left',
     learningObjectiveIds: ['lo-m1-team-roles'],
@@ -293,7 +293,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/inbox',
     title: 'Making Decisions',
     content:
-      'Each decision has real consequences that ripple through your firm. Consider the trade-offs:\n\n\u2022 Approving a raise costs money now but retains talent\n\u2022 Scheduling a client meeting takes time but may save the relationship\n\u2022 Pursuing new business aggressively uses resources but grows revenue\n\nClick a message in the highlighted list to see its details and available choices. Think carefully before deciding.',
+      'Each decision changes specific measures in your firm. Consider the trade-offs:\n\n\u2022 Approving a raise increases monthly payroll and employee efficacy\n\u2022 Scheduling a client meeting improves satisfaction\n\u2022 Pursuing new business gives you a chance to add monthly revenue\n\nClick a message in the highlighted list to see its details and available choices. After a choice, the inbox shows what actually happened.',
     targetSelector: '[data-tutorial-target="inbox-message-list"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m2-decisions', 'lo-m2-tradeoffs'],
@@ -304,7 +304,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/inbox',
     title: 'The Art of Decision-Making',
     content:
-      'Real managing partners balance short-term costs against long-term relationships every day. There are rarely perfect answers.\n\nDenying a raise saves money this month but may cost you a key lobbyist (and their clients) next month. Ignoring a client complaint saves time today but risks losing revenue tomorrow. Aggressive pursuit of new business can overextend your team.\n\nThe best GR leaders develop judgment through experience — which is exactly what this simulation teaches.',
+      'Real managing partners balance costs against relationships every day. There are rarely perfect answers.\n\nDenying a raise keeps salary flat but reduces efficacy and increases burnout. Ignoring a client complaint lowers satisfaction. Pursuing new business can add a client, but success is uncertain.\n\nUse the reported outcome and next month\'s metrics to learn from each choice.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: ['lo-m2-tradeoffs'],
@@ -353,7 +353,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'Resource Allocation',
     content:
-      'Look at your employee and client summaries below. Do you have enough lobbyists for your client load? Are any employees in the danger zone for burnout?\n\nThe industry standard is roughly 1.5-2 lobbyists per active client for quality service. Too few lobbyists means overwork and declining client satisfaction. Too many means wasted payroll and squeezed margins.',
+      'Look at your employee and client summaries below. Compare the number of clients with your team\'s efficacy and burnout. Is payroll affordable at your current revenue and cash levels?\n\nThere is no single staffing ratio that fits every firm. Use these measures together when deciding whether to hire.',
     targetSelector: '[data-tutorial-target="employee-summary"]',
     position: 'top',
     learningObjectiveIds: ['lo-m3-staffing'],

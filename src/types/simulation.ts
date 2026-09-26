@@ -70,6 +70,13 @@ export interface ARBuckets {
   ninetyPlus: number;  // 90+ days
 }
 
+export interface ReceivableAccount {
+  clientId: string | null; // null is an unassigned opening or migrated balance
+  clientName: string;
+  paymentProfile: Client['paymentProfile'];
+  aging: ARBuckets;
+}
+
 export const getARTotal = (ar: ARBuckets): number => {
   return ar.current + ar.thirtyDay + ar.sixtyDay + ar.ninetyPlus;
 };
@@ -162,6 +169,7 @@ export interface InboxMessage {
   choices: MessageChoice[];
   timestamp: Date;
   scenario: InboxScenario;
+  resolution?: { choiceId: string; summary: string };
 }
 
 // Scenario data is captured when a message is created. Decisions must never infer
@@ -171,11 +179,11 @@ export type InboxScenario =
   | { kind: 'client-feedback'; clientId: string }
   | { kind: 'new-client'; name: string; clientType: Client['type']; monthlyFee: number }
   | { kind: 'lease-renewal'; currentRent: number }
-  | { kind: 'it-vendor'; vendorId: string }
+  | { kind: 'it-vendor'; vendorId: string; quotedMonthlyCost?: number }
   | { kind: 'benefits-increase'; monthlyIncrease: number }
   | { kind: 'partner-distribution'; availablePool: number }
   | { kind: 'collections-problem'; clientId?: string; overdueAmount: number }
-  | { kind: 'budget-overrun'; category: string }
+  | { kind: 'budget-overrun'; category: string; quarter?: number; year?: number }
   | { kind: 'equipment-failure' }
   | { kind: 'tax-planning'; estimatedTax: number }
   | { kind: 'industry-update' };
@@ -197,6 +205,7 @@ export interface SimulationState {
   partnerEconomics: PartnerEconomics;
   budget: BudgetItem[];
   arAging: ARBuckets;
+  receivables: ReceivableAccount[];
   lineOfCredit: LineOfCredit;
 }
 

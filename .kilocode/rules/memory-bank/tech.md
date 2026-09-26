@@ -25,7 +25,7 @@ bun run build
 
 ## Storage and Integrations
 
-The app uses a versioned `localStorage` save for one browser. It has no server API, account system, or database. The optional database recipe applies only if server-side or cross-device persistence is later requested.
+The app uses one version 2 `localStorage` save for the simulation and tutorial. Valid version 1 saves migrate, preserving pooled historical AR as unassigned; the older tutorial-only key is discarded. It has no server API, account system, or database. The optional database recipe applies only if server-side or cross-device persistence is later requested.
 
 ## Key Directories
 

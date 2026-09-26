@@ -13,7 +13,7 @@ export default function ARManager() {
   const [writeOffOpen, setWriteOffOpen] = useState(false);
   const [writeOffAmount, setWriteOffAmount] = useState(0);
 
-  const { arAging, clients, financialHistory } = state;
+  const { arAging, clients, financialHistory, receivables } = state;
   const totalAR = getARTotal(arAging);
   const validWriteOff = isValidAmount(writeOffAmount) && writeOffAmount <= arAging.ninetyPlus;
 
@@ -30,23 +30,27 @@ export default function ARManager() {
   const collectionRate = trailingRevenue > 0 ? (trailingCollections / trailingRevenue * 100) : 0;
 
   const agingData = [
-    { bucket: '0-30 days', amount: arAging.current, color: '#4caf50' },
-    { bucket: '31-60 days', amount: arAging.thirtyDay, color: '#ff9800' },
-    { bucket: '61-90 days', amount: arAging.sixtyDay, color: '#f44336' },
-    { bucket: '90+ days', amount: arAging.ninetyPlus, color: '#9c27b0' },
+    { bucket: '0–30', amount: arAging.current, color: '#4caf50' },
+    { bucket: '31–60', amount: arAging.thirtyDay, color: '#ff9800' },
+    { bucket: '61–90', amount: arAging.sixtyDay, color: '#f44336' },
+    { bucket: '90+', amount: arAging.ninetyPlus, color: '#9c27b0' },
   ];
 
-  // Client AR estimates (proportional to monthly fee)
-  const clientARData = clients.map(c => {
-    const proportion = state.financials.grossRevenue > 0 ? c.monthlyFee / state.financials.grossRevenue : 0;
+  // Rows are backed by actual per-client aging balances, including former clients.
+  const clientARData = receivables.filter(account =>
+    getARTotal(account.aging) > 0 || (account.clientId !== null && clients.some(client => client.id === account.clientId))
+  ).map(account => {
+    const active = account.clientId !== null && clients.some(client => client.id === account.clientId);
     return {
-      name: c.name,
-      current: Math.round(arAging.current * proportion),
-      thirtyDay: Math.round(arAging.thirtyDay * proportion),
-      sixtyDay: Math.round(arAging.sixtyDay * proportion),
-      ninetyPlus: Math.round(arAging.ninetyPlus * proportion),
-      total: Math.round(totalAR * proportion),
-      paymentProfile: c.paymentProfile,
+      id: account.clientId ?? 'unassigned',
+      name: active || account.clientId === null ? account.clientName : `${account.clientName} (former client)`,
+      current: account.aging.current,
+      thirtyDay: account.aging.thirtyDay,
+      sixtyDay: account.aging.sixtyDay,
+      ninetyPlus: account.aging.ninetyPlus,
+      total: getARTotal(account.aging),
+      paymentProfile: account.paymentProfile,
+      unassigned: account.clientId === null,
     };
   });
 
@@ -88,7 +92,7 @@ export default function ARManager() {
         <Grid size={{ xs: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-              <Typography variant="caption" color="text.secondary">Collection Rate (3mo) <HelpTooltip helpId="finance-collections" /></Typography>
+              <Typography variant="caption" color="text.secondary">Collections / Billings (3mo) <HelpTooltip helpId="finance-collections" /></Typography>
               <Typography variant="h6" color={collectionRate < 80 ? 'error.main' : collectionRate < 90 ? 'warning.main' : 'success.main'}>
                 {collectionRate.toFixed(0)}%
               </Typography>
@@ -122,7 +126,7 @@ export default function ARManager() {
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={agingData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="bucket" />
+            <XAxis dataKey="bucket" interval={0} tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(value) => `$${Math.round(Number(value)).toLocaleString()}`} />
             <Bar dataKey="amount" name="AR Balance">
@@ -134,7 +138,11 @@ export default function ARManager() {
         </ResponsiveContainer>
       </Paper>
 
-      {/* Client-by-Client AR Table */}
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Recorded balances by client. Opening balances without a known client appear as unassigned; former clients remain until their balance is resolved.
+      </Typography>
+
+      {/* Actual client receivables, with opening unassigned balances shown separately. */}
       <TableContainer component={Paper} data-tutorial-target="ar-aging-table">
         <Table size="small">
           <TableHead>
@@ -150,7 +158,7 @@ export default function ARManager() {
           </TableHead>
           <TableBody>
             {clientARData.map(c => (
-              <TableRow key={c.name} hover>
+              <TableRow key={c.id} hover>
                 <TableCell>{c.name}</TableCell>
                 <TableCell align="right">${c.current.toLocaleString()}</TableCell>
                 <TableCell align="right" sx={{ color: c.thirtyDay > 0 ? 'warning.main' : 'text.primary' }}>${c.thirtyDay.toLocaleString()}</TableCell>
@@ -158,11 +166,11 @@ export default function ARManager() {
                 <TableCell align="right" sx={{ color: c.ninetyPlus > 0 ? 'error.main' : 'text.primary' }}>${c.ninetyPlus.toLocaleString()}</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 'bold' }}>${c.total.toLocaleString()}</TableCell>
                 <TableCell>
-                  <Chip
+                  {!c.unassigned && <Chip
                     label={c.paymentProfile}
                     size="small"
                     color={c.paymentProfile === 'prompt' ? 'success' : c.paymentProfile === 'normal' ? 'warning' : 'error'}
-                  />
+                  />}
                 </TableCell>
               </TableRow>
             ))}

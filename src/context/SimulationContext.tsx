@@ -12,7 +12,7 @@ import {
   HIRING_COST, SEVERANCE_COST, BENEFITS_RATE,
 } from '@/types/simulation';
 import { useSession } from '@/context/SessionContext';
-import { advanceSimulationMonth, applyInboxChoice, isValidAmount, recordCurrentCash, writeOffReceivables } from '@/lib/simulation/engine';
+import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, getOverdueClientAccount, isValidAmount, recordCurrentCash, writeOffReceivables } from '@/lib/simulation/engine';
 
 // Re-export types for consumers
 export type { Employee, Client, Financials, FinancialHistoryEntry, Alert, InboxMessage, MessageChoice, SimulationState, OperatingCosts, Vendor, PartnerEconomics, BudgetItem, ARBuckets, LineOfCredit };
@@ -138,9 +138,9 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         description: `${emp.name} is requesting a salary increase. They cite market conditions and their contributions to recent client wins. Current salary: $${emp.salary.toLocaleString()}/mo.`,
         urgency: 'medium', requiresAction: true, read: false,
         choices: [
-          { id: 'approve', label: 'Approve (+15%)', effect: 'Increases salary by 15% and employee morale' },
-          { id: 'deny', label: 'Deny Request', effect: 'May decrease employee satisfaction' },
-          { id: 'counter', label: 'Counter Offer (+8%)', effect: 'Compromise with 8% increase' },
+          { id: 'approve', label: 'Approve (+15%)', effect: 'Salary +15%; efficacy +5' },
+          { id: 'deny', label: 'Deny Request', effect: 'Efficacy -10; burnout +15' },
+          { id: 'counter', label: 'Counter Offer (+8%)', effect: 'Salary +8%; efficacy +2' },
         ],
         scenario: { kind: 'raise-request', employeeId: emp.id },
         timestamp: new Date(),
@@ -156,9 +156,9 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         description: `${client.name} has submitted negative feedback about our services. They mention slow response times and lack of visibility on legislative updates.`,
         urgency: 'high', requiresAction: true, read: false,
         choices: [
-          { id: 'address', label: 'Schedule Meeting', effect: 'Improves client satisfaction' },
-          { id: 'assign', label: 'Assign Dedicated Lobbyist', effect: 'Moderately improves satisfaction' },
-          { id: 'ignore', label: 'Defer for Now', effect: 'May further decrease satisfaction' },
+          { id: 'address', label: 'Schedule Meeting', effect: 'Client satisfaction +15' },
+          { id: 'assign', label: 'Add Service Check-ins', effect: 'Client satisfaction +8' },
+          { id: 'ignore', label: 'Defer for Now', effect: 'Client satisfaction -10' },
         ],
         scenario: { kind: 'client-feedback', clientId: client.id },
         timestamp: new Date(),
@@ -176,8 +176,8 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         description: `${name} (${type}) has expressed interest in our government relations services. They have a monthly budget of $12,000-$18,000.`,
         urgency: 'medium', requiresAction: true, read: false,
         choices: [
-          { id: 'pursue', label: 'Pursue Aggressively', effect: 'High chance of landing client, uses resources' },
-          { id: 'initial-contact', label: 'Initial Contact', effect: 'Moderate chance of landing client' },
+          { id: 'pursue', label: 'Pursue Aggressively', effect: '70% chance of signing the client' },
+          { id: 'initial-contact', label: 'Initial Contact', effect: '50% chance of signing the client' },
           { id: 'pass', label: 'Pass on Opportunity', effect: 'No effect' },
         ],
         scenario: { kind: 'new-client', name, clientType: type, monthlyFee: 15000 },
@@ -215,11 +215,11 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
           description: `A new IT services provider, TechForward Solutions, is offering managed IT services at $${(itVendor.monthlyCost - savings).toLocaleString()}/mo — 20% less than your current vendor (${itVendor.name}, $${itVendor.monthlyCost.toLocaleString()}/mo). They promise faster response times but are a newer company.`,
           urgency: 'low', requiresAction: true, read: false,
           choices: [
-            { id: 'switch-vendor', label: 'Switch to New Vendor', effect: `Save $${savings.toLocaleString()}/mo but risk transition issues` },
+            { id: 'switch-vendor', label: 'Switch to New Vendor', effect: `Reduce the monthly fee by about $${savings.toLocaleString()}` },
             { id: 'keep-vendor', label: 'Stay with Current', effect: 'No change, continued reliability' },
             { id: 'negotiate-vendor', label: 'Negotiate with Current', effect: '50% chance of 10% discount' },
           ],
-          scenario: { kind: 'it-vendor', vendorId: itVendor.id },
+          scenario: { kind: 'it-vendor', vendorId: itVendor.id, quotedMonthlyCost: itVendor.monthlyCost },
           timestamp: new Date(),
         });
       }
@@ -236,7 +236,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         choices: [
           { id: 'absorb-benefits', label: 'Absorb the Cost', effect: `Operating costs increase by ~$${increase.toLocaleString()}/mo` },
           { id: 'pass-benefits', label: 'Pass to Employees', effect: 'No cost increase but burnout +10 across all staff' },
-          { id: 'cheaper-plan', label: 'Switch to Cheaper Plan', effect: 'Costs stay flat but employee morale drops slightly' },
+          { id: 'cheaper-plan', label: 'Switch to Cheaper Plan', effect: 'Costs stay flat; efficacy -3 across staff' },
         ],
         scenario: { kind: 'benefits-increase', monthlyIncrease: increase },
         timestamp: new Date(),
@@ -251,9 +251,9 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         description: `The distribution pool has accumulated $${Math.round(pool).toLocaleString()}. As managing partner, you need to decide on the quarterly distribution. Your current cash position is $${currentState.financials.cashOnHand.toLocaleString()}.`,
         urgency: 'medium', requiresAction: true, read: false,
         choices: [
-          { id: 'full-distribution', label: `Distribute Full ($${Math.round(pool).toLocaleString()})`, effect: 'Reduces cash reserves but rewards partnership' },
-          { id: 'partial-distribution', label: `Distribute Half ($${Math.round(pool / 2).toLocaleString()})`, effect: 'Balance between reward and reserves' },
-          { id: 'defer-distribution', label: 'Defer to Next Quarter', effect: 'Builds cash reserves, pool carries forward' },
+          { id: 'full-distribution', label: `Distribute Full ($${Math.round(pool).toLocaleString()})`, effect: 'Reduces cash by the amount paid; reduces the distribution pool' },
+          { id: 'partial-distribution', label: `Distribute Half ($${Math.round(pool / 2).toLocaleString()})`, effect: 'Reduces cash and pool by half the available amount' },
+          { id: 'defer-distribution', label: 'Defer to Next Quarter', effect: 'Cash stays unchanged; pool carries forward' },
         ],
         scenario: { kind: 'partner-distribution', availablePool: pool },
         timestamp: new Date(),
@@ -261,20 +261,19 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // Collections problem
-    if (currentState.arAging.sixtyDay > 5000 && Math.random() > 0.5) {
-      const overdueAmount = Math.round(currentState.arAging.sixtyDay);
-      const slowClients = currentState.clients.filter(c => c.paymentProfile === 'slow');
-      const clientName = slowClients.length > 0 ? slowClients[0].name : 'a client';
+    const overdueClient = getOverdueClientAccount(currentState);
+    if (overdueClient && overdueClient.aging.sixtyDay > 5000 && Math.random() > 0.5) {
+      const overdueAmount = overdueClient.aging.sixtyDay;
       messages.push({
         id: generateId(), type: 'alert', title: 'Collections Problem',
-        description: `${clientName} has $${overdueAmount.toLocaleString()} in invoices that are 60+ days past due. Your collections rate on aging receivables is declining. Total overdue AR: $${Math.round(currentState.arAging.sixtyDay + currentState.arAging.ninetyPlus).toLocaleString()}.`,
+        description: `${overdueClient.clientName} has $${overdueAmount.toLocaleString()} in invoices that are 61–90 days outstanding. Total 61+ day AR across all accounts: $${Math.round(currentState.arAging.sixtyDay + currentState.arAging.ninetyPlus).toLocaleString()}.`,
         urgency: 'high', requiresAction: true, read: false,
         choices: [
-          { id: 'demand-letter', label: 'Send Formal Demand', effect: 'Improves collection rate but may strain relationship' },
-          { id: 'personal-call', label: 'Personal Call from Partner', effect: 'Moderately improves collections, maintains relationship' },
-          { id: 'write-off-ar', label: 'Write Off Balance', effect: 'Removes from AR, recognized as bad debt expense' },
+          { id: 'demand-letter', label: 'Send Formal Demand', effect: 'Collect 60% now; client satisfaction -5' },
+          { id: 'personal-call', label: 'Personal Call from Partner', effect: 'Collect 40% now; satisfaction unchanged' },
+          { id: 'write-off-ar', label: 'Write Off Balance', effect: 'Remove this balance from AR as bad debt expense' },
         ],
-        scenario: { kind: 'collections-problem', clientId: slowClients[0]?.id, overdueAmount },
+        scenario: { kind: 'collections-problem', clientId: overdueClient.clientId ?? undefined, overdueAmount },
         timestamp: new Date(),
       });
     }
@@ -292,11 +291,11 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         description: `${item.category} spending has exceeded the quarterly budget by $${overrun.toLocaleString()} (${item.plannedQuarterly > 0 ? `${Math.round(overrun / item.plannedQuarterly * 100)}% over` : 'unbudgeted spend'}). Planned: $${item.plannedQuarterly.toLocaleString()}, Actual: $${Math.round(item.actualQuarterlySpend).toLocaleString()}.`,
         urgency: 'medium', requiresAction: true, read: false,
         choices: [
-          { id: 'cut-elsewhere', label: 'Cut Other Categories', effect: 'Reduces misc spending by 20% for remainder of quarter' },
+          { id: 'cut-elsewhere', label: 'Cut Misc Spending', effect: 'Reduces monthly misc spending by 20% until changed' },
           { id: 'accept-overrun', label: 'Accept Overrun', effect: 'No action, budget stays exceeded' },
           { id: 'reallocate', label: 'Reallocate Budget', effect: 'Moves funds from underspent categories' },
         ],
-        scenario: { kind: 'budget-overrun', category: item.category },
+        scenario: { kind: 'budget-overrun', category: item.category, quarter, year: currentState.year },
         timestamp: new Date(),
       });
     }
@@ -306,12 +305,12 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       const equipment = ['network server', 'multifunction copier', 'phone system', 'HVAC unit'][Math.floor(Math.random() * 4)];
       messages.push({
         id: generateId(), type: 'alert', title: 'Office Equipment Failure',
-        description: `The office ${equipment} has failed and needs replacement. This is affecting daily operations. You have three options with different cost and reliability trade-offs.`,
+        description: `The office ${equipment} has failed and needs replacement. This is affecting daily operations. Choose between immediate cash costs and a monthly lease.`,
         urgency: 'high', requiresAction: true, read: false,
         choices: [
-          { id: 'buy-equipment', label: 'Buy New ($8,000)', effect: 'One-time cost, fully resolved' },
-          { id: 'lease-equipment', label: 'Lease ($300/mo)', effect: 'Adds monthly vendor cost, includes maintenance' },
-          { id: 'temp-fix', label: 'Temporary Fix ($1,000)', effect: 'Cheap but may fail again in 3-6 months' },
+          { id: 'buy-equipment', label: 'Buy New ($8,000)', effect: 'Cash decreases by $8,000' },
+          { id: 'lease-equipment', label: 'Lease ($300/mo)', effect: 'Adds a $300 monthly vendor cost' },
+          { id: 'temp-fix', label: 'Temporary Fix ($1,000)', effect: 'Cash decreases by $1,000' },
         ],
         scenario: { kind: 'equipment-failure' },
         timestamp: new Date(),
@@ -324,12 +323,12 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       if (estimatedTax > 0) {
         messages.push({
           id: generateId(), type: 'request', title: 'Quarterly Tax Planning',
-          description: `Your accountant recommends making a quarterly estimated tax payment of $${estimatedTax.toLocaleString()} based on this quarter's projected income. Failure to make timely payments may result in penalties.`,
+          description: `Your accountant offers a rough quarterly tax payment estimate of $${estimatedTax.toLocaleString()} based on the current monthly profit run rate. Choose how much to pay now.`,
           urgency: 'medium', requiresAction: true, read: false,
           choices: [
-            { id: 'pay-taxes', label: `Pay Now ($${estimatedTax.toLocaleString()})`, effect: 'Reduces cash but avoids penalties' },
-            { id: 'defer-taxes', label: 'Defer Payment', effect: 'Preserves cash but risks 5% penalty' },
-            { id: 'accelerate-expenses', label: 'Accelerate Deductions', effect: 'Reduce taxable income by prepaying some expenses' },
+            { id: 'pay-taxes', label: `Pay Full Estimate ($${estimatedTax.toLocaleString()})`, effect: 'Cash decreases by the full estimate' },
+            { id: 'defer-taxes', label: 'Pay Nothing Now', effect: 'Cash stays unchanged' },
+            { id: 'accelerate-expenses', label: 'Pay 60% Now', effect: 'Cash decreases by 60% of the estimate' },
           ],
           scenario: { kind: 'tax-planning', estimatedTax },
           timestamp: new Date(),
@@ -547,22 +546,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   }, [setState]);
 
   const collectAR = useCallback(() => {
-    setState(prevState => {
-      // Manual collection effort — collect 30% of overdue (30+) AR
-      const collectFrom30 = Math.round(prevState.arAging.thirtyDay * 0.3);
-      const collectFrom60 = Math.round(prevState.arAging.sixtyDay * 0.3);
-      const collectFrom90 = Math.round(prevState.arAging.ninetyPlus * 0.15);
-      const totalCollected = collectFrom30 + collectFrom60 + collectFrom90;
-      return recordCurrentCash({
-        ...prevState,
-        arAging: {
-          ...prevState.arAging,
-          thirtyDay: prevState.arAging.thirtyDay - collectFrom30,
-          sixtyDay: prevState.arAging.sixtyDay - collectFrom60,
-          ninetyPlus: prevState.arAging.ninetyPlus - collectFrom90,
-        },
-      }, prevState.financials.cashOnHand + totalCollected, totalCollected);
-    });
+    setState(prevState => collectOverdueReceivables(prevState));
   }, [setState]);
 
   return (

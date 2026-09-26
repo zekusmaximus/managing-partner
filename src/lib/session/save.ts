@@ -1,11 +1,13 @@
 import { tutorialSteps } from '@/data/tutorialSteps';
 import { createInitialSimulationState } from '@/lib/simulation/initialState';
+import { sumReceivables } from '@/lib/simulation/engine';
 import { createInitialTutorialState, type TutorialState } from './tutorialState';
 import type { SimulationState } from '@/types/simulation';
 
-export const SESSION_STORAGE_KEY = 'managing-partner-session-v1';
+export const SESSION_STORAGE_KEY = 'managing-partner-session-v2';
+export const PREVIOUS_SESSION_STORAGE_KEY = 'managing-partner-session-v1';
 export const LEGACY_TUTORIAL_STORAGE_KEY = 'managing-partner-tutorial';
-export const SESSION_VERSION = 1;
+export const SESSION_VERSION = 2;
 
 export interface SessionSnapshot {
   simulation: SimulationState;
@@ -74,12 +76,15 @@ const scenario: Check = (value) => {
       monthlyFee: nonnegative,
     });
     case 'lease-renewal': return nonnegative(value.currentRent);
-    case 'it-vendor': return text(value.vendorId);
+    case 'it-vendor': return text(value.vendorId) &&
+      (value.quotedMonthlyCost === undefined || nonnegative(value.quotedMonthlyCost));
     case 'benefits-increase': return nonnegative(value.monthlyIncrease);
     case 'partner-distribution': return nonnegative(value.availablePool);
     case 'collections-problem': return nonnegative(value.overdueAmount) &&
       (value.clientId === undefined || text(value.clientId));
-    case 'budget-overrun': return text(value.category);
+    case 'budget-overrun': return text(value.category) &&
+      (value.quarter === undefined || (integer(value.quarter) && (value.quarter as number) >= 1 && (value.quarter as number) <= 4)) &&
+      (value.year === undefined || year(value.year));
     case 'equipment-failure':
     case 'industry-update': return true;
     case 'tax-planning': return nonnegative(value.estimatedTax);
@@ -93,9 +98,11 @@ const inboxMessage: Check = (value) => fields(value, {
   requiresAction: bool, read: bool,
   choices: arrayOf((choice) => fields(choice, { id: text, label: text, effect: text })),
   timestamp, scenario,
-});
+}) && record(value) && (value.resolution === undefined || fields(value.resolution, {
+  choiceId: text, summary: text,
+}));
 
-const simulationState: Check = (value) => fields(value, {
+const simulationStateBase: Check = (value) => fields(value, {
   month, year,
   financials: (financials) => fields(financials, {
     cashOnHand: finite, grossRevenue: nonnegative, operatingExpenses: nonnegative,
@@ -135,6 +142,26 @@ const simulationState: Check = (value) => fields(value, {
   }) && record(loc) && (loc.drawn as number) <= (loc.limit as number),
 });
 
+const receivableAccount: Check = (value) => fields(value, {
+  clientId: (id) => id === null || text(id),
+  clientName: text,
+  paymentProfile: oneOf('prompt', 'normal', 'slow'),
+  aging: (aging) => fields(aging, {
+    current: nonnegative, thirtyDay: nonnegative, sixtyDay: nonnegative,
+    ninetyPlus: nonnegative,
+  }),
+});
+
+const simulationStateV2: Check = (value) => {
+  if (!simulationStateBase(value) || !record(value) || !arrayOf(receivableAccount)(value.receivables)) return false;
+  const accounts = value.receivables as SimulationState['receivables'];
+  const identifiers = accounts.map(account => account.clientId);
+  if (new Set(identifiers).size !== identifiers.length) return false;
+  const total = sumReceivables(accounts);
+  const arAging = value.arAging as SimulationState['arAging'];
+  return (Object.keys(total) as Array<keyof typeof total>).every(bucket => total[bucket] === arAging[bucket]);
+};
+
 const validStepIds = new Set(tutorialSteps.map((step) => step.id));
 const tutorialState: Check = (value) => fields(value, {
   status: oneOf('not_started', 'in_progress', 'completed', 'skipped'),
@@ -159,13 +186,18 @@ export function serializeSession(snapshot: SessionSnapshot): string {
 export function parseSession(raw: string): SessionSnapshot | null {
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!record(parsed) || parsed.version !== SESSION_VERSION ||
-      !simulationState(parsed.simulation) || !tutorialState(parsed.tutorial)) return null;
+    if (!record(parsed) || (parsed.version !== SESSION_VERSION && parsed.version !== 1) ||
+      !(parsed.version === 1 ? simulationStateBase(parsed.simulation) : simulationStateV2(parsed.simulation)) ||
+      !tutorialState(parsed.tutorial)) return null;
 
     const simulation = parsed.simulation as unknown as SimulationState;
+    const receivables = parsed.version === 1
+      ? [{ clientId: null, clientName: 'Prior balance (unassigned)', paymentProfile: 'normal' as const, aging: { ...simulation.arAging } }]
+      : simulation.receivables;
     return {
       simulation: {
         ...simulation,
+        receivables,
         alerts: simulation.alerts.map((alert) => ({
           ...alert, timestamp: new Date(alert.timestamp),
         })),
@@ -184,6 +216,7 @@ export function loadSession(storage: SessionStorage): LoadResult {
   let raw: string | null;
   try {
     raw = storage.getItem(SESSION_STORAGE_KEY);
+    if (raw === null) raw = storage.getItem(PREVIOUS_SESSION_STORAGE_KEY);
   } catch {
     return { status: 'unavailable' };
   }
