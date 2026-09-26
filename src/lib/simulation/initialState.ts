@@ -113,6 +113,12 @@ const initialState: SimulationState = {
   partnerEconomics: initialPartnerEconomics,
   budget: initialBudget,
   arAging: initialARBuckets,
+  receivables: [{
+    clientId: null,
+    clientName: 'Unassigned opening balance',
+    paymentProfile: 'normal',
+    aging: { ...initialARBuckets },
+  }],
   lineOfCredit: initialLineOfCredit,
 };
 

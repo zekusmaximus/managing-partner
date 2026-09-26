@@ -6,9 +6,10 @@ Next.js App Router provides five routes: dashboard (`/`), finances, HR, clients,
 
 ## State and Data Flow
 
-- `SessionContext` owns one versioned browser-local snapshot containing simulation and tutorial state. It validates a save before loading, restores Date fields, and resets both states through New Game.
+- `SessionContext` owns one versioned browser-local snapshot containing simulation and tutorial state. It validates a save before loading, restores Date fields, migrates version 1 pooled receivables to an unassigned version 2 account, and resets both states through New Game.
 - `SimulationContext` exposes gameplay actions to components. Pure functions under `src/lib/simulation/` handle month transitions, inbox choices, budget and receivable operations, and financial selectors, allowing deterministic tests.
-- Inbox scenarios carry typed subject data, so actions target the employee, client, or opportunity described by the message.
+- Receivable accounts hold per-client aging buckets. Aggregate `arAging` is derived from them; former-client balances persist, and unknown opening or migrated balances remain explicitly unassigned.
+- Inbox scenarios carry typed subject data, so actions target the employee, client, or opportunity described by the message. Resolved messages persist the selected choice and a summary of its actual outcome.
 - `TutorialContext` tracks steps and advances month-action steps explicitly. `TutorialOverlay` locates visible targets and supplies an accessible action fallback.
 
 ## UI Pattern
@@ -17,4 +18,4 @@ Next.js App Router provides five routes: dashboard (`/`), finances, HR, clients,
 
 ## Persistence and Testing
 
-Browser storage holds one save for this device; no API, database, or authentication is used. Bun tests cover pure simulation and save behavior. TypeScript, ESLint, and the Next production build are required checks.
+Browser storage holds one save for this device; no API, database, or authentication is used. Bun tests cover pure simulation and save behavior. TypeScript, ESLint, and the Next production build are required checks. Tax payable and penalties, one-time expense classification, distributions, and detailed cash-flow categories remain outside the implemented ledger.

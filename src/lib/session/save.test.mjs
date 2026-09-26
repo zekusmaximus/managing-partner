@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { SessionStore } from '@/context/SessionContext';
 import {
   createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession, parseSession,
-  serializeSession, SESSION_STORAGE_KEY,
+  serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY,
 } from './save';
 
 function memoryStorage() {
@@ -27,6 +27,7 @@ describe('versioned game save', () => {
       id: 'message-1', type: 'request', title: 'Raise Request',
       description: 'A request', urgency: 'medium', requiresAction: true,
       read: false, choices: [{ id: 'approve', label: 'Approve', effect: 'Raise' }],
+      resolution: { choiceId: 'approve', summary: 'Salary increased by $1,200 per month.' },
       scenario: { kind: 'raise-request', employeeId: 'emp1' },
       timestamp: new Date('2026-03-02T12:00:00.000Z'),
     });
@@ -41,12 +42,19 @@ describe('versioned game save', () => {
     expect(restored?.simulation.inbox[0].scenario).toEqual({
       kind: 'raise-request', employeeId: 'emp1',
     });
+    expect(restored?.simulation.inbox[0].resolution?.summary).toContain('Salary increased');
   });
 
   test('rejects wrong versions and malformed nested data', () => {
     const valid = JSON.parse(serializeSession(createFreshSession()));
-    expect(parseSession(JSON.stringify({ ...valid, version: 2 }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, version: 3 }))).toBeNull();
     expect(parseSession(JSON.stringify({ ...valid, simulation: { ...valid.simulation, employees: null } }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, simulation: {
+      ...valid.simulation,
+      receivables: [{ ...valid.simulation.receivables[0], aging: {
+        ...valid.simulation.receivables[0].aging, current: 1,
+      } }],
+    } }))).toBeNull();
     const history = [{ ...valid.simulation.financialHistory[0] }];
     delete history[0].operatingCostBreakdown;
     expect(parseSession(JSON.stringify({
@@ -67,6 +75,25 @@ describe('versioned game save', () => {
       },
     }))).toBeNull();
     expect(parseSession('{bad json')).toBeNull();
+  });
+
+  test('migrates pooled AR without assigning it to a current client', () => {
+    const storage = memoryStorage();
+    const previous = JSON.parse(serializeSession(createFreshSession()));
+    previous.version = 1;
+    delete previous.simulation.receivables;
+    storage.setItem(PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous));
+
+    const store = new SessionStore(storage);
+    expect(store.getSnapshot().snapshot.simulation.receivables).toEqual([{
+      clientId: null,
+      clientName: 'Prior balance (unassigned)',
+      paymentProfile: 'normal',
+      aging: previous.simulation.arAging,
+    }]);
+    store.initializeStorage();
+    expect(storage.getItem(PREVIOUS_SESSION_STORAGE_KEY)).toBeNull();
+    expect(loadSession(storage).status).toBe('loaded');
   });
 
   test('loads one record, ignores the legacy tutorial-only record, and resets both states', () => {

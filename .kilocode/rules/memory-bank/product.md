@@ -4,7 +4,7 @@
 
 A player becomes the managing partner of a fictional Washington, D.C. government relations firm. The dashboard shows current financial and organizational health. Finances, HR, Clients, and Inbox let the player inspect details and make decisions. Advance Month applies recurring costs, collections, client and team changes, then presents new alerts and scenarios.
 
-A 34-step tutorial introduces the metrics and actions. Contextual help and a glossary explain concepts throughout the app. Progress resumes in the same browser, and New Game resets the simulation and tutorial together.
+A 34-step tutorial introduces the metrics and actions. Contextual help and a glossary explain concepts throughout the app. Progress resumes in the same browser, and New Game resets the simulation and tutorial together. Receivable balances are shown by actual client where known; former-client and unassigned balances remain visible. Resolved inbox messages show the choice and its actual result.
 
 ## UX Goals
 
@@ -16,4 +16,4 @@ A 34-step tutorial introduces the metrics and actions. Contextual help and a glo
 
 ## First-Pass Boundaries
 
-One local save slot is supported. Accounts, cloud sync, new win/loss conditions, and a full real-world accounting model are later product decisions.
+One local save slot is supported. Accounts, cloud sync, new win/loss conditions, and a full real-world accounting model are later product decisions. Tax payable and penalties, classification of one-time expenses, partner distributions, and cash-flow category detail are not yet modeled completely.

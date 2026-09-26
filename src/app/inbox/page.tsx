@@ -15,12 +15,11 @@ export default function Inbox() {
   const unreadCount = state.inbox.filter(m => !m.read).length;
   const actionRequired = state.inbox.filter(m => m.requiresAction).length;
 
-  const getUrgencyColor = (urgency: string) => {
+  const getUrgencyColor = (urgency: InboxMessage['urgency']): 'error' | 'warning' | 'info' => {
     switch (urgency) {
       case 'high': return 'error';
       case 'medium': return 'warning';
       case 'low': return 'info';
-      default: return 'default';
     }
   };
 
@@ -122,7 +121,7 @@ export default function Inbox() {
                                   <Chip 
                                     label={message.urgency} 
                                     size="small"
-                                    color={getUrgencyColor(message.urgency) as any}
+                                    color={getUrgencyColor(message.urgency)}
                                   />
                                 </Box>
                               }
@@ -168,7 +167,7 @@ export default function Inbox() {
                           <Chip 
                             label={`Urgency: ${selectedMessage.urgency}`} 
                             size="small" 
-                            color={getUrgencyColor(selectedMessage.urgency) as any}
+                            color={getUrgencyColor(selectedMessage.urgency)}
                           />
                           <Chip 
                             label={formatDate(selectedMessage.timestamp)} 
@@ -212,13 +211,34 @@ export default function Inbox() {
                       )}
 
                       {!selectedMessage.requiresAction && (
-                        <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                          <CheckCircle />
-                          <Typography variant="body2">
-                            {selectedMessage.choices.length > 0
-                              ? 'This message has been addressed.'
-                              : 'No action is needed for this message.'}
-                          </Typography>
+                        <Box
+                          role="status"
+                          aria-live="polite"
+                          sx={{
+                            mt: 3, p: 2, border: '1px solid', borderColor: 'divider',
+                            borderRadius: 1, bgcolor: 'action.hover',
+                            display: 'flex', alignItems: 'flex-start', gap: 1.5,
+                          }}
+                        >
+                          <CheckCircle color="success" aria-hidden="true" />
+                          <Box>
+                            {selectedMessage.resolution ? (
+                              <>
+                                <Typography variant="body2" fontWeight="bold">
+                                  {selectedMessage.choices.find(choice => choice.id === selectedMessage.resolution?.choiceId)?.label ?? 'Decision closed'}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {selectedMessage.resolution.summary}
+                                </Typography>
+                              </>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                {selectedMessage.choices.length > 0
+                                  ? 'This message has been addressed.'
+                                  : 'No action is needed for this message.'}
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
                       )}
                     </Box>

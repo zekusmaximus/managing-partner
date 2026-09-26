@@ -21,10 +21,10 @@ export default function PartnerEconomicsView() {
   // Simplified equity value: 1.5x trailing 12-month profit
   const equityValue = Math.max(0, Math.round(trailing12Profit * 1.5));
 
-  // Total compensation (draw + distributions) this year
+  // Draws can be calculated year to date from the retained monthly history.
+  // Distributions are stored only as an all-time total.
   const ytdHistory = financialHistory.filter(h => h.year === state.year);
   const ytdDraws = ytdHistory.reduce((s, h) => s + h.partnerDraw, 0);
-  const totalCompThisYear = ytdDraws + partnerEconomics.totalDistributed;
 
   // Draw as % of revenue
   const drawPctRevenue = financials.grossRevenue > 0
@@ -119,14 +119,6 @@ export default function PartnerEconomicsView() {
                     <TableRow>
                       <TableCell>YTD Draws Taken</TableCell>
                       <TableCell align="right">${Math.round(ytdDraws).toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>YTD Distributions</TableCell>
-                      <TableCell align="right">${partnerEconomics.totalDistributed.toLocaleString()}</TableCell>
-                    </TableRow>
-                    <TableRow sx={{ bgcolor: 'action.hover' }}>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Total Compensation (YTD)</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>${Math.round(totalCompThisYear).toLocaleString()}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>

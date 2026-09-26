@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype. The first stabilization pass has corrected reviewed defects, introduced a shared local save and responsive shell, and added focused tests. Broader accounting and gameplay design remain future work.
+**Project Status**: Playable single-browser prototype. The first stabilization pass is merged. The current second pass tracks receivables by client, migrates version 1 saves to version 2 without inventing historical client balances, and shows actual inbox decision outcomes. Broader accounting and gameplay design remain future work.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -45,7 +45,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Building a business simulation game where players take on the role of Managing Partner at a government relations firm. Focus on gameplay mechanics, UI/UX, and simulation logic.
+Keep the simplified game model internally consistent and make decision consequences clear. Next accounting decisions concern tax liabilities and penalties, one-time expenses, partner distributions, and cash-flow categories including credit-line transactions. Scenario balance and tutorial usability need observation with new players.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -54,6 +54,16 @@ Building a business simulation game where players take on the role of Managing P
 - One versioned `localStorage` save holds simulation and tutorial together. It loads after hydration, validates data, restores message/alert dates, discards the legacy tutorial key, and provides a confirmed New Game reset. Corrupt or unavailable storage starts a fresh session with a nonblocking notice.
 - A shared app shell puts the header above the desktop sidebar and uses a mobile drawer. The date and single Advance Month control stay reachable. Alerts, help labels, keyboard inbox actions, chart legends, and tutorial targets were repaired.
 - Focused `bun test` cases cover simulation and save behavior. `bun typecheck`, `bun lint`, and `bun run build` pass. Browser checks cover all routes at 390, 768, 1280, and 1440px.
+
+## Second Pass Snapshot (2026-09-26)
+
+- The first stabilization pass was squash-merged into `main` as `7f508de` (PR #3). The second pass builds from that merged state.
+- Receivables now retain client IDs, names, payment profiles, and four aging buckets. Aggregate AR derives from those accounts. Former-client balances remain visible and collectible; opening and migrated pooled balances are labeled unassigned.
+- The browser save uses version 2. Valid version 1 saves migrate their pooled AR to an unassigned account and keep simulation and tutorial progress together.
+- Inbox choices record a resolution with the selected choice and actual result. The inbox detail view shows this feedback, and choice copy is aligned with effects the simplified model actually applies.
+- The AR chart keeps all four age labels visible on mobile; the partner view no longer presents all-time distributions as YTD compensation. Tutorial examples now avoid promising unmodeled scenario effects or a fixed staffing ratio.
+- Final verification: 26 Bun tests, typecheck, lint, and production build pass. The five routes were checked at 390, 768, 1280, and 1440px; the 34-step tutorial completed across those widths with keyboard navigation checks and no browser errors.
+- Remaining accounting boundaries include tax liabilities and penalties, one-time expenses, partner distributions, and explicit cash-flow categories. This pass does not establish a full ledger.
 
 ## Session History
 
@@ -68,3 +78,4 @@ Building a business simulation game where players take on the role of Managing P
 | 2026-03-15 | Removed accidental nested Git worktree at `.claude/worktrees/elated-neumann` from the repo index and ignored `.claude/worktrees/` to prevent re-staging |
 | 2026-09-25 | Reviewed implementation, build/lint status, simulation correctness, and desktop/mobile UI; recorded findings above |
 | 2026-09-25 | Implemented first stabilization pass: pure simulation functions, local save, responsive shell, tutorial and UI fixes, tests, and documentation updates |
+| 2026-09-26 | Merged first stabilization pass; began client-attributed AR, version 1 to 2 save migration, and inbox outcome feedback |

@@ -1,4 +1,4 @@
-import type { Alert, ARBuckets, BudgetItem, Client, Financials, FinancialHistoryEntry, InboxMessage, SimulationState } from '@/types/simulation';
+import type { Alert, ARBuckets, BudgetItem, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
 import { AR_COLLECTION_RATES, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
 
 export interface EngineDeps {
@@ -21,13 +21,63 @@ export const recordCurrentCash = (state: SimulationState, cashOnHand: number, co
       : entry),
 });
 
-export const writeOffReceivables = (state: SimulationState, amount: number, bucket: keyof ARBuckets = 'ninetyPlus'): SimulationState => {
+export const sumReceivables = (accounts: ReceivableAccount[]): ARBuckets =>
+  accounts.reduce<ARBuckets>((total, account) => ({
+    current: total.current + account.aging.current,
+    thirtyDay: total.thirtyDay + account.aging.thirtyDay,
+    sixtyDay: total.sixtyDay + account.aging.sixtyDay,
+    ninetyPlus: total.ninetyPlus + account.aging.ninetyPlus,
+  }), { current: 0, thirtyDay: 0, sixtyDay: 0, ninetyPlus: 0 });
+
+const collectAtRate = (balance: number, rate: number): number =>
+  Math.min(balance, Math.round(balance * rate));
+
+export const getOverdueClientAccount = (state: SimulationState): ReceivableAccount | undefined =>
+  state.receivables.reduce<ReceivableAccount | undefined>((highest, account) => {
+    if (account.clientId === null || account.aging.sixtyDay <= 0 ||
+      !state.clients.some(client => client.id === account.clientId)) return highest;
+    return !highest || account.aging.sixtyDay > highest.aging.sixtyDay ? account : highest;
+  }, undefined);
+
+export const collectOverdueReceivables = (state: SimulationState): SimulationState => {
+  let collected = 0;
+  const receivables = state.receivables.map(account => {
+    const thirtyDay = collectAtRate(account.aging.thirtyDay, 0.3);
+    const sixtyDay = collectAtRate(account.aging.sixtyDay, 0.3);
+    const ninetyPlus = collectAtRate(account.aging.ninetyPlus, 0.15);
+    collected += thirtyDay + sixtyDay + ninetyPlus;
+    return {
+      ...account,
+      aging: {
+        ...account.aging,
+        thirtyDay: account.aging.thirtyDay - thirtyDay,
+        sixtyDay: account.aging.sixtyDay - sixtyDay,
+        ninetyPlus: account.aging.ninetyPlus - ninetyPlus,
+      },
+    };
+  });
+  if (collected === 0) return state;
+  return recordCurrentCash({ ...state, receivables, arAging: sumReceivables(receivables) },
+    state.financials.cashOnHand + collected, collected);
+};
+
+export const writeOffReceivables = (state: SimulationState, amount: number, bucket: keyof ARBuckets = 'ninetyPlus', clientId?: string): SimulationState => {
   if (!isValidAmount(amount)) return state;
-  const writeOff = Math.min(amount, state.arAging[bucket]);
+  let remaining = amount;
+  const receivables = state.receivables.map(account => {
+    if (remaining <= 0 || (clientId !== undefined && account.clientId !== clientId)) return account;
+    const reduction = Math.min(remaining, account.aging[bucket]);
+    remaining -= reduction;
+    return reduction > 0
+      ? { ...account, aging: { ...account.aging, [bucket]: account.aging[bucket] - reduction } }
+      : account;
+  });
+  const writeOff = amount - remaining;
   if (writeOff <= 0) return state;
   return {
     ...state,
-    arAging: { ...state.arAging, [bucket]: state.arAging[bucket] - writeOff },
+    receivables,
+    arAging: sumReceivables(receivables),
     financials: {
       ...state.financials,
       operatingExpenses: state.financials.operatingExpenses + writeOff,
@@ -86,32 +136,51 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       // 3. Revenue recognition — new invoices go to AR current bucket
       const monthlyRevenue = updatedClients.reduce((sum, c) => sum + c.monthlyFee, 0);
 
-      // 4. AR aging — shift buckets forward, then add new invoices
-      // Calculate collections from each bucket based on client payment profiles
-      const avgCollectionRate = updatedClients.length > 0
-        ? updatedClients.reduce((sum, c) => {
-            const rate = AR_COLLECTION_RATES[c.paymentProfile];
-            return sum + rate.current;
-          }, 0) / updatedClients.length
-        : 0.8;
+      // 4. Collect and age each account using its own payment profile. Keep
+      // balances after a client leaves; only new invoices require an active client.
+      let totalCollections = 0;
+      let autoWriteOff = 0;
+      const newReceivables = prevState.receivables.map(account => {
+        const prior = account.aging;
+        const rates = AR_COLLECTION_RATES[account.paymentProfile];
+        const currentCollected = collectAtRate(prior.current, rates.current);
+        const thirtyCollected = collectAtRate(prior.thirtyDay, rates.thirtyDay);
+        const sixtyCollected = collectAtRate(prior.sixtyDay, rates.sixtyDay);
+        const ninetyCollected = collectAtRate(prior.ninetyPlus, rates.ninetyPlus);
+        const badDebt = collectAtRate(prior.ninetyPlus - ninetyCollected, 0.2);
+        totalCollections += currentCollected + thirtyCollected + sixtyCollected + ninetyCollected;
+        autoWriteOff += badDebt;
+        return {
+          ...account,
+          aging: {
+            current: 0,
+            thirtyDay: prior.current - currentCollected,
+            sixtyDay: prior.thirtyDay - thirtyCollected,
+            ninetyPlus: prior.sixtyDay - sixtyCollected + prior.ninetyPlus - ninetyCollected - badDebt,
+          },
+        };
+      });
 
-      // Collections from each aging bucket
-      const collectFromCurrent = Math.round(prevState.arAging.current * avgCollectionRate);
-      const collectFrom30 = Math.round(prevState.arAging.thirtyDay * avgCollectionRate * 0.85);
-      const collectFrom60 = Math.round(prevState.arAging.sixtyDay * avgCollectionRate * 0.6);
-      const collectFrom90 = Math.round(prevState.arAging.ninetyPlus * avgCollectionRate * 0.3);
-      const totalCollections = collectFromCurrent + collectFrom30 + collectFrom60 + collectFrom90;
-
-      // Auto write-off: 20% of 90+ that wasn't collected
-      const autoWriteOff = Math.round((prevState.arAging.ninetyPlus - collectFrom90) * 0.2);
-
-      // New AR buckets after aging
-      const newAR: ARBuckets = {
-        current: monthlyRevenue, // new invoices
-        thirtyDay: prevState.arAging.current - collectFromCurrent, // uncollected current ages to 30
-        sixtyDay: prevState.arAging.thirtyDay - collectFrom30, // uncollected 30 ages to 60
-        ninetyPlus: Math.max(0, (prevState.arAging.sixtyDay - collectFrom60) + (prevState.arAging.ninetyPlus - collectFrom90 - autoWriteOff)), // 60 ages to 90+
-      };
+      for (const client of updatedClients) {
+        const existingIndex = newReceivables.findIndex(account => account.clientId === client.id);
+        if (existingIndex >= 0) {
+          const account = newReceivables[existingIndex];
+          newReceivables[existingIndex] = {
+            ...account,
+            clientName: client.name,
+            paymentProfile: client.paymentProfile,
+            aging: { ...account.aging, current: account.aging.current + client.monthlyFee },
+          };
+        } else {
+          newReceivables.push({
+            clientId: client.id,
+            clientName: client.name,
+            paymentProfile: client.paymentProfile,
+            aging: { current: client.monthlyFee, thirtyDay: 0, sixtyDay: 0, ninetyPlus: 0 },
+          });
+        }
+      }
+      const newAR = sumReceivables(newReceivables);
 
       // 5. Calculate all expenses
       const totalPayroll = updatedEmployees.reduce((sum, emp) => sum + getEmployeeTotalCost(emp), 0);
@@ -228,6 +297,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         clients: updatedClients,
         reputation: newReputation,
         arAging: newAR,
+        receivables: newReceivables,
         lineOfCredit: newLOC,
         vendors: updatedVendors,
         partnerEconomics: newPartnerEconomics,
@@ -253,18 +323,32 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
 
   let next: SimulationState = { ...state };
   let manualCollections = 0;
+  let resolutionSummary = 'Decision recorded.';
   const scenario = message.scenario;
+  const staleQuote =
+    (scenario.kind === 'lease-renewal' && state.operatingCosts.rent !== scenario.currentRent) ||
+    (scenario.kind === 'it-vendor' && scenario.quotedMonthlyCost !== undefined &&
+      state.vendors.some(vendor => vendor.id === scenario.vendorId && vendor.monthlyCost !== scenario.quotedMonthlyCost));
+  const staleBudgetPeriod = scenario.kind === 'budget-overrun' &&
+    ((scenario.quarter !== undefined && scenario.quarter !== getCurrentQuarter(state.month)) ||
+      (scenario.year !== undefined && scenario.year !== state.year));
   const subjectUnavailable =
     (scenario.kind === 'raise-request' && !state.employees.some(employee => employee.id === scenario.employeeId)) ||
     (scenario.kind === 'client-feedback' && !state.clients.some(client => client.id === scenario.clientId)) ||
     (scenario.kind === 'it-vendor' && !state.vendors.some(vendor => vendor.id === scenario.vendorId)) ||
-    (scenario.kind === 'collections-problem' && !!scenario.clientId && !state.clients.some(client => client.id === scenario.clientId)) ||
+    (scenario.kind === 'collections-problem' && !!scenario.clientId && !state.receivables.some(account =>
+      account.clientId === scenario.clientId && account.aging.sixtyDay > 0)) ||
     (scenario.kind === 'budget-overrun' && !state.budget.some(item => item.category === scenario.category && item.quarter === getCurrentQuarter(state.month) && item.year === state.year));
-  if (subjectUnavailable) {
+  if (subjectUnavailable || staleQuote || staleBudgetPeriod) {
+    const summary = subjectUnavailable
+      ? 'The subject is no longer available. The request closed without changes.'
+      : staleQuote
+        ? 'The quoted monthly cost changed. The request closed without changes.'
+        : 'The budget quarter has passed. The request closed without changes.';
     return {
       ...state,
       inbox: state.inbox.map(item => item.id === messageId
-        ? { ...item, read: true, requiresAction: false, description: `${item.description}\n\nThis subject is no longer available. The request was closed without changes.` }
+        ? { ...item, read: true, requiresAction: false, resolution: { choiceId, summary } }
         : item),
     };
   }
@@ -277,6 +361,8 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
         if (choiceId === 'deny') return { ...employee, efficacy: Math.max(0, employee.efficacy - 10), burnout: Math.min(100, employee.burnout + 15) };
         return employee;
       });
+      const employee = next.employees.find(item => item.id === scenario.employeeId)!;
+      resolutionSummary = `${employee.name}'s monthly salary is $${employee.salary.toLocaleString()}, efficacy ${employee.efficacy}%, and burnout ${employee.burnout}%.`;
       break;
     }
     case 'client-feedback': {
@@ -284,6 +370,8 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       next.clients = state.clients.map(client => client.id === scenario.clientId
         ? { ...client, satisfaction: Math.max(0, Math.min(100, client.satisfaction + change)) }
         : client);
+      const client = next.clients.find(item => item.id === scenario.clientId)!;
+      resolutionSummary = `${client.name}'s satisfaction is now ${client.satisfaction}%.`;
       break;
     }
     case 'new-client': {
@@ -296,6 +384,11 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
           paymentProfile: profiles[Math.floor(deps.random() * profiles.length)], lastPaymentMonth: state.month,
         }];
       }
+      resolutionSummary = choiceId === 'pass'
+        ? `Passed on the ${scenario.name} opportunity.`
+        : won
+          ? `${scenario.name} joined as a client at $${scenario.monthlyFee.toLocaleString()}/month.`
+          : `${scenario.name} did not sign a contract.`;
       break;
     }
     case 'lease-renewal': {
@@ -305,22 +398,33 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
         next.operatingCosts = { ...state.operatingCosts, rent: Math.max(0, state.operatingCosts.rent - 3000) };
         next.reputation = Math.max(0, state.reputation - 5);
       }
+      resolutionSummary = `${choiceId === 'negotiate-rent' && next.operatingCosts.rent < Math.round(state.operatingCosts.rent * 1.08) ? 'Negotiation succeeded. ' : ''}Monthly rent is now $${next.operatingCosts.rent.toLocaleString()}; reputation is ${next.reputation}%.`;
       break;
     }
     case 'it-vendor': {
-      if (choiceId === 'switch-vendor' || (choiceId === 'negotiate-vendor' && deps.random() > 0.5)) {
+      const agreed = choiceId === 'switch-vendor' || (choiceId === 'negotiate-vendor' && deps.random() > 0.5);
+      if (agreed) {
         const multiplier = choiceId === 'switch-vendor' ? 0.8 : 0.9;
         next.vendors = state.vendors.map(vendor => vendor.id === scenario.vendorId
           ? { ...vendor, name: choiceId === 'switch-vendor' ? 'TechForward Solutions' : vendor.name,
               monthlyCost: Math.round(vendor.monthlyCost * multiplier), contractMonths: choiceId === 'switch-vendor' ? 12 : vendor.contractMonths }
           : vendor);
       }
+      const vendor = next.vendors.find(item => item.id === scenario.vendorId)!;
+      resolutionSummary = choiceId === 'negotiate-vendor' && !agreed
+        ? `${vendor.name} declined the discount; monthly cost remains $${vendor.monthlyCost.toLocaleString()}.`
+        : `${vendor.name}'s monthly cost is now $${vendor.monthlyCost.toLocaleString()}.`;
       break;
     }
     case 'benefits-increase': {
       if (choiceId === 'absorb-benefits') next.operatingCosts = { ...state.operatingCosts, misc: state.operatingCosts.misc + scenario.monthlyIncrease };
       if (choiceId === 'pass-benefits') next.employees = state.employees.map(employee => ({ ...employee, burnout: Math.min(100, employee.burnout + 10) }));
       if (choiceId === 'cheaper-plan') next.employees = state.employees.map(employee => ({ ...employee, efficacy: Math.max(0, employee.efficacy - 3) }));
+      resolutionSummary = choiceId === 'absorb-benefits'
+        ? `Miscellaneous monthly operating costs are now $${next.operatingCosts.misc.toLocaleString()}.`
+        : choiceId === 'pass-benefits'
+          ? 'Employees absorbed the increase; their burnout rose by up to 10 points.'
+          : 'The cheaper plan kept monthly costs flat; employee efficacy fell by up to 3 points.';
       break;
     }
     case 'partner-distribution': {
@@ -332,42 +436,75 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
           totalDistributed: state.partnerEconomics.totalDistributed + paid,
           lastDistributionMonth: state.month, lastDistributionYear: state.year };
       }
+      resolutionSummary = paid > 0
+        ? `Distributed $${paid.toLocaleString()}; $${next.partnerEconomics.distributionPool.toLocaleString()} remains in the pool.`
+        : `Distribution deferred; $${next.partnerEconomics.distributionPool.toLocaleString()} remains in the pool.`;
       break;
     }
     case 'collections-problem': {
-      const overdue = Math.min(state.arAging.sixtyDay, scenario.overdueAmount);
+      const available = scenario.clientId
+        ? state.receivables.find(account => account.clientId === scenario.clientId)?.aging.sixtyDay ?? 0
+        : state.arAging.sixtyDay;
+      const overdue = Math.min(available, scenario.overdueAmount);
       if (choiceId === 'demand-letter' || choiceId === 'personal-call') {
-        manualCollections = Math.round(overdue * (choiceId === 'demand-letter' ? 0.6 : 0.4));
-        next.arAging = { ...state.arAging, sixtyDay: state.arAging.sixtyDay - manualCollections };
+        manualCollections = collectAtRate(overdue, choiceId === 'demand-letter' ? 0.6 : 0.4);
+        let remaining = manualCollections;
+        next.receivables = state.receivables.map(account => {
+          if (remaining <= 0 || (scenario.clientId && account.clientId !== scenario.clientId)) return account;
+          const collected = Math.min(remaining, account.aging.sixtyDay);
+          remaining -= collected;
+          return collected > 0
+            ? { ...account, aging: { ...account.aging, sixtyDay: account.aging.sixtyDay - collected } }
+            : account;
+        });
+        next.arAging = sumReceivables(next.receivables);
         next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand + manualCollections };
         if (choiceId === 'demand-letter' && scenario.clientId) next.clients = state.clients.map(client =>
           client.id === scenario.clientId ? { ...client, satisfaction: Math.max(0, client.satisfaction - 5) } : client);
+        resolutionSummary = `Collected $${manualCollections.toLocaleString()} from 61–90 day receivables${scenario.clientId ? ` for ${state.receivables.find(account => account.clientId === scenario.clientId)?.clientName}` : ''}.`;
       } else if (choiceId === 'write-off-ar') {
-        next = writeOffReceivables(next, overdue, 'sixtyDay');
+        next = writeOffReceivables(next, overdue, 'sixtyDay', scenario.clientId);
+        resolutionSummary = `Wrote off $${(state.arAging.sixtyDay - next.arAging.sixtyDay).toLocaleString()} in 61–90 day receivables as bad debt.`;
       }
       break;
     }
     case 'budget-overrun': {
       if (choiceId === 'cut-elsewhere') next.operatingCosts = { ...state.operatingCosts, misc: Math.round(state.operatingCosts.misc * 0.8) };
       if (choiceId === 'reallocate') next.budget = reallocateBudget(state.budget, scenario.category, getCurrentQuarter(state.month), state.year);
+      if (choiceId === 'cut-elsewhere') resolutionSummary = `Miscellaneous monthly operating costs are now $${next.operatingCosts.misc.toLocaleString()}.`;
+      else if (choiceId === 'reallocate') {
+        const previous = state.budget.find(item => item.category === scenario.category && item.quarter === getCurrentQuarter(state.month) && item.year === state.year)!;
+        const updated = next.budget.find(item => item.category === scenario.category && item.quarter === getCurrentQuarter(state.month) && item.year === state.year)!;
+        resolutionSummary = `Reallocated $${(updated.plannedQuarterly - previous.plannedQuarterly).toLocaleString()} to the ${scenario.category} budget.`;
+      } else resolutionSummary = `Accepted the ${scenario.category} budget overrun without changing the plan.`;
       break;
     }
     case 'equipment-failure': {
       if (choiceId === 'buy-equipment' || choiceId === 'temp-fix') next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand - (choiceId === 'buy-equipment' ? 8000 : 1000) };
       if (choiceId === 'lease-equipment') next.vendors = [...state.vendors, { id: deps.generateId(), name: 'Equipment Lease', category: 'Other', monthlyCost: 300, contractMonths: 36 }];
+      resolutionSummary = choiceId === 'lease-equipment'
+        ? 'Added an equipment lease costing $300 per month.'
+        : `Paid $${(state.financials.cashOnHand - next.financials.cashOnHand).toLocaleString()} for ${choiceId === 'buy-equipment' ? 'new equipment' : 'a temporary repair'}.`;
       break;
     }
     case 'tax-planning': {
       if (choiceId === 'pay-taxes' || choiceId === 'accelerate-expenses') {
         const paid = choiceId === 'pay-taxes' ? scenario.estimatedTax : Math.round(scenario.estimatedTax * 0.6);
         next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand - paid };
+        resolutionSummary = `Paid $${paid.toLocaleString()} in estimated taxes; cash is now $${next.financials.cashOnHand.toLocaleString()}.`;
       }
+      else resolutionSummary = 'Deferred the estimated tax payment; cash did not change.';
       break;
     }
-    case 'industry-update': break;
+    case 'industry-update': {
+      resolutionSummary = 'Industry update acknowledged.';
+      break;
+    }
   }
 
   next = recordCurrentCash(next, next.financials.cashOnHand, manualCollections);
-  next.inbox = state.inbox.map(item => item.id === messageId ? { ...item, read: true, requiresAction: false } : item);
+  next.inbox = state.inbox.map(item => item.id === messageId
+    ? { ...item, read: true, requiresAction: false, resolution: { choiceId, summary: resolutionSummary } }
+    : item);
   return next;
 };

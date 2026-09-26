@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createInitialSimulationState } from './initialState';
-import { advanceSimulationMonth, applyInboxChoice, isValidAmount, reallocateBudget, writeOffReceivables } from './engine';
+import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, getOverdueClientAccount, isValidAmount, reallocateBudget, sumReceivables, writeOffReceivables } from './engine';
 import { calculateProfitAndLoss } from './metrics';
 
 const deps = { random: () => 0.6, generateAlerts: () => [], generateInboxMessages: () => [] };
@@ -32,7 +32,8 @@ describe('month advancement and finance', () => {
 
   test('automatic bad debt is an expense without a cash outflow', () => {
     const state = createInitialSimulationState();
-    state.arAging.ninetyPlus = 1000;
+    state.receivables[0].aging.ninetyPlus = 1000;
+    state.arAging = sumReceivables(state.receivables);
     const next = advance(state);
     const entry = next.financialHistory.at(-1);
     expect(entry.arWriteOff).toBeGreaterThan(0);
@@ -43,7 +44,8 @@ describe('month advancement and finance', () => {
 
   test('manual write-off changes profit and AR, not cash', () => {
     const state = createInitialSimulationState();
-    state.arAging.ninetyPlus = 100;
+    state.receivables[0].aging.ninetyPlus = 100;
+    state.arAging = sumReceivables(state.receivables);
     const next = writeOffReceivables(state, 40);
     expect(next.arAging.ninetyPlus).toBe(60);
     expect(next.financials.cashOnHand).toBe(state.financials.cashOnHand);
@@ -59,6 +61,120 @@ describe('month advancement and finance', () => {
     expect(ytd.operatingCosts.rent).toBe(21000);
     expect(ytd.operatingMarginPercent).toBeCloseTo(ytd.operatingIncome / ytd.revenue * 100);
     expect(ytd.netIncome).toBe(state.financialHistory[0].profit + second.profit);
+  });
+});
+
+describe('client receivable accounts', () => {
+  const aging = (current = 0, thirtyDay = 0, sixtyDay = 0, ninetyPlus = 0) =>
+    ({ current, thirtyDay, sixtyDay, ninetyPlus });
+  const account = (clientId, clientName, paymentProfile, buckets) =>
+    ({ clientId, clientName, paymentProfile, aging: buckets });
+  const withAccounts = (state, receivables) =>
+    ({ ...state, receivables, arAging: sumReceivables(receivables) });
+
+  test('ages each account at its own bucket-specific collection rate', () => {
+    const state = withAccounts(createInitialSimulationState(), [
+      account('client2', 'GlobalCorp Inc.', 'prompt', aging(0, 1000)),
+      account('client3', 'EcoNon-Profit', 'slow', aging(0, 1000)),
+    ]);
+    const next = advance(state);
+    expect(next.financials.collectionsThisMonth).toBe(1400); // 90% prompt + 50% slow
+    expect(next.receivables.find(item => item.clientId === 'client2').aging.sixtyDay).toBe(100);
+    expect(next.receivables.find(item => item.clientId === 'client3').aging.sixtyDay).toBe(500);
+    expect(next.arAging).toEqual(sumReceivables(next.receivables));
+    expect(next.arAging.current).toBe(next.financials.grossRevenue);
+  });
+
+  test('rounding never collects more than a small account balance', () => {
+    const state = withAccounts(createInitialSimulationState(), [
+      account('client2', 'GlobalCorp Inc.', 'prompt', aging(0.6, 0.6)),
+    ]);
+    const next = advance(state);
+    expect(next.financials.collectionsThisMonth).toBe(1.2);
+    expect(next.receivables.find(item => item.clientId === 'client2').aging.thirtyDay).toBe(0);
+    expect(next.receivables.find(item => item.clientId === 'client2').aging.sixtyDay).toBe(0);
+    expect(Object.values(next.arAging).every(value => value >= 0)).toBe(true);
+  });
+
+  test('keeps and collects a departed client balance without adding invoices', () => {
+    const initial = createInitialSimulationState();
+    const state = withAccounts({ ...initial, clients: initial.clients.filter(client => client.id !== 'client3') }, [
+      account('client3', 'EcoNon-Profit', 'slow', aging(1000)),
+    ]);
+    const next = advance(state);
+    const formerClient = next.receivables.find(item => item.clientId === 'client3');
+    expect(formerClient).toBeDefined();
+    expect(formerClient.aging).toEqual(aging(0, 400));
+    expect(next.financials.collectionsThisMonth).toBe(600);
+    expect(next.clients.some(client => client.id === 'client3')).toBe(false);
+    expect(next.arAging).toEqual(sumReceivables(next.receivables));
+  });
+
+  test('named collections and write-off affect only the named account', () => {
+    const state = withAccounts(createInitialSimulationState(), [
+      account('client2', 'GlobalCorp Inc.', 'prompt', aging(0, 0, 1000)),
+      account('client3', 'EcoNon-Profit', 'slow', aging(0, 0, 1000)),
+    ]);
+    expect(getOverdueClientAccount(state)?.clientId).toBe('client2');
+    const message = {
+      id: 'collections', type: 'alert', title: 'Collections Problem', description: 'Client overdue', urgency: 'high',
+      requiresAction: true, read: false, timestamp: new Date(),
+      choices: [{ id: 'demand-letter', label: 'Demand', effect: 'Collect' }, { id: 'write-off-ar', label: 'Write off', effect: 'Expense' }],
+      scenario: { kind: 'collections-problem', clientId: 'client3', overdueAmount: 1000 },
+    };
+    const choiceDeps = { random: () => 0, generateId: () => 'new' };
+    const collected = applyInboxChoice({ ...state, inbox: [message] }, 'collections', 'demand-letter', choiceDeps);
+    expect(collected.receivables[0].aging.sixtyDay).toBe(1000);
+    expect(collected.receivables[1].aging.sixtyDay).toBe(400);
+    expect(collected.financials.collectionsThisMonth).toBe(600);
+    expect(collected.arAging).toEqual(sumReceivables(collected.receivables));
+    expect(collected.inbox[0].resolution.summary).toContain('$600');
+    expect(applyInboxChoice(collected, 'collections', 'demand-letter', choiceDeps)).toBe(collected);
+
+    const writtenOff = applyInboxChoice({ ...state, inbox: [message] }, 'collections', 'write-off-ar', choiceDeps);
+    expect(writtenOff.receivables[0].aging.sixtyDay).toBe(1000);
+    expect(writtenOff.receivables[1].aging.sixtyDay).toBe(0);
+    expect(writtenOff.arAging).toEqual(sumReceivables(writtenOff.receivables));
+    expect(writtenOff.financialHistory.at(-1).arWriteOff).toBe(1000);
+  });
+
+  test('legacy unassigned balance cannot be spent through a named collections message', () => {
+    const state = withAccounts(createInitialSimulationState(), [
+      account(null, 'Unassigned legacy balance', 'normal', aging(0, 0, 1000)),
+    ]);
+    const message = {
+      id: 'legacy-collections', type: 'alert', title: 'Collections Problem', description: 'Old request', urgency: 'high',
+      requiresAction: true, read: false, timestamp: new Date(),
+      choices: [{ id: 'demand-letter', label: 'Demand', effect: 'Collect' }],
+      scenario: { kind: 'collections-problem', clientId: 'client3', overdueAmount: 1000 },
+    };
+    const next = applyInboxChoice({ ...state, inbox: [message] }, message.id, 'demand-letter', { random: () => 0, generateId: () => 'new' });
+    expect(next.receivables).toBe(state.receivables);
+    expect(next.financials.cashOnHand).toBe(state.financials.cashOnHand);
+    expect(next.inbox[0].resolution.summary).toContain('no longer available');
+  });
+
+  test('manual collections reconcile cash, history, and aggregate accounts', () => {
+    const state = withAccounts(createInitialSimulationState(), [
+      account('client2', 'GlobalCorp Inc.', 'prompt', aging(0, 1000)),
+      account('client3', 'EcoNon-Profit', 'slow', aging(0, 1000)),
+    ]);
+    const next = collectOverdueReceivables(state);
+    expect(next.financials.cashOnHand - state.financials.cashOnHand).toBe(600);
+    expect(next.financialHistory.at(-1).collections).toBe(600);
+    expect(next.arAging).toEqual(sumReceivables(next.receivables));
+    expect(next.receivables.map(item => item.aging.thirtyDay)).toEqual([700, 700]);
+  });
+
+  test('overdue selector chooses the largest active client account', () => {
+    const initial = createInitialSimulationState();
+    const state = withAccounts(initial, [
+      account(null, 'Legacy', 'normal', aging(0, 0, 9000)),
+      account('former', 'Former Client', 'slow', aging(0, 0, 8000)),
+      account('client2', 'GlobalCorp Inc.', 'prompt', aging(0, 0, 1500)),
+      account('client3', 'EcoNon-Profit', 'slow', aging(0, 0, 2500)),
+    ]);
+    expect(getOverdueClientAccount(state)?.clientId).toBe('client3');
   });
 });
 
@@ -88,7 +204,7 @@ describe('inbox decisions and amount guards', () => {
     const result = applyInboxChoice(addMessage(state, message), 'raise', 'approve', { random: () => 0, generateId: () => 'new' });
     expect(result.employees).toBe(state.employees);
     expect(result.inbox[0].requiresAction).toBe(false);
-    expect(result.inbox[0].description).toContain('no longer available');
+    expect(result.inbox[0].resolution.summary).toContain('no longer available');
   });
 
   test('client feedback targets its subject and opportunity preserves client type', () => {
@@ -104,6 +220,64 @@ describe('inbox decisions and amount guards', () => {
     const opportunity = { ...feedback, id: 'opportunity', choices: [{ id: 'pursue', label: 'Pursue', effect: 'Win' }], scenario: { kind: 'new-client', name: 'New Nonprofit', clientType: 'Non-Profit', monthlyFee: 12000 } };
     const won = applyInboxChoice(addMessage(addressed, opportunity), 'opportunity', 'pursue', { random: () => 0.9, generateId: () => 'won' });
     expect(won.clients.at(-1)).toMatchObject({ name: 'New Nonprofit', type: 'Non-Profit', monthlyFee: 12000 });
+    expect(won.inbox[0].resolution.summary).toContain('joined as a client');
+    const lost = applyInboxChoice(addMessage(addressed, opportunity), 'opportunity', 'pursue', { random: () => 0, generateId: () => 'lost' });
+    expect(lost.clients.length).toBe(addressed.clients.length);
+    expect(lost.inbox[0].resolution.summary).toContain('did not sign');
+  });
+
+  test('stale rent and vendor quotes close without changing costs', () => {
+    const state = createInitialSimulationState();
+    const base = {
+      type: 'request', title: 'Cost decision', description: 'Old quote', urgency: 'medium',
+      requiresAction: true, read: false, timestamp: new Date(),
+    };
+    const lease = {
+      ...base, id: 'lease', choices: [{ id: 'accept-rent', label: 'Accept', effect: 'Rent rises' }],
+      scenario: { kind: 'lease-renewal', currentRent: state.operatingCosts.rent - 100 },
+    };
+    const vendor = {
+      ...base, id: 'vendor', choices: [{ id: 'switch-vendor', label: 'Switch', effect: 'Save' }],
+      scenario: { kind: 'it-vendor', vendorId: state.vendors[1].id, quotedMonthlyCost: state.vendors[1].monthlyCost - 100 },
+    };
+    const deps = { random: () => 0, generateId: () => 'new' };
+    const afterLease = applyInboxChoice({ ...state, inbox: [lease] }, 'lease', 'accept-rent', deps);
+    expect(afterLease.operatingCosts).toBe(state.operatingCosts);
+    expect(afterLease.inbox[0].resolution.summary).toContain('quoted monthly cost changed');
+    const afterVendor = applyInboxChoice({ ...state, inbox: [vendor] }, 'vendor', 'switch-vendor', deps);
+    expect(afterVendor.vendors).toBe(state.vendors);
+    expect(afterVendor.inbox[0].resolution.summary).toContain('quoted monthly cost changed');
+  });
+
+  test('vendor negotiation reports the actual random outcome', () => {
+    const state = createInitialSimulationState();
+    const vendor = state.vendors[1];
+    const message = {
+      id: 'vendor', type: 'opportunity', title: 'IT Vendor Pitch', description: 'Discount', urgency: 'low',
+      requiresAction: true, read: false, timestamp: new Date(),
+      choices: [{ id: 'negotiate-vendor', label: 'Negotiate', effect: 'Chance' }],
+      scenario: { kind: 'it-vendor', vendorId: vendor.id, quotedMonthlyCost: vendor.monthlyCost },
+    };
+    const failed = applyInboxChoice({ ...state, inbox: [message] }, 'vendor', 'negotiate-vendor', { random: () => 0, generateId: () => 'new' });
+    expect(failed.vendors[1].monthlyCost).toBe(vendor.monthlyCost);
+    expect(failed.inbox[0].resolution.summary).toContain('declined');
+    const succeeded = applyInboxChoice({ ...state, inbox: [message] }, 'vendor', 'negotiate-vendor', { random: () => 1, generateId: () => 'new' });
+    expect(succeeded.vendors[1].monthlyCost).toBe(Math.round(vendor.monthlyCost * 0.9));
+    expect(succeeded.inbox[0].resolution.summary).toContain('1,350');
+  });
+
+  test('an old budget overrun cannot change the next quarter', () => {
+    let state = createInitialSimulationState();
+    state = advance(advance(advance(state)));
+    const message = {
+      id: 'q1-budget', type: 'alert', title: 'Budget overrun', description: 'Old quarter', urgency: 'medium',
+      requiresAction: true, read: false, timestamp: new Date(),
+      choices: [{ id: 'reallocate', label: 'Reallocate', effect: 'Moves plan' }],
+      scenario: { kind: 'budget-overrun', category: 'Payroll', quarter: 1, year: 2026 },
+    };
+    const next = applyInboxChoice({ ...state, inbox: [message] }, message.id, 'reallocate', { random: () => 0, generateId: () => 'new' });
+    expect(next.budget).toBe(state.budget);
+    expect(next.inbox[0].resolution.summary).toContain('budget quarter has passed');
   });
 
   test('reallocation transfers budget without changing its total', () => {
@@ -119,7 +293,8 @@ describe('inbox decisions and amount guards', () => {
 
   test('nonfinite, negative, and zero invalid amounts cannot write off AR', () => {
     const state = createInitialSimulationState();
-    state.arAging.ninetyPlus = 100;
+    state.receivables[0].aging.ninetyPlus = 100;
+    state.arAging = sumReceivables(state.receivables);
     for (const amount of [NaN, Infinity, -1, 0]) {
       expect(isValidAmount(amount)).toBe(false);
       expect(writeOffReceivables(state, amount)).toBe(state);

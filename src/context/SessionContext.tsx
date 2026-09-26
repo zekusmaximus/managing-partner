@@ -5,7 +5,7 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { SimulationState } from '@/types/simulation';
 import type { TutorialState } from '@/lib/session/tutorialState';
 import {
-  createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession,
+  createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, loadSession,
   saveSession, type SessionSnapshot, type SessionStorage,
 } from '@/lib/session/save';
 
@@ -84,8 +84,13 @@ export class SessionStore {
     } catch {
       // A blocked storage API is reported by the write below.
     }
-    if (!saveSession(this.storage, this.view.snapshot) &&
-      !this.storageNoticeDismissed && this.view.notice !== UNAVAILABLE_NOTICE) {
+    if (saveSession(this.storage, this.view.snapshot)) {
+      try {
+        this.storage.removeItem(PREVIOUS_SESSION_STORAGE_KEY);
+      } catch {
+        // The new save is already durable; old data can be ignored on the next load.
+      }
+    } else if (!this.storageNoticeDismissed && this.view.notice !== UNAVAILABLE_NOTICE) {
       this.publish({ ...this.view, notice: UNAVAILABLE_NOTICE });
     }
   };
