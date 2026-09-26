@@ -1,4 +1,4 @@
-import type { Alert, ARBuckets, BudgetItem, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
+import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
 import { AR_COLLECTION_RATES, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
 
 export interface EngineDeps {
@@ -20,6 +20,47 @@ export const recordCurrentCash = (state: SimulationState, cashOnHand: number, co
       ? { ...entry, cashOnHand, collections: entry.collections + collections }
       : entry),
 });
+
+export const recordCashMovement = (state: SimulationState, movement: CashMovement): SimulationState => {
+  if (!Number.isFinite(movement.amount) || movement.amount === 0 ||
+    (movement.kind === 'loc-draw' && movement.amount < 0) ||
+    (movement.kind !== 'loc-draw' && movement.kind !== 'unclassified' && movement.amount > 0)) return state;
+  const updated = recordCurrentCash(state, state.financials.cashOnHand + movement.amount);
+  return {
+    ...updated,
+    financialHistory: updated.financialHistory.map((entry, index, history) =>
+      index === history.length - 1 && entry.month === state.month && entry.year === state.year
+        ? { ...entry, cashMovements: [...entry.cashMovements, movement] }
+        : entry),
+  };
+};
+
+export const recordOneTimeOperatingExpense = (
+  state: SimulationState,
+  kind: 'hiring' | 'severance' | 'repair',
+  amount: number,
+): SimulationState => {
+  if (!isValidAmount(amount)) return state;
+  const updated = recordCashMovement(state, { kind, amount: -amount });
+  const budgetCategory = kind === 'repair' ? 'Misc' : 'Payroll';
+  const quarter = getCurrentQuarter(state.month);
+  return {
+    ...updated,
+    financials: {
+      ...updated.financials,
+      operatingExpenses: updated.financials.operatingExpenses + amount,
+      netProfit: updated.financials.netProfit - amount,
+    },
+    financialHistory: updated.financialHistory.map((entry, index, history) =>
+      index === history.length - 1 && entry.month === state.month && entry.year === state.year
+        ? { ...entry, expenses: entry.expenses + amount, profit: entry.profit - amount,
+            oneTimeOperatingExpenses: entry.oneTimeOperatingExpenses + amount }
+        : entry),
+    budget: updated.budget.map(item => item.category === budgetCategory && item.quarter === quarter && item.year === state.year
+      ? { ...item, actualQuarterlySpend: item.actualQuarterlySpend + amount }
+      : item),
+  };
+};
 
 export const sumReceivables = (accounts: ReceivableAccount[]): ARBuckets =>
   accounts.reduce<ARBuckets>((total, account) => ({
@@ -196,12 +237,14 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
 
       // 7. Line of credit mechanics
       let newLOC = { ...prevState.lineOfCredit };
+      const cashMovements: CashMovement[] = [];
       if (newCash < 20000 && newLOC.drawn < newLOC.limit) {
         // Auto-draw to bring cash to $50K
         const drawAmount = Math.min(50000 - newCash, newLOC.limit - newLOC.drawn);
         if (drawAmount > 0) {
           newCash += drawAmount;
           newLOC = { ...newLOC, drawn: newLOC.drawn + drawAmount };
+          cashMovements.push({ kind: 'loc-draw', amount: drawAmount });
         }
       } else if (newCash > 80000 && newLOC.drawn > 0) {
         // Auto-repay
@@ -209,6 +252,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         if (repayAmount > 0) {
           newCash -= repayAmount;
           newLOC = { ...newLOC, drawn: newLOC.drawn - repayAmount };
+          cashMovements.push({ kind: 'loc-repayment', amount: -repayAmount });
         }
       }
 
@@ -267,6 +311,11 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       // Financial history
       const newHistoryEntry: FinancialHistoryEntry = {
         month: newMonth, year: newYear,
+        openingCash: prevState.financials.cashOnHand,
+        isOpeningSnapshot: false,
+        recurringCashExpensesPaid: cashExpenses,
+        cashMovements,
+        oneTimeOperatingExpenses: 0,
         revenue: monthlyRevenue, expenses: totalExpenses, profit: netProfit,
         collections: totalCollections, operatingCosts: opCosts, operatingCostBreakdown: { ...prevState.operatingCosts }, vendorCosts,
         partnerDraw, payroll: totalPayroll, arWriteOff: autoWriteOff,
@@ -431,7 +480,7 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       const pool = Math.min(state.partnerEconomics.distributionPool, scenario.availablePool);
       const paid = choiceId === 'full-distribution' ? pool : choiceId === 'partial-distribution' ? Math.round(pool / 2) : 0;
       if (paid > 0) {
-        next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand - paid };
+        next = recordCashMovement(next, { kind: 'partner-distribution', amount: -paid });
         next.partnerEconomics = { ...state.partnerEconomics, distributionPool: state.partnerEconomics.distributionPool - paid,
           totalDistributed: state.partnerEconomics.totalDistributed + paid,
           lastDistributionMonth: state.month, lastDistributionYear: state.year };
@@ -480,7 +529,8 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       break;
     }
     case 'equipment-failure': {
-      if (choiceId === 'buy-equipment' || choiceId === 'temp-fix') next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand - (choiceId === 'buy-equipment' ? 8000 : 1000) };
+      if (choiceId === 'buy-equipment') next = recordCashMovement(next, { kind: 'equipment-purchase', amount: -8000 });
+      if (choiceId === 'temp-fix') next = recordOneTimeOperatingExpense(next, 'repair', 1000);
       if (choiceId === 'lease-equipment') next.vendors = [...state.vendors, { id: deps.generateId(), name: 'Equipment Lease', category: 'Other', monthlyCost: 300, contractMonths: 36 }];
       resolutionSummary = choiceId === 'lease-equipment'
         ? 'Added an equipment lease costing $300 per month.'
@@ -490,7 +540,7 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
     case 'tax-planning': {
       if (choiceId === 'pay-taxes' || choiceId === 'accelerate-expenses') {
         const paid = choiceId === 'pay-taxes' ? scenario.estimatedTax : Math.round(scenario.estimatedTax * 0.6);
-        next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand - paid };
+        if (paid > 0) next = recordCashMovement(next, { kind: 'tax-payment', amount: -paid });
         resolutionSummary = `Paid $${paid.toLocaleString()} in estimated taxes; cash is now $${next.financials.cashOnHand.toLocaleString()}.`;
       }
       else resolutionSummary = 'Deferred the estimated tax payment; cash did not change.';

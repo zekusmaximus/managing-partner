@@ -1,11 +1,38 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Button, Grid, Card, CardContent, CardHeader, Dialog, DialogTitle, DialogContent, DialogActions, TextField, LinearProgress } from '@mui/material';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, Grid, Card, CardContent, CardHeader, Dialog, DialogTitle, DialogContent, DialogActions, TextField, LinearProgress } from '@mui/material';
 import { useSimulation } from '@/context/SimulationContext';
 import { getLOCAvailable, getLOCMonthlyInterest } from '@/types/simulation';
+import type { CashMovement } from '@/types/simulation';
 import HelpTooltip from '@/components/help/HelpTooltip';
 import { isValidAmount } from '@/lib/simulation/engine';
+
+const movementLabels: Record<CashMovement['kind'], string> = {
+  'partner-distribution': 'Partner distribution',
+  'tax-payment': 'Estimated tax payment',
+  'equipment-purchase': 'Equipment purchase',
+  repair: 'Equipment repair',
+  hiring: 'Hiring cost',
+  severance: 'Severance',
+  'loc-draw': 'Line of credit draw',
+  'loc-repayment': 'Line of credit repayment',
+  unclassified: 'Unclassified prior activity',
+};
+
+const movementOrder: CashMovement['kind'][] = [
+  'partner-distribution', 'tax-payment', 'equipment-purchase', 'repair',
+  'hiring', 'severance', 'loc-draw', 'loc-repayment', 'unclassified',
+];
+
+interface WaterfallItem {
+  label: string;
+  amount: number;
+  isBalance?: boolean;
+}
+
+const formatCash = (amount: number, isBalance = false): string =>
+  `${amount < 0 ? '-' : isBalance ? '' : '+'}$${Math.abs(Math.round(amount)).toLocaleString()}`;
 
 export default function CashFlowView() {
   const { state, drawLineOfCredit, repayLineOfCredit } = useSimulation();
@@ -19,31 +46,46 @@ export default function CashFlowView() {
   const locMaximum = locAction === 'draw' ? locAvailable : Math.min(lineOfCredit.drawn, Math.max(0, financials.cashOnHand));
   const validLOCAmount = isValidAmount(locAmount) && locAmount <= locMaximum;
 
-  // Bad debt is an expense, but it does not move cash. Financing and one-time
-  // decisions are shown separately so the waterfall always reconciles.
-  const writeOff = financialHistory.at(-1)?.arWriteOff ?? 0;
-  const cashExpenses = financials.operatingExpenses - writeOff;
-  const startingCash = financialHistory.length >= 2
-    ? financialHistory[financialHistory.length - 2].cashOnHand
-    : financials.cashOnHand - financials.collectionsThisMonth + cashExpenses;
-  const otherCashMovements = financials.cashOnHand - (startingCash + financials.collectionsThisMonth - cashExpenses);
+  const currentEntry = financialHistory.at(-1);
+  const openingCash = currentEntry?.openingCash ?? null;
+  const movementTotals = currentEntry?.cashMovements.reduce<Partial<Record<CashMovement['kind'], number>>>(
+    (totals, movement) => ({ ...totals, [movement.kind]: (totals[movement.kind] ?? 0) + movement.amount }),
+    {},
+  ) ?? {};
+  const movementItems: WaterfallItem[] = movementOrder
+    .filter(kind => movementTotals[kind] !== undefined && movementTotals[kind] !== 0)
+    .map(kind => ({ label: movementLabels[kind], amount: movementTotals[kind] ?? 0 }));
 
-  // Cash waterfall for current month
-  const waterfallItems = [
-    { label: 'Starting Cash', amount: startingCash, isRunning: true },
-    { label: '+ Collections', amount: financials.collectionsThisMonth, isPositive: true },
-    { label: '- Payroll', amount: -financials.totalPayroll, isPositive: false },
-    { label: '- Operating Costs', amount: -financials.totalOperatingCosts, isPositive: false },
-    { label: '- Vendor Services', amount: -financials.totalVendorCosts, isPositive: false },
-    { label: '- Partner Draw', amount: -financials.partnerDrawThisMonth, isPositive: false },
-    { label: '- LOC Interest', amount: -financials.locInterestThisMonth, isPositive: false },
-    ...(otherCashMovements !== 0 ? [{ label: 'Financing & Other Cash Moves', amount: otherCashMovements, isPositive: otherCashMovements > 0 }] : []),
-    { label: 'Ending Cash', amount: financials.cashOnHand, isRunning: true },
+  // The initial January record is a P&L run-rate snapshot. Its recurring
+  // expenses have not been paid in cash; only later months book those payments.
+  const recurringItems: WaterfallItem[] = currentEntry && !currentEntry.isOpeningSnapshot
+    ? [
+      { label: 'Payroll paid', amount: -currentEntry.payroll },
+      { label: 'Operating costs paid', amount: -currentEntry.operatingCosts },
+      { label: 'Vendor services paid', amount: -currentEntry.vendorCosts },
+      { label: 'Partner draw paid', amount: -currentEntry.partnerDraw },
+      { label: 'Line of credit interest paid', amount: -currentEntry.locInterest },
+    ].filter(item => item.amount !== 0)
+    : [];
+  const waterfallItems: WaterfallItem[] = [
+    ...(openingCash !== null ? [{ label: 'Opening cash', amount: openingCash, isBalance: true }] : []),
+    ...(currentEntry?.collections ? [{ label: 'Client collections', amount: currentEntry.collections }] : []),
+    ...recurringItems,
+    ...movementItems,
+    { label: 'Ending cash', amount: currentEntry?.cashOnHand ?? financials.cashOnHand, isBalance: true },
   ];
+  const cashReconciliationDifference = openingCash === null || !currentEntry ? 0 :
+    currentEntry.cashOnHand - (openingCash + currentEntry.collections +
+      recurringItems.reduce((sum, item) => sum + item.amount, 0) +
+      currentEntry.cashMovements.reduce((sum, movement) => sum + movement.amount, 0));
 
-  // 3-month projection based on current run rate
-  const avgCollections = financialHistory.slice(-3).reduce((s, h) => s + h.collections, 0) / Math.max(1, financialHistory.slice(-3).length);
-  const avgExpenses = financialHistory.slice(-3).reduce((s, h) => s + h.expenses - h.arWriteOff, 0) / Math.max(1, financialHistory.slice(-3).length);
+  // Completed cash months are the evidence for the projection. Opening
+  // snapshots and one-time decisions are excluded from its recurring run rate.
+  const completedCashMonths = financialHistory
+    .filter(entry => !entry.isOpeningSnapshot && entry.recurringCashExpensesPaid !== null)
+    .slice(-3);
+  const avgCollections = completedCashMonths.reduce((sum, entry) => sum + entry.collections, 0) / Math.max(1, completedCashMonths.length);
+  const avgExpenses = completedCashMonths.reduce((sum, entry) => sum + (entry.recurringCashExpensesPaid ?? 0), 0) / Math.max(1, completedCashMonths.length);
   const monthlyNetCashFlow = avgCollections - avgExpenses;
 
   const projections = [1, 2, 3].map(m => ({
@@ -52,8 +94,9 @@ export default function CashFlowView() {
   }));
 
   // Months of runway at current burn rate
-  const monthlyBurn = cashExpenses;
-  const runway = monthlyBurn > 0 ? Math.round((financials.cashOnHand + locAvailable) / monthlyBurn) : 99;
+  const monthlyBurn = financials.totalPayroll + financials.totalOperatingCosts +
+    financials.totalVendorCosts + financials.partnerDrawThisMonth + locInterest;
+  const runway = monthlyBurn > 0 ? Math.round((financials.cashOnHand + locAvailable) / monthlyBurn) : null;
 
   const handleLOCAction = () => {
     if (!validLOCAmount) return;
@@ -72,7 +115,7 @@ export default function CashFlowView() {
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Cash Flow & Line of Credit <HelpTooltip helpId="finance-loc" />
+        Cash Flow & Line of Credit <HelpTooltip helpId="finance-cash-flow" />
       </Typography>
 
       {/* KPI Cards */}
@@ -111,8 +154,8 @@ export default function CashFlowView() {
           <Card>
             <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
               <Typography variant="caption" color="text.secondary">Runway</Typography>
-              <Typography variant="h6" color={runway < 3 ? 'error.main' : runway < 6 ? 'warning.main' : 'success.main'}>
-                {runway} mo
+              <Typography variant="h6" color={runway !== null && runway < 3 ? 'error.main' : runway !== null && runway < 6 ? 'warning.main' : 'success.main'}>
+                {runway === null ? '—' : `${runway} mo`}
               </Typography>
             </CardContent>
           </Card>
@@ -125,25 +168,49 @@ export default function CashFlowView() {
           <Card>
             <CardHeader title="Cash Waterfall" subheader={`Month ${state.month}, ${state.year}`} />
             <CardContent>
+              {currentEntry?.isOpeningSnapshot && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  {openingCash === null
+                    ? 'This older saved month has no recorded opening cash balance. Its ending balance is preserved, but a full reconciliation is unavailable.'
+                    : 'Opening snapshot: the January P&L shows the firm’s starting run rate; recurring cash expenses have not been paid yet.'}
+                </Typography>
+              )}
               <TableContainer>
-                <Table size="small">
+                <Table size="small" aria-label="Current-month cash activity">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Cash activity</TableCell>
+                      <TableCell align="right">Amount</TableCell>
+                    </TableRow>
+                  </TableHead>
                   <TableBody>
-                    {waterfallItems.map((item, i) => (
-                      <TableRow key={item.label} sx={item.isRunning ? { bgcolor: 'action.hover' } : {}}>
-                        <TableCell sx={{ fontWeight: item.isRunning ? 'bold' : 'normal' }}>
+                    {waterfallItems.map(item => (
+                      <TableRow key={item.label} sx={item.isBalance ? { bgcolor: 'action.hover' } : {}}>
+                        <TableCell component="th" scope="row" sx={{ fontWeight: item.isBalance ? 'bold' : 'normal' }}>
                           {item.label}
                         </TableCell>
                         <TableCell align="right" sx={{
-                          fontWeight: item.isRunning ? 'bold' : 'normal',
-                          color: item.isRunning ? (item.amount >= 0 ? 'text.primary' : 'error.main') : item.isPositive ? 'success.main' : 'error.main',
+                          fontWeight: item.isBalance ? 'bold' : 'normal',
+                          color: item.isBalance ? (item.amount >= 0 ? 'text.primary' : 'error.main') : item.amount >= 0 ? 'success.main' : 'error.main',
+                          whiteSpace: 'nowrap',
                         }}>
-                          {item.amount < 0 ? '-' : ''}${Math.abs(Math.round(item.amount)).toLocaleString()}
+                          {formatCash(item.amount, item.isBalance)}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </TableContainer>
+              {movementTotals.unclassified !== undefined && movementTotals.unclassified !== 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  Unclassified prior activity comes from a save made before cash categories were recorded.
+                </Typography>
+              )}
+              {Math.abs(cashReconciliationDifference) > 0.01 && (
+                <Typography variant="body2" color="error.main" role="status" sx={{ mt: 1 }}>
+                  Cash activity differs from the ending balance by ${Math.abs(Math.round(cashReconciliationDifference)).toLocaleString()}.
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -152,7 +219,7 @@ export default function CashFlowView() {
         <Grid size={{ xs: 12, md: 6 }}>
           {/* Line of Credit */}
           <Card sx={{ mb: 3 }}>
-            <CardHeader title="Line of Credit" subheader={`${(lineOfCredit.interestRate * 100).toFixed(1)}% APR`} />
+            <CardHeader title={<>Line of Credit <HelpTooltip helpId="finance-loc" /></>} subheader={`${(lineOfCredit.interestRate * 100).toFixed(1)}% APR`} />
             <CardContent>
               <Box sx={{ mb: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -186,7 +253,11 @@ export default function CashFlowView() {
           <Card>
             <CardHeader title="3-Month Cash Projection" />
             <CardContent>
-              <TableContainer>
+              {completedCashMonths.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  Advance one month to see a projection based on actual collections and recurring cash payments.
+                </Typography>
+              ) : <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -209,10 +280,12 @@ export default function CashFlowView() {
                     ))}
                   </TableBody>
                 </Table>
-              </TableContainer>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Based on trailing 3-month average net cash flow: ${Math.round(monthlyNetCashFlow).toLocaleString()}/mo
-              </Typography>
+              </TableContainer>}
+              {completedCashMonths.length > 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Based on the last {completedCashMonths.length} completed cash {completedCashMonths.length === 1 ? 'month' : 'months'}: average collections minus recurring payments ({formatCash(monthlyNetCashFlow)}/mo). One-time decisions are excluded.
+                </Typography>
+              )}
             </CardContent>
           </Card>
         </Grid>

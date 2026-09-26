@@ -4,10 +4,11 @@ import { sumReceivables } from '@/lib/simulation/engine';
 import { createInitialTutorialState, type TutorialState } from './tutorialState';
 import type { SimulationState } from '@/types/simulation';
 
-export const SESSION_STORAGE_KEY = 'managing-partner-session-v2';
-export const PREVIOUS_SESSION_STORAGE_KEY = 'managing-partner-session-v1';
+export const SESSION_STORAGE_KEY = 'managing-partner-session-v3';
+export const PREVIOUS_SESSION_STORAGE_KEY = 'managing-partner-session-v2';
+export const FIRST_SESSION_STORAGE_KEY = 'managing-partner-session-v1';
 export const LEGACY_TUTORIAL_STORAGE_KEY = 'managing-partner-tutorial';
-export const SESSION_VERSION = 2;
+export const SESSION_VERSION = 3;
 
 export interface SessionSnapshot {
   simulation: SimulationState;
@@ -65,6 +66,35 @@ const financialHistoryEntry: Check = (value) => fields(value, {
   vendorCosts: nonnegative, partnerDraw: nonnegative, payroll: nonnegative,
   arWriteOff: nonnegative, locInterest: nonnegative, cashOnHand: finite,
 });
+
+const cashMovement: Check = (value) => {
+  if (!fields(value, {
+    kind: oneOf('loc-draw', 'loc-repayment', 'partner-distribution', 'tax-payment',
+      'equipment-purchase', 'hiring', 'severance', 'repair', 'unclassified'),
+    amount: finite,
+  })) return false;
+  const movement = value as { kind: string; amount: number };
+  return movement.kind === 'loc-draw' ? movement.amount > 0
+    : movement.kind === 'unclassified' ? movement.amount !== 0
+      : movement.amount < 0;
+};
+
+const financialHistoryEntryV3: Check = (value) => {
+  if (!financialHistoryEntry(value) || !fields(value, {
+    openingCash: (amount) => amount === null || finite(amount),
+    recurringCashExpensesPaid: (amount) => amount === null || nonnegative(amount),
+    cashMovements: arrayOf(cashMovement),
+    oneTimeOperatingExpenses: nonnegative,
+    isOpeningSnapshot: bool,
+  })) return false;
+  const entry = value as Record<string, unknown>;
+  if ((entry.openingCash === null) !== (entry.recurringCashExpensesPaid === null)) return false;
+  if (entry.openingCash === null) return entry.isOpeningSnapshot === true;
+  const movements = entry.cashMovements as SimulationState['financialHistory'][number]['cashMovements'];
+  const closingCash = (entry.openingCash as number) + (entry.collections as number) -
+    (entry.recurringCashExpensesPaid as number) + movements.reduce((total, movement) => total + movement.amount, 0);
+  return Math.abs(closingCash - (entry.cashOnHand as number)) < 0.01;
+};
 
 const scenario: Check = (value) => {
   if (!record(value) || typeof value.kind !== 'string') return false;
@@ -162,6 +192,35 @@ const simulationStateV2: Check = (value) => {
   return (Object.keys(total) as Array<keyof typeof total>).every(bucket => total[bucket] === arAging[bucket]);
 };
 
+const simulationStateV3: Check = (value) => simulationStateV2(value) && record(value) &&
+  Array.isArray(value.financialHistory) && value.financialHistory.every(financialHistoryEntryV3);
+
+// Older saves only record each closing balance. Their unexplained difference
+// stays unclassified; it cannot safely be called a tax payment or LOC draw.
+function migrateLegacyCashHistory(history: SimulationState['financialHistory']): SimulationState['financialHistory'] {
+  return history.map((entry, index) => {
+    if (index === 0) return {
+      ...entry,
+      openingCash: null,
+      recurringCashExpensesPaid: null,
+      cashMovements: [],
+      oneTimeOperatingExpenses: 0,
+      isOpeningSnapshot: true,
+    };
+    const openingCash = history[index - 1].cashOnHand;
+    const recurringCashExpensesPaid = Math.max(0, entry.expenses - entry.arWriteOff);
+    const residual = entry.cashOnHand - (openingCash + entry.collections - recurringCashExpensesPaid);
+    return {
+      ...entry,
+      openingCash,
+      recurringCashExpensesPaid,
+      cashMovements: residual === 0 ? [] : [{ kind: 'unclassified' as const, amount: residual }],
+      oneTimeOperatingExpenses: 0,
+      isOpeningSnapshot: false,
+    };
+  });
+}
+
 const validStepIds = new Set(tutorialSteps.map((step) => step.id));
 const tutorialState: Check = (value) => fields(value, {
   status: oneOf('not_started', 'in_progress', 'completed', 'skipped'),
@@ -186,8 +245,10 @@ export function serializeSession(snapshot: SessionSnapshot): string {
 export function parseSession(raw: string): SessionSnapshot | null {
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!record(parsed) || (parsed.version !== SESSION_VERSION && parsed.version !== 1) ||
-      !(parsed.version === 1 ? simulationStateBase(parsed.simulation) : simulationStateV2(parsed.simulation)) ||
+    if (!record(parsed) || (parsed.version !== SESSION_VERSION && parsed.version !== 2 && parsed.version !== 1) ||
+      !(parsed.version === 1 ? simulationStateBase(parsed.simulation)
+        : parsed.version === 2 ? simulationStateV2(parsed.simulation)
+          : simulationStateV3(parsed.simulation)) ||
       !tutorialState(parsed.tutorial)) return null;
 
     const simulation = parsed.simulation as unknown as SimulationState;
@@ -198,6 +259,8 @@ export function parseSession(raw: string): SessionSnapshot | null {
       simulation: {
         ...simulation,
         receivables,
+        financialHistory: parsed.version === SESSION_VERSION
+          ? simulation.financialHistory : migrateLegacyCashHistory(simulation.financialHistory),
         alerts: simulation.alerts.map((alert) => ({
           ...alert, timestamp: new Date(alert.timestamp),
         })),
@@ -217,6 +280,7 @@ export function loadSession(storage: SessionStorage): LoadResult {
   try {
     raw = storage.getItem(SESSION_STORAGE_KEY);
     if (raw === null) raw = storage.getItem(PREVIOUS_SESSION_STORAGE_KEY);
+    if (raw === null) raw = storage.getItem(FIRST_SESSION_STORAGE_KEY);
   } catch {
     return { status: 'unavailable' };
   }

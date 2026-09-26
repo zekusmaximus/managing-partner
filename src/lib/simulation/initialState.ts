@@ -90,6 +90,11 @@ const initialState: SimulationState = {
   },
   financialHistory: [{
     month: 1, year: 2026,
+    openingCash: 250000,
+    isOpeningSnapshot: true,
+    recurringCashExpensesPaid: 0,
+    cashMovements: [],
+    oneTimeOperatingExpenses: 0,
     revenue: initialRevenue,
     expenses: initialTotalExpenses,
     profit: initialRevenue - initialTotalExpenses,

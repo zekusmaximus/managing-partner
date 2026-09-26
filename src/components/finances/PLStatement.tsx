@@ -28,6 +28,7 @@ export default function PLStatement() {
     { label: 'Compliance', current: current.operatingCosts.compliance, ytd: ytd.operatingCosts.compliance },
     { label: 'Misc Overhead', current: current.operatingCosts.misc, ytd: ytd.operatingCosts.misc },
     { label: 'Vendor Services', current: current.vendorCosts, ytd: ytd.vendorCosts },
+    { label: 'One-Time Operating Costs', current: current.oneTimeOperatingExpenses, ytd: ytd.oneTimeOperatingExpenses, helpId: 'finance-one-time-costs' },
     { label: 'Bad Debt Write-Off', current: current.arWriteOff, ytd: ytd.arWriteOff },
     { label: 'Total Operating Expenses', current: current.totalOperatingExpenses, ytd: ytd.totalOperatingExpenses, isBold: true, isSubtotal: true },
     { label: 'Operating Income', current: current.operatingIncome, ytd: ytd.operatingIncome, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-operating-margin' },

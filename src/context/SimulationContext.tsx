@@ -12,7 +12,7 @@ import {
   HIRING_COST, SEVERANCE_COST, BENEFITS_RATE,
 } from '@/types/simulation';
 import { useSession } from '@/context/SessionContext';
-import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, getOverdueClientAccount, isValidAmount, recordCurrentCash, writeOffReceivables } from '@/lib/simulation/engine';
+import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, getOverdueClientAccount, isValidAmount, recordCashMovement, recordOneTimeOperatingExpense, writeOffReceivables } from '@/lib/simulation/engine';
 
 // Re-export types for consumers
 export type { Employee, Client, Financials, FinancialHistoryEntry, Alert, InboxMessage, MessageChoice, SimulationState, OperatingCosts, Vendor, PartnerEconomics, BudgetItem, ARBuckets, LineOfCredit };
@@ -374,18 +374,18 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
         clientAffinity: 50 + Math.floor(Math.random() * 30),
         hireDate: { month: prevState.month, year: prevState.year },
       };
-      return recordCurrentCash({
+      return recordOneTimeOperatingExpense({
         ...prevState,
         employees: [...prevState.employees, newEmployee],
-      }, prevState.financials.cashOnHand - HIRING_COST);
+      }, 'hiring', HIRING_COST);
     });
   }, [setState]);
 
   const fireEmployee = useCallback((employeeId: string) => {
-    setState(prevState => prevState.employees.some(emp => emp.id === employeeId) ? recordCurrentCash({
+    setState(prevState => prevState.employees.some(emp => emp.id === employeeId) ? recordOneTimeOperatingExpense({
       ...prevState,
       employees: prevState.employees.filter(emp => emp.id !== employeeId),
-    }, prevState.financials.cashOnHand - SEVERANCE_COST) : prevState);
+    }, 'severance', SEVERANCE_COST) : prevState);
   }, [setState]);
 
   const adjustSalary = useCallback((employeeId: string, newSalary: number) => {
@@ -494,7 +494,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       const drawAmount = Math.min(amount, available);
       if (drawAmount <= 0) return prevState;
       return {
-        ...recordCurrentCash(prevState, prevState.financials.cashOnHand + drawAmount),
+        ...recordCashMovement(prevState, { kind: 'loc-draw', amount: drawAmount }),
         lineOfCredit: { ...prevState.lineOfCredit, drawn: prevState.lineOfCredit.drawn + drawAmount },
       };
     });
@@ -506,7 +506,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       const repayAmount = Math.min(amount, prevState.lineOfCredit.drawn, Math.max(0, prevState.financials.cashOnHand));
       if (repayAmount <= 0) return prevState;
       return {
-        ...recordCurrentCash(prevState, prevState.financials.cashOnHand - repayAmount),
+        ...recordCashMovement(prevState, { kind: 'loc-repayment', amount: -repayAmount }),
         lineOfCredit: { ...prevState.lineOfCredit, drawn: prevState.lineOfCredit.drawn - repayAmount },
       };
     });

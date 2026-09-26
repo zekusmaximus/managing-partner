@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype. The first stabilization pass is merged. The current second pass tracks receivables by client, migrates version 1 saves to version 2 without inventing historical client balances, and shows actual inbox decision outcomes. Broader accounting and gameplay design remain future work.
+**Project Status**: Playable single-browser prototype. The stabilization and client-receivables passes are merged into `main`. The current cash-flow branch records categorized cash movements, reconciles the monthly waterfall, and migrates older saves to version 3. Tax liabilities, penalties, and broader gameplay balance remain future work.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -45,7 +45,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Keep the simplified game model internally consistent and make decision consequences clear. Next accounting decisions concern tax liabilities and penalties, one-time expenses, partner distributions, and cash-flow categories including credit-line transactions. Scenario balance and tutorial usability need observation with new players.
+Keep the simplified game model internally consistent and make decision consequences clear. The remaining accounting decision is whether tax liabilities and penalties need a payable schedule. Scenario balance and tutorial usability need observation with new players.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -63,7 +63,16 @@ Keep the simplified game model internally consistent and make decision consequen
 - Inbox choices record a resolution with the selected choice and actual result. The inbox detail view shows this feedback, and choice copy is aligned with effects the simplified model actually applies.
 - The AR chart keeps all four age labels visible on mobile; the partner view no longer presents all-time distributions as YTD compensation. Tutorial examples now avoid promising unmodeled scenario effects or a fixed staffing ratio.
 - Final verification: 26 Bun tests, typecheck, lint, and production build pass. The five routes were checked at 390, 768, 1280, and 1440px; the 34-step tutorial completed across those widths with keyboard navigation checks and no browser errors.
-- Remaining accounting boundaries include tax liabilities and penalties, one-time expenses, partner distributions, and explicit cash-flow categories. This pass does not establish a full ledger.
+- Tax liabilities and penalties were left for a later design decision; the second pass did not establish a full ledger.
+
+## Cash-Flow Pass Snapshot (2026-09-26)
+
+- The second pass was squash-merged into `main` as `0257f02` (PR #4). The cash-flow branch starts from that merged state.
+- Monthly history now records opening cash, recurring cash paid, and signed cash movements for credit-line draws/repayments, partner distributions, estimated tax payments, equipment purchases, hiring, severance, and repairs. Hiring, severance, and repairs also enter a separate P&L operating-cost category; bad debt remains noncash.
+- The initial January entry is an opening cash snapshot: its P&L run rate is displayed but recurring costs have not been paid in cash. The cash waterfall shows categorized activity and reconciles to ending cash. The projection uses observed recurring cash months and excludes one-time decisions.
+- The version 3 local save migrates version 1 and 2 records. The oldest retained legacy month has unknown opening cash; later unexplained changes are preserved as unclassified movements rather than assigned invented causes. Older save keys are retired after a successful version 3 write.
+- Verification: 33 Bun tests, typecheck, lint, and production build pass. All five routes were checked at 390, 768, 1280, and 1440px without horizontal overflow; the month control stayed visible. Keyboard LOC actions, same-month draw/repayment reconciliation, reload persistence, and browser error logs were checked.
+- This remains a simplified educational model without tax payable or penalty accounting.
 
 ## Session History
 
@@ -78,4 +87,5 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-03-15 | Removed accidental nested Git worktree at `.claude/worktrees/elated-neumann` from the repo index and ignored `.claude/worktrees/` to prevent re-staging |
 | 2026-09-25 | Reviewed implementation, build/lint status, simulation correctness, and desktop/mobile UI; recorded findings above |
 | 2026-09-25 | Implemented first stabilization pass: pure simulation functions, local save, responsive shell, tutorial and UI fixes, tests, and documentation updates |
-| 2026-09-26 | Merged first stabilization pass; began client-attributed AR, version 1 to 2 save migration, and inbox outcome feedback |
+| 2026-09-26 | Merged first stabilization pass; implemented client-attributed AR, version 1 to 2 save migration, and inbox outcome feedback |
+| 2026-09-26 | Merged client-receivables pass as PR #4; implemented categorized cash movements, P&L one-time costs, version 3 save migration, and reconciled cash view on a new branch |

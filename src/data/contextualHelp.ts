@@ -251,6 +251,22 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     grExplanation: 'Most GR firms maintain a line of credit (LOC) for working capital management. It covers timing gaps between when you pay expenses (payroll is due regardless) and when clients pay you. Drawing on the LOC costs interest, so minimize usage. The LOC should be a safety net, not a funding source. If you\'re constantly drawn, your firm has a structural cash flow problem.',
     relatedGlossaryTerms: ['line-of-credit', 'working-capital'],
   },
+  'finance-cash-flow': {
+    id: 'finance-cash-flow',
+    page: '/finances',
+    metricName: 'Cash Flow',
+    shortDescription: 'A reconciliation from recorded opening cash to closing cash.',
+    grExplanation: 'The waterfall separates client collections, recurring payments, one-time decisions, partner distributions, and line-of-credit principal. The starting January P&L is a run-rate snapshot, so those costs do not appear as January cash payments. Older saves may show an unclassified movement where the original decision was not recorded. The projection uses observed recurring cash months and excludes one-time events.',
+    relatedGlossaryTerms: ['working-capital', 'line-of-credit', 'accounts-receivable'],
+  },
+  'finance-one-time-costs': {
+    id: 'finance-one-time-costs',
+    page: '/finances',
+    metricName: 'One-Time Operating Costs',
+    shortDescription: 'Hiring, severance, and repair decisions charged to this month’s P&L.',
+    grExplanation: 'These decisions reduce cash when made and are shown as separate operating expenses in the P&L. Equipment purchases are shown as investing cash activity; estimated tax payments, partner distributions, and line-of-credit principal are also tracked in cash activity without being treated as operating expenses.',
+    relatedGlossaryTerms: ['working-capital'],
+  },
   'finance-partner-draw': {
     id: 'finance-partner-draw',
     page: '/finances',

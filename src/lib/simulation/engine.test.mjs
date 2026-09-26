@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createInitialSimulationState } from './initialState';
-import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, getOverdueClientAccount, isValidAmount, reallocateBudget, sumReceivables, writeOffReceivables } from './engine';
+import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, getOverdueClientAccount, isValidAmount, reallocateBudget, recordCashMovement, recordOneTimeOperatingExpense, sumReceivables, writeOffReceivables } from './engine';
 import { calculateProfitAndLoss } from './metrics';
 
 const deps = { random: () => 0.6, generateAlerts: () => [], generateInboxMessages: () => [] };
@@ -61,6 +61,105 @@ describe('month advancement and finance', () => {
     expect(ytd.operatingCosts.rent).toBe(21000);
     expect(ytd.operatingMarginPercent).toBeCloseTo(ytd.operatingIncome / ytd.revenue * 100);
     expect(ytd.netIncome).toBe(state.financialHistory[0].profit + second.profit);
+  });
+});
+
+describe('cash activity and one-time costs', () => {
+  const reconcile = entry =>
+    entry.openingCash + entry.collections - entry.recurringCashExpensesPaid +
+    entry.cashMovements.reduce((sum, movement) => sum + movement.amount, 0);
+  const message = (id, scenario, choiceId) => ({
+    id, type: 'request', title: 'Cash choice', description: 'Decision', urgency: 'medium',
+    requiresAction: true, read: false, timestamp: new Date(), scenario,
+    choices: [{ id: choiceId, label: 'Choose', effect: 'Cash changes' }],
+  });
+  const choose = (state, scenario, choiceId) => applyInboxChoice(
+    { ...state, inbox: [message('cash-choice', scenario, choiceId)] },
+    'cash-choice', choiceId, { random: () => 0, generateId: () => 'new' },
+  );
+
+  test('seeded January is a cash snapshot despite booked P&L expenses', () => {
+    const state = createInitialSimulationState();
+    const january = state.financialHistory[0];
+    expect(january.isOpeningSnapshot).toBe(true);
+    expect(january.openingCash).toBe(250000);
+    expect(january.recurringCashExpensesPaid).toBe(0);
+    expect(january.expenses).toBeGreaterThan(0);
+    expect(reconcile(january)).toBe(january.cashOnHand);
+
+    const afterDraw = recordCashMovement(state, { kind: 'loc-draw', amount: 10000 });
+    const afterRepayment = recordCashMovement(afterDraw, { kind: 'loc-repayment', amount: -3000 });
+    expect(afterRepayment.financialHistory[0].cashMovements).toEqual([
+      { kind: 'loc-draw', amount: 10000 },
+      { kind: 'loc-repayment', amount: -3000 },
+    ]);
+    expect(reconcile(afterRepayment.financialHistory[0])).toBe(afterRepayment.financials.cashOnHand);
+    expect(afterRepayment.financials.netProfit).toBe(state.financials.netProfit);
+    expect(recordCashMovement(state, { kind: 'loc-draw', amount: -100 })).toBe(state);
+    expect(recordCashMovement(state, { kind: 'tax-payment', amount: 0 })).toBe(state);
+  });
+
+  test('month close reconciles recurring cash, collections, and automatic LOC financing', () => {
+    const initial = createInitialSimulationState();
+    const lowCash = {
+      ...initial,
+      financials: { ...initial.financials, cashOnHand: 1000 },
+      financialHistory: [{ ...initial.financialHistory[0], cashOnHand: 1000, openingCash: 1000 }],
+    };
+    const borrowed = advance(lowCash);
+    const february = borrowed.financialHistory.at(-1);
+    expect(february.isOpeningSnapshot).toBe(false);
+    expect(february.openingCash).toBe(1000);
+    expect(february.recurringCashExpensesPaid).toBe(
+      february.payroll + february.operatingCosts + february.vendorCosts + february.partnerDraw + february.locInterest,
+    );
+    expect(february.cashMovements.some(movement => movement.kind === 'loc-draw' && movement.amount > 0)).toBe(true);
+    expect(reconcile(february)).toBe(february.cashOnHand);
+
+    const withDebt = { ...initial, lineOfCredit: { ...initial.lineOfCredit, drawn: 10000 } };
+    const repaid = advance(withDebt);
+    const repaymentMonth = repaid.financialHistory.at(-1);
+    expect(repaymentMonth.cashMovements).toEqual([{ kind: 'loc-repayment', amount: -10000 }]);
+    expect(reconcile(repaymentMonth)).toBe(repaymentMonth.cashOnHand);
+  });
+
+  test('hiring, severance, and repair are cash expenses and operating P&L costs', () => {
+    const initial = createInitialSimulationState();
+    const hired = recordOneTimeOperatingExpense(initial, 'hiring', 5000);
+    const severed = recordOneTimeOperatingExpense(hired, 'severance', 2000);
+    const repaired = choose(severed, { kind: 'equipment-failure' }, 'temp-fix');
+    const entry = repaired.financialHistory.at(-1);
+    expect(entry.cashMovements).toEqual([
+      { kind: 'hiring', amount: -5000 },
+      { kind: 'severance', amount: -2000 },
+      { kind: 'repair', amount: -1000 },
+    ]);
+    expect(entry.oneTimeOperatingExpenses).toBe(8000);
+    expect(entry.expenses).toBe(initial.financialHistory[0].expenses + 8000);
+    expect(entry.profit).toBe(initial.financialHistory[0].profit - 8000);
+    expect(repaired.financials.netProfit).toBe(entry.profit);
+    expect(calculateProfitAndLoss([entry]).oneTimeOperatingExpenses).toBe(8000);
+    expect(calculateProfitAndLoss([entry]).netIncome).toBe(entry.profit);
+    expect(reconcile(entry)).toBe(entry.cashOnHand);
+  });
+
+  test('equipment, tax, and partner distributions affect cash without changing P&L', () => {
+    const initial = createInitialSimulationState();
+    const equipment = choose(initial, { kind: 'equipment-failure' }, 'buy-equipment');
+    const taxed = choose(equipment, { kind: 'tax-planning', estimatedTax: 3000 }, 'pay-taxes');
+    const withPool = { ...taxed, partnerEconomics: { ...taxed.partnerEconomics, distributionPool: 10000 } };
+    const distributed = choose(withPool, { kind: 'partner-distribution', availablePool: 10000 }, 'partial-distribution');
+    const entry = distributed.financialHistory.at(-1);
+    expect(entry.cashMovements).toEqual([
+      { kind: 'equipment-purchase', amount: -8000 },
+      { kind: 'tax-payment', amount: -3000 },
+      { kind: 'partner-distribution', amount: -5000 },
+    ]);
+    expect(entry.profit).toBe(initial.financialHistory[0].profit);
+    expect(entry.oneTimeOperatingExpenses).toBe(0);
+    expect(distributed.partnerEconomics.distributionPool).toBe(5000);
+    expect(reconcile(entry)).toBe(entry.cashOnHand);
+    expect(applyInboxChoice(distributed, 'cash-choice', 'partial-distribution', { random: () => 0, generateId: () => 'new' })).toBe(distributed);
   });
 });
 

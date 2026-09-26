@@ -129,6 +129,14 @@ export interface Financials {
 export interface FinancialHistoryEntry {
   month: number;
   year: number;
+  // The first saved legacy month may have an unknown opening balance. New
+  // sessions begin with a known cash snapshot, even though their January P&L
+  // run rate has not been paid in cash.
+  openingCash: number | null;
+  isOpeningSnapshot: boolean;
+  recurringCashExpensesPaid: number | null;
+  cashMovements: CashMovement[];
+  oneTimeOperatingExpenses: number;
   revenue: number;
   expenses: number;
   profit: number;
@@ -141,6 +149,25 @@ export interface FinancialHistoryEntry {
   arWriteOff: number;
   locInterest: number;
   cashOnHand: number;
+}
+
+// Signed cash impact: inflows are positive, outflows are negative. The
+// unclassified kind is reserved for historical activity that cannot be
+// identified when older browser saves are migrated.
+export type CashMovementKind =
+  | 'loc-draw'
+  | 'loc-repayment'
+  | 'partner-distribution'
+  | 'tax-payment'
+  | 'equipment-purchase'
+  | 'hiring'
+  | 'severance'
+  | 'repair'
+  | 'unclassified';
+
+export interface CashMovement {
+  kind: CashMovementKind;
+  amount: number;
 }
 
 // ============= ALERTS & INBOX =============

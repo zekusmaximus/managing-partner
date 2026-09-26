@@ -25,7 +25,7 @@ bun run build
 
 ## Storage and Integrations
 
-The app uses one version 2 `localStorage` save for the simulation and tutorial. Valid version 1 saves migrate, preserving pooled historical AR as unassigned; the older tutorial-only key is discarded. It has no server API, account system, or database. The optional database recipe applies only if server-side or cross-device persistence is later requested.
+The app uses one version 3 `localStorage` save for the simulation and tutorial. Valid version 1 and 2 saves migrate, preserving pooled historical AR as unassigned and unexplained cash differences as unclassified. The older tutorial-only key is discarded. It has no server API, account system, or database. The optional database recipe applies only if server-side or cross-device persistence is later requested.
 
 ## Key Directories
 

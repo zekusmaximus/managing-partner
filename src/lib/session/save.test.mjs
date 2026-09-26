@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { SessionStore } from '@/context/SessionContext';
 import {
   createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession, parseSession,
-  serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY,
+  serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
 } from './save';
 
 function memoryStorage() {
@@ -15,10 +15,24 @@ function memoryStorage() {
   };
 }
 
+function removeV3CashFields(entry) {
+  const legacy = { ...entry };
+  delete legacy.openingCash;
+  delete legacy.recurringCashExpensesPaid;
+  delete legacy.cashMovements;
+  delete legacy.oneTimeOperatingExpenses;
+  delete legacy.isOpeningSnapshot;
+  return legacy;
+}
+
 describe('versioned game save', () => {
   test('restores simulation, tutorial, and alert/message Dates together', () => {
     const snapshot = createFreshSession();
     snapshot.simulation.month = 3;
+    snapshot.simulation.financials.cashOnHand += 5000;
+    snapshot.simulation.financialHistory[0].cashOnHand += 5000;
+    snapshot.simulation.financialHistory[0].cashMovements.push({ kind: 'loc-draw', amount: 5000 });
+    snapshot.simulation.lineOfCredit.drawn += 5000;
     snapshot.simulation.alerts.push({
       id: 'alert-1', type: 'warning', message: 'Test alert',
       timestamp: new Date('2026-03-01T12:00:00.000Z'),
@@ -36,6 +50,7 @@ describe('versioned game save', () => {
 
     const restored = parseSession(serializeSession(snapshot));
     expect(restored?.simulation.month).toBe(3);
+    expect(restored?.simulation.financialHistory[0].cashMovements).toEqual([{ kind: 'loc-draw', amount: 5000 }]);
     expect(restored?.tutorial.currentStepIndex).toBe(3);
     expect(restored?.simulation.alerts[0].timestamp).toBeInstanceOf(Date);
     expect(restored?.simulation.inbox[0].timestamp).toBeInstanceOf(Date);
@@ -47,7 +62,27 @@ describe('versioned game save', () => {
 
   test('rejects wrong versions and malformed nested data', () => {
     const valid = JSON.parse(serializeSession(createFreshSession()));
-    expect(parseSession(JSON.stringify({ ...valid, version: 3 }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, version: 4 }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, simulation: {
+      ...valid.simulation,
+      financialHistory: [{ ...valid.simulation.financialHistory[0], cashMovements: [{ kind: 'invented', amount: 1 }] }],
+    } }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, simulation: {
+      ...valid.simulation,
+      financialHistory: [{ ...valid.simulation.financialHistory[0], cashMovements: [{ kind: 'loc-draw', amount: -1 }] }],
+    } }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, simulation: {
+      ...valid.simulation,
+      financialHistory: [{ ...valid.simulation.financialHistory[0], cashMovements: [{ kind: 'unclassified', amount: 0 }] }],
+    } }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, simulation: {
+      ...valid.simulation,
+      financialHistory: [{ ...valid.simulation.financialHistory[0], cashOnHand: 251000 }],
+    } }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, simulation: {
+      ...valid.simulation,
+      financialHistory: [{ ...valid.simulation.financialHistory[0], openingCash: null }],
+    } }))).toBeNull();
     expect(parseSession(JSON.stringify({ ...valid, simulation: { ...valid.simulation, employees: null } }))).toBeNull();
     expect(parseSession(JSON.stringify({ ...valid, simulation: {
       ...valid.simulation,
@@ -82,7 +117,8 @@ describe('versioned game save', () => {
     const previous = JSON.parse(serializeSession(createFreshSession()));
     previous.version = 1;
     delete previous.simulation.receivables;
-    storage.setItem(PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous));
+    previous.simulation.financialHistory = previous.simulation.financialHistory.map(removeV3CashFields);
+    storage.setItem(FIRST_SESSION_STORAGE_KEY, JSON.stringify(previous));
 
     const store = new SessionStore(storage);
     expect(store.getSnapshot().snapshot.simulation.receivables).toEqual([{
@@ -91,9 +127,74 @@ describe('versioned game save', () => {
       paymentProfile: 'normal',
       aging: previous.simulation.arAging,
     }]);
+    expect(store.getSnapshot().snapshot.simulation.financialHistory[0]).toMatchObject({
+      openingCash: null, recurringCashExpensesPaid: null, cashMovements: [], isOpeningSnapshot: true,
+    });
+    store.initializeStorage();
+    expect(storage.getItem(FIRST_SESSION_STORAGE_KEY)).toBeNull();
+    expect(loadSession(storage).status).toBe('loaded');
+  });
+
+  test('migrates V2 cash differences as unclassified and retires its key after a V3 save', () => {
+    const storage = memoryStorage();
+    const previous = JSON.parse(serializeSession(createFreshSession()));
+    previous.version = 2;
+    const january = removeV3CashFields(previous.simulation.financialHistory[0]);
+    const february = {
+      ...january, month: 2, collections: 60000, expenses: 80000,
+      cashOnHand: january.cashOnHand + 60000 - 80000 + 5000,
+    };
+    previous.simulation.month = 2;
+    previous.simulation.financials.cashOnHand = february.cashOnHand;
+    previous.simulation.financialHistory = [january, february];
+    storage.setItem(PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous));
+
+    const store = new SessionStore(storage);
+    const history = store.getSnapshot().snapshot.simulation.financialHistory;
+    expect(history[0]).toMatchObject({
+      openingCash: null, recurringCashExpensesPaid: null, cashMovements: [], isOpeningSnapshot: true,
+    });
+    expect(history[1]).toMatchObject({
+      openingCash: 250000, recurringCashExpensesPaid: 80000,
+      cashMovements: [{ kind: 'unclassified', amount: 5000 }],
+      oneTimeOperatingExpenses: 0, isOpeningSnapshot: false,
+    });
     store.initializeStorage();
     expect(storage.getItem(PREVIOUS_SESSION_STORAGE_KEY)).toBeNull();
-    expect(loadSession(storage).status).toBe('loaded');
+    const upgraded = JSON.parse(storage.getItem(SESSION_STORAGE_KEY));
+    expect(upgraded.version).toBe(3);
+    expect(parseSession(JSON.stringify(upgraded))?.simulation.financialHistory[1].cashMovements).toEqual([
+      { kind: 'unclassified', amount: 5000 },
+    ]);
+  });
+
+  test('does not discard older saves when the V3 write fails', () => {
+    const previous = JSON.parse(serializeSession(createFreshSession()));
+    previous.version = 2;
+    previous.simulation.financialHistory = previous.simulation.financialHistory.map(removeV3CashFields);
+    const values = new Map([[PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous)]]);
+    const storage = {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key) => { if (key === SESSION_STORAGE_KEY) throw new Error('quota'); },
+      removeItem: (key) => { values.delete(key); },
+    };
+    const store = new SessionStore(storage);
+    store.initializeStorage();
+    expect(values.has(PREVIOUS_SESSION_STORAGE_KEY)).toBe(true);
+    expect(store.getSnapshot().notice).toContain('storage is unavailable');
+  });
+
+  test('a corrupt V3 save cannot silently restore a stale V2 save', () => {
+    const storage = memoryStorage();
+    storage.setItem(SESSION_STORAGE_KEY, '{corrupt');
+    const previous = JSON.parse(serializeSession(createFreshSession()));
+    previous.version = 2;
+    previous.simulation.month = 8;
+    previous.simulation.financialHistory = previous.simulation.financialHistory.map(removeV3CashFields);
+    storage.setItem(PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous));
+    const store = new SessionStore(storage);
+    expect(store.getSnapshot().snapshot.simulation.month).toBe(1);
+    expect(store.getSnapshot().notice).toContain('saved game could not be read');
   });
 
   test('loads one record, ignores the legacy tutorial-only record, and resets both states', () => {
@@ -117,6 +218,7 @@ describe('versioned game save', () => {
 
     reloaded.newGame();
     expect(reloaded.getSnapshot().snapshot.simulation.month).toBe(1);
+    expect(reloaded.getSnapshot().snapshot.simulation.financialHistory[0].cashMovements).toEqual([]);
     expect(reloaded.getSnapshot().snapshot.tutorial.status).toBe('not_started');
     expect(loadSession(storage).status).toBe('loaded');
     expect(storage.values.has(SESSION_STORAGE_KEY)).toBe(true);
