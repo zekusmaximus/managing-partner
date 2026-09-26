@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Button, Grid, Card, CardContent, CardHeader, Dialog, DialogTitle, DialogContent, DialogActions, TextField, LinearProgress } from '@mui/material';
 import { useSimulation } from '@/context/SimulationContext';
-import { getLOCAvailable, getLOCMonthlyInterest, getARTotal } from '@/types/simulation';
+import { getLOCAvailable, getLOCMonthlyInterest } from '@/types/simulation';
 import HelpTooltip from '@/components/help/HelpTooltip';
+import { isValidAmount } from '@/lib/simulation/engine';
 
 export default function CashFlowView() {
   const { state, drawLineOfCredit, repayLineOfCredit } = useSimulation();
@@ -15,22 +16,34 @@ export default function CashFlowView() {
   const { financials, lineOfCredit, financialHistory } = state;
   const locAvailable = getLOCAvailable(lineOfCredit);
   const locInterest = getLOCMonthlyInterest(lineOfCredit);
+  const locMaximum = locAction === 'draw' ? locAvailable : Math.min(lineOfCredit.drawn, Math.max(0, financials.cashOnHand));
+  const validLOCAmount = isValidAmount(locAmount) && locAmount <= locMaximum;
+
+  // Bad debt is an expense, but it does not move cash. Financing and one-time
+  // decisions are shown separately so the waterfall always reconciles.
+  const writeOff = financialHistory.at(-1)?.arWriteOff ?? 0;
+  const cashExpenses = financials.operatingExpenses - writeOff;
+  const startingCash = financialHistory.length >= 2
+    ? financialHistory[financialHistory.length - 2].cashOnHand
+    : financials.cashOnHand - financials.collectionsThisMonth + cashExpenses;
+  const otherCashMovements = financials.cashOnHand - (startingCash + financials.collectionsThisMonth - cashExpenses);
 
   // Cash waterfall for current month
   const waterfallItems = [
-    { label: 'Starting Cash', amount: financialHistory.length >= 2 ? financialHistory[financialHistory.length - 2].cashOnHand : 250000, isRunning: true },
+    { label: 'Starting Cash', amount: startingCash, isRunning: true },
     { label: '+ Collections', amount: financials.collectionsThisMonth, isPositive: true },
     { label: '- Payroll', amount: -financials.totalPayroll, isPositive: false },
     { label: '- Operating Costs', amount: -financials.totalOperatingCosts, isPositive: false },
     { label: '- Vendor Services', amount: -financials.totalVendorCosts, isPositive: false },
     { label: '- Partner Draw', amount: -financials.partnerDrawThisMonth, isPositive: false },
     { label: '- LOC Interest', amount: -financials.locInterestThisMonth, isPositive: false },
+    ...(otherCashMovements !== 0 ? [{ label: 'Financing & Other Cash Moves', amount: otherCashMovements, isPositive: otherCashMovements > 0 }] : []),
     { label: 'Ending Cash', amount: financials.cashOnHand, isRunning: true },
   ];
 
   // 3-month projection based on current run rate
   const avgCollections = financialHistory.slice(-3).reduce((s, h) => s + h.collections, 0) / Math.max(1, financialHistory.slice(-3).length);
-  const avgExpenses = financialHistory.slice(-3).reduce((s, h) => s + h.expenses, 0) / Math.max(1, financialHistory.slice(-3).length);
+  const avgExpenses = financialHistory.slice(-3).reduce((s, h) => s + h.expenses - h.arWriteOff, 0) / Math.max(1, financialHistory.slice(-3).length);
   const monthlyNetCashFlow = avgCollections - avgExpenses;
 
   const projections = [1, 2, 3].map(m => ({
@@ -39,10 +52,11 @@ export default function CashFlowView() {
   }));
 
   // Months of runway at current burn rate
-  const monthlyBurn = financials.operatingExpenses;
+  const monthlyBurn = cashExpenses;
   const runway = monthlyBurn > 0 ? Math.round((financials.cashOnHand + locAvailable) / monthlyBurn) : 99;
 
   const handleLOCAction = () => {
+    if (!validLOCAmount) return;
     if (locAction === 'draw') {
       drawLineOfCredit(locAmount);
     } else {
@@ -123,7 +137,7 @@ export default function CashFlowView() {
                           fontWeight: item.isRunning ? 'bold' : 'normal',
                           color: item.isRunning ? (item.amount >= 0 ? 'text.primary' : 'error.main') : item.isPositive ? 'success.main' : 'error.main',
                         }}>
-                          ${Math.abs(Math.round(item.amount)).toLocaleString()}
+                          {item.amount < 0 ? '-' : ''}${Math.abs(Math.round(item.amount)).toLocaleString()}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -214,13 +228,15 @@ export default function CashFlowView() {
             fullWidth
             value={locAmount}
             onChange={(e) => setLocAmount(Number(e.target.value))}
+            error={!validLOCAmount}
+            slotProps={{ htmlInput: { min: 0, max: locMaximum, step: 1 } }}
             sx={{ mt: 1 }}
             helperText={locAction === 'draw' ? `Available: $${locAvailable.toLocaleString()}` : `Balance: $${lineOfCredit.drawn.toLocaleString()}`}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setLocDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleLOCAction} variant="contained" color={locAction === 'draw' ? 'primary' : 'success'}>
+          <Button onClick={handleLOCAction} variant="contained" color={locAction === 'draw' ? 'primary' : 'success'} disabled={!validLOCAmount}>
             {locAction === 'draw' ? 'Draw' : 'Repay'}
           </Button>
         </DialogActions>

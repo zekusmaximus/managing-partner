@@ -6,7 +6,7 @@
 - **Never run** `next dev` or `bun dev` - the sandbox handles this automatically
 - **Always commit and push** after completing changes:
   ```bash
-  bun typecheck && bun lint && git add -A && git commit -m "descriptive message" && git push
+  bun test && bun typecheck && bun lint && bun run build && git add -A && git commit -m "descriptive message" && git push
   ```
 
 ## Commands
@@ -14,7 +14,8 @@
 | Command | Purpose |
 |---------|---------|
 | `bun install` | Install dependencies |
-| `bun build` | Build production app |
+| `bun run build` | Build production app |
+| `bun test` | Run focused tests |
 | `bun lint` | Check code quality |
 | `bun typecheck` | Type checking |
 

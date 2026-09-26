@@ -89,10 +89,10 @@ export default function GlossaryDrawer({ open, onClose }: GlossaryDrawerProps) {
           justifyContent: 'space-between',
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        <Typography id="glossary-title" variant="h6" sx={{ fontWeight: 700 }}>
           GR Glossary
         </Typography>
-        <IconButton onClick={onClose} sx={{ color: 'white' }}>
+        <IconButton onClick={onClose} aria-label="Close glossary" sx={{ color: 'white' }}>
           <Close />
         </IconButton>
       </Box>
@@ -102,6 +102,7 @@ export default function GlossaryDrawer({ open, onClose }: GlossaryDrawerProps) {
         <TextField
           fullWidth
           size="small"
+          label="Search glossary terms"
           placeholder="Search terms..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

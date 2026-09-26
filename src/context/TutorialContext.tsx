@@ -1,23 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useCallback } from 'react';
 import { useSimulation } from '@/context/SimulationContext';
+import { useSession } from '@/context/SessionContext';
 import { tutorialSteps, type TutorialStep } from '@/data/tutorialSteps';
-import type { TutorialPhase } from '@/data/learningObjectives';
+import { createInitialTutorialState, type TutorialState } from '@/lib/session/tutorialState';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-export type TutorialStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
-
-export interface TutorialState {
-  status: TutorialStatus;
-  currentStepIndex: number;
-  currentPhase: TutorialPhase;
-  completedSteps: string[];
-  showWelcomeModal: boolean;
-  isPaused: boolean;
-  simulationMonthAtStart: number;
-}
+export type { TutorialState, TutorialStatus } from '@/lib/session/tutorialState';
 
 interface TutorialContextType {
   tutorialState: TutorialState;
@@ -27,6 +18,7 @@ interface TutorialContextType {
   resumeTutorial: () => void;
   restartTutorial: () => void;
   nextStep: () => void;
+  onMonthAdvanced: () => void;
   prevStep: () => void;
   completeStep: (stepId: string) => void;
   dismissWelcome: () => void;
@@ -37,108 +29,31 @@ interface TutorialContextType {
   isTutorialActive: boolean;
 }
 
-// ─── Persistence ─────────────────────────────────────────────────────
-
-const STORAGE_KEY = 'managing-partner-tutorial';
-
-const defaultState: TutorialState = {
-  status: 'not_started',
-  currentStepIndex: 0,
-  currentPhase: 'welcome',
-  completedSteps: [],
-  showWelcomeModal: true,
-  isPaused: false,
-  simulationMonthAtStart: 1,
-};
-
-function loadState(): TutorialState | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveState(state: TutorialState): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // localStorage may be full or disabled
-  }
-}
-
 // ─── Context ─────────────────────────────────────────────────────────
 
 const TutorialContext = createContext<TutorialContextType | undefined>(undefined);
 
-// ─── Phase Ordering ──────────────────────────────────────────────────
-
-const phaseOrder: TutorialPhase[] = ['welcome', 'month1', 'month2', 'month3', 'completed'];
-
-function getNextPhase(current: TutorialPhase): TutorialPhase {
-  const idx = phaseOrder.indexOf(current);
-  return idx < phaseOrder.length - 1 ? phaseOrder[idx + 1] : 'completed';
+function advanceStep(state: TutorialState): TutorialState {
+  const currentStep = tutorialSteps[state.currentStepIndex];
+  const completedSteps = currentStep && !state.completedSteps.includes(currentStep.id)
+    ? [...state.completedSteps, currentStep.id] : state.completedSteps;
+  const nextIndex = state.currentStepIndex + 1;
+  if (nextIndex >= tutorialSteps.length) {
+    return { ...state, status: 'completed', currentPhase: 'completed', completedSteps };
+  }
+  return {
+    ...state,
+    currentStepIndex: nextIndex,
+    currentPhase: tutorialSteps[nextIndex].phase,
+    completedSteps,
+  };
 }
 
 // ─── Provider ────────────────────────────────────────────────────────
 
 export function TutorialProvider({ children }: { children: React.ReactNode }) {
-  const [tutorialState, setTutorialState] = useState<TutorialState>(defaultState);
-  const [hydrated, setHydrated] = useState(false);
+  const { tutorial: tutorialState, setTutorial: setTutorialState } = useSession();
   const { state: simState } = useSimulation();
-  const prevMonthRef = useRef(simState.month);
-
-  // Hydrate from localStorage on mount
-  useEffect(() => {
-    const saved = loadState();
-    if (saved) {
-      setTutorialState(saved);
-    }
-    setHydrated(true);
-  }, []);
-
-  // Persist on changes (after hydration)
-  useEffect(() => {
-    if (hydrated) {
-      saveState(tutorialState);
-    }
-  }, [tutorialState, hydrated]);
-
-  // Watch for simulation month changes to auto-advance tutorial phases
-  useEffect(() => {
-    if (!hydrated) return;
-    if (tutorialState.status !== 'in_progress' || tutorialState.isPaused) return;
-
-    const currentStep = tutorialSteps[tutorialState.currentStepIndex];
-    if (!currentStep) return;
-
-    if (simState.month !== prevMonthRef.current && currentStep.requiresAction === 'advance_month') {
-      // Month was advanced — move to the next step
-      setTutorialState((prev) => {
-        const nextIndex = prev.currentStepIndex + 1;
-        if (nextIndex >= tutorialSteps.length) {
-          return {
-            ...prev,
-            status: 'completed',
-            currentPhase: 'completed',
-            completedSteps: [...prev.completedSteps, currentStep.id],
-          };
-        }
-        const nextStep = tutorialSteps[nextIndex];
-        return {
-          ...prev,
-          currentStepIndex: nextIndex,
-          currentPhase: nextStep.phase,
-          completedSteps: [...prev.completedSteps, currentStep.id],
-        };
-      });
-    }
-
-    prevMonthRef.current = simState.month;
-  }, [simState.month, hydrated, tutorialState.status, tutorialState.isPaused, tutorialState.currentStepIndex]);
 
   const currentStep =
     tutorialState.status === 'in_progress' && !tutorialState.isPaused
@@ -154,12 +69,12 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
 
   const startTutorial = useCallback(() => {
     setTutorialState({
-      ...defaultState,
+      ...createInitialTutorialState(),
       status: 'in_progress',
       showWelcomeModal: false,
       simulationMonthAtStart: simState.month,
     });
-  }, [simState.month]);
+  }, [simState.month, setTutorialState]);
 
   const skipTutorial = useCallback(() => {
     setTutorialState((prev) => ({
@@ -168,14 +83,14 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       showWelcomeModal: false,
       isPaused: false,
     }));
-  }, []);
+  }, [setTutorialState]);
 
   const pauseTutorial = useCallback(() => {
     setTutorialState((prev) => ({
       ...prev,
       isPaused: true,
     }));
-  }, []);
+  }, [setTutorialState]);
 
   const resumeTutorial = useCallback(() => {
     setTutorialState((prev) => ({
@@ -183,44 +98,28 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       isPaused: false,
       status: 'in_progress',
     }));
-  }, []);
+  }, [setTutorialState]);
 
   const restartTutorial = useCallback(() => {
     setTutorialState({
-      ...defaultState,
+      ...createInitialTutorialState(),
       status: 'in_progress',
       showWelcomeModal: false,
       simulationMonthAtStart: simState.month,
     });
-  }, [simState.month]);
+  }, [simState.month, setTutorialState]);
 
   const nextStep = useCallback(() => {
+    setTutorialState(advanceStep);
+  }, [setTutorialState]);
+
+  const onMonthAdvanced = useCallback(() => {
     setTutorialState((prev) => {
-      const currentStepObj = tutorialSteps[prev.currentStepIndex];
-      const nextIndex = prev.currentStepIndex + 1;
-
-      if (nextIndex >= tutorialSteps.length) {
-        return {
-          ...prev,
-          status: 'completed',
-          currentPhase: 'completed',
-          completedSteps: currentStepObj
-            ? [...prev.completedSteps, currentStepObj.id]
-            : prev.completedSteps,
-        };
-      }
-
-      const nextStepObj = tutorialSteps[nextIndex];
-      return {
-        ...prev,
-        currentStepIndex: nextIndex,
-        currentPhase: nextStepObj.phase,
-        completedSteps: currentStepObj
-          ? [...prev.completedSteps, currentStepObj.id]
-          : prev.completedSteps,
-      };
+      const step = tutorialSteps[prev.currentStepIndex];
+      return prev.status === 'in_progress' && !prev.isPaused &&
+        step?.requiresAction === 'advance_month' ? advanceStep(prev) : prev;
     });
-  }, []);
+  }, [setTutorialState]);
 
   const prevStep = useCallback(() => {
     setTutorialState((prev) => {
@@ -233,7 +132,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         currentPhase: prevStepObj.phase,
       };
     });
-  }, []);
+  }, [setTutorialState]);
 
   const completeStep = useCallback((stepId: string) => {
     setTutorialState((prev) => {
@@ -243,37 +142,37 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         completedSteps: [...prev.completedSteps, stepId],
       };
     });
-  }, []);
+  }, [setTutorialState]);
 
   const dismissWelcome = useCallback(() => {
     setTutorialState((prev) => ({
       ...prev,
       showWelcomeModal: false,
     }));
-  }, []);
+  }, [setTutorialState]);
 
   const isStepCompleted = useCallback(
     (stepId: string) => tutorialState.completedSteps.includes(stepId),
     [tutorialState.completedSteps]
   );
 
-  // Don't render children-dependent tutorial UI until hydrated
   const value: TutorialContextType = {
-    tutorialState: hydrated ? tutorialState : { ...defaultState, showWelcomeModal: false },
+    tutorialState,
     startTutorial,
     skipTutorial,
     pauseTutorial,
     resumeTutorial,
     restartTutorial,
     nextStep,
+    onMonthAdvanced,
     prevStep,
     completeStep,
     dismissWelcome,
     isStepCompleted,
-    currentStep: hydrated ? currentStep : null,
+    currentStep,
     totalSteps: tutorialSteps.length,
     completionPercentage,
-    isTutorialActive: hydrated ? isTutorialActive : false,
+    isTutorialActive,
   };
 
   return <TutorialContext.Provider value={value}>{children}</TutorialContext.Provider>;

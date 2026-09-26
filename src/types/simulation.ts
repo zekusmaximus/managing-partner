@@ -109,7 +109,7 @@ export interface BudgetItem {
 export interface Financials {
   cashOnHand: number;
   grossRevenue: number;       // total invoiced this month
-  operatingExpenses: number;  // total expenses this month (payroll + opCosts + vendors + draw)
+  operatingExpenses: number;  // P&L expenses: payroll, overhead, vendors, draw, interest, and bad debt
   netProfit: number;          // revenue - expenses
   collectionsThisMonth: number; // cash actually collected from AR
   totalPayroll: number;       // salary + benefits + payroll tax
@@ -127,6 +127,7 @@ export interface FinancialHistoryEntry {
   profit: number;
   collections: number;
   operatingCosts: number;
+  operatingCostBreakdown: OperatingCosts;
   vendorCosts: number;
   partnerDraw: number;
   payroll: number;
@@ -160,7 +161,24 @@ export interface InboxMessage {
   read: boolean;
   choices: MessageChoice[];
   timestamp: Date;
+  scenario: InboxScenario;
 }
+
+// Scenario data is captured when a message is created. Decisions must never infer
+// their target or quoted amount from presentation text or a later random draw.
+export type InboxScenario =
+  | { kind: 'raise-request'; employeeId: string }
+  | { kind: 'client-feedback'; clientId: string }
+  | { kind: 'new-client'; name: string; clientType: Client['type']; monthlyFee: number }
+  | { kind: 'lease-renewal'; currentRent: number }
+  | { kind: 'it-vendor'; vendorId: string }
+  | { kind: 'benefits-increase'; monthlyIncrease: number }
+  | { kind: 'partner-distribution'; availablePool: number }
+  | { kind: 'collections-problem'; clientId?: string; overdueAmount: number }
+  | { kind: 'budget-overrun'; category: string }
+  | { kind: 'equipment-failure' }
+  | { kind: 'tax-planning'; estimatedTax: number }
+  | { kind: 'industry-update' };
 
 // ============= STATE =============
 

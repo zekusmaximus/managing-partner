@@ -3,62 +3,37 @@
 import React from 'react';
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Divider } from '@mui/material';
 import { useSimulation } from '@/context/SimulationContext';
-import { getOperatingCostsTotal } from '@/types/simulation';
+import { calculateProfitAndLoss } from '@/lib/simulation/metrics';
 import HelpTooltip from '@/components/help/HelpTooltip';
 
 export default function PLStatement() {
   const { state } = useSimulation();
 
-  const { financials, financialHistory } = state;
-
-  // Current month values
-  const revenue = financials.grossRevenue;
-  const payroll = financials.totalPayroll;
-  const grossMargin = revenue - payroll;
-  const grossMarginPct = revenue > 0 ? (grossMargin / revenue * 100) : 0;
-
-  const opCosts = financials.totalOperatingCosts;
-  const vendorCosts = financials.totalVendorCosts;
-  const totalOpEx = opCosts + vendorCosts;
-  const operatingIncome = grossMargin - totalOpEx;
-  const operatingMarginPct = revenue > 0 ? (operatingIncome / revenue * 100) : 0;
-
-  const partnerDraw = financials.partnerDrawThisMonth;
-  const locInterest = financials.locInterestThisMonth;
-  const netIncome = operatingIncome - partnerDraw - locInterest;
-  const netMarginPct = revenue > 0 ? (netIncome / revenue * 100) : 0;
-
-  // YTD values
-  const ytdHistory = financialHistory.filter(h => h.year === state.year);
-  const ytdRevenue = ytdHistory.reduce((s, h) => s + h.revenue, 0);
-  const ytdPayroll = ytdHistory.reduce((s, h) => s + h.payroll, 0);
-  const ytdGrossMargin = ytdRevenue - ytdPayroll;
-  const ytdOpCosts = ytdHistory.reduce((s, h) => s + h.operatingCosts, 0);
-  const ytdVendorCosts = ytdHistory.reduce((s, h) => s + h.vendorCosts, 0);
-  const ytdTotalOpEx = ytdOpCosts + ytdVendorCosts;
-  const ytdOperatingIncome = ytdGrossMargin - ytdTotalOpEx;
-  const ytdPartnerDraw = ytdHistory.reduce((s, h) => s + h.partnerDraw, 0);
-  const ytdLOCInterest = ytdHistory.reduce((s, h) => s + h.locInterest, 0);
-  const ytdNetIncome = ytdOperatingIncome - ytdPartnerDraw - ytdLOCInterest;
+  const currentEntry = state.financialHistory.at(-1);
+  const current = calculateProfitAndLoss(currentEntry ? [currentEntry] : []);
+  const ytd = calculateProfitAndLoss(state.financialHistory.filter(entry => entry.year === state.year));
+  const revenue = current.revenue;
+  const ytdRevenue = ytd.revenue;
 
   const fmt = (val: number) => `$${Math.round(val).toLocaleString()}`;
   const pct = (val: number, total: number) => total > 0 ? `${(val / total * 100).toFixed(1)}%` : '—';
 
   const rows: { label: string; current: number; ytd: number; isBold?: boolean; isSubtotal?: boolean; showPct?: boolean; helpId?: string }[] = [
-    { label: 'Revenue', current: revenue, ytd: ytdRevenue, isBold: true },
-    { label: 'Cost of Revenue (Payroll)', current: payroll, ytd: ytdPayroll },
-    { label: 'Gross Margin', current: grossMargin, ytd: ytdGrossMargin, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-gross-margin' },
-    { label: 'Rent', current: state.operatingCosts.rent, ytd: state.operatingCosts.rent * ytdHistory.length },
-    { label: 'Insurance', current: state.operatingCosts.insurance, ytd: state.operatingCosts.insurance * ytdHistory.length },
-    { label: 'Technology', current: state.operatingCosts.technology, ytd: state.operatingCosts.technology * ytdHistory.length },
-    { label: 'Compliance', current: state.operatingCosts.compliance, ytd: state.operatingCosts.compliance * ytdHistory.length },
-    { label: 'Misc Overhead', current: state.operatingCosts.misc, ytd: state.operatingCosts.misc * ytdHistory.length },
-    { label: 'Vendor Services', current: vendorCosts, ytd: ytdVendorCosts },
-    { label: 'Total Operating Expenses', current: totalOpEx, ytd: ytdTotalOpEx, isBold: true, isSubtotal: true },
-    { label: 'Operating Income', current: operatingIncome, ytd: ytdOperatingIncome, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-operating-margin' },
-    { label: 'Partner Draw', current: partnerDraw, ytd: ytdPartnerDraw },
-    { label: 'LOC Interest', current: locInterest, ytd: ytdLOCInterest },
-    { label: 'Net Income', current: netIncome, ytd: ytdNetIncome, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-pl' },
+    { label: 'Revenue', current: current.revenue, ytd: ytd.revenue, isBold: true },
+    { label: 'Cost of Revenue (Payroll)', current: current.payroll, ytd: ytd.payroll },
+    { label: 'Gross Margin', current: current.grossMargin, ytd: ytd.grossMargin, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-gross-margin' },
+    { label: 'Rent', current: current.operatingCosts.rent, ytd: ytd.operatingCosts.rent },
+    { label: 'Insurance', current: current.operatingCosts.insurance, ytd: ytd.operatingCosts.insurance },
+    { label: 'Technology', current: current.operatingCosts.technology, ytd: ytd.operatingCosts.technology },
+    { label: 'Compliance', current: current.operatingCosts.compliance, ytd: ytd.operatingCosts.compliance },
+    { label: 'Misc Overhead', current: current.operatingCosts.misc, ytd: ytd.operatingCosts.misc },
+    { label: 'Vendor Services', current: current.vendorCosts, ytd: ytd.vendorCosts },
+    { label: 'Bad Debt Write-Off', current: current.arWriteOff, ytd: ytd.arWriteOff },
+    { label: 'Total Operating Expenses', current: current.totalOperatingExpenses, ytd: ytd.totalOperatingExpenses, isBold: true, isSubtotal: true },
+    { label: 'Operating Income', current: current.operatingIncome, ytd: ytd.operatingIncome, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-operating-margin' },
+    { label: 'Partner Draw', current: current.partnerDraw, ytd: ytd.partnerDraw },
+    { label: 'LOC Interest', current: current.locInterest, ytd: ytd.locInterest },
+    { label: 'Net Income', current: current.netIncome, ytd: ytd.netIncome, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-pl' },
   ];
 
   return (
@@ -70,7 +45,7 @@ export default function PLStatement() {
         Month {state.month}, {state.year}
       </Typography>
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} data-tutorial-target="finance-stats-row">
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -82,7 +57,7 @@ export default function PLStatement() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row, index) => (
+            {rows.map((row) => (
               <TableRow
                 key={row.label}
                 sx={{

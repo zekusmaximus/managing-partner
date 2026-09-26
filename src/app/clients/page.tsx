@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { TopNav } from '@/components/layout/TopNav';
-import { SideNav } from '@/components/layout/SideNav';
 import { Box, Typography, Grid, Card, CardContent, CardHeader, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Tooltip } from '@mui/material';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import { useSimulation } from '@/context/SimulationContext';
 import type { Client } from '@/context/SimulationContext';
 import HelpTooltip from '@/components/help/HelpTooltip';
@@ -12,11 +10,13 @@ import HelpTooltip from '@/components/help/HelpTooltip';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 export default function Clients() {
-  const { state, addClient, removeClient, updateClientSatisfaction, advanceMonth } = useSimulation();
+  const { state, addClient, removeClient, updateClientSatisfaction } = useSimulation();
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientType, setNewClientType] = useState<Client['type']>('Corporation');
   const [newClientFee, setNewClientFee] = useState(15000);
+  const validClientName = newClientName.trim().length > 0;
+  const validClientFee = Number.isFinite(newClientFee) && newClientFee > 0;
 
   // Calculate stats
   const totalMonthlyRevenue = state.clients.reduce((sum, c) => sum + c.monthlyFee, 0);
@@ -49,8 +49,8 @@ export default function Clients() {
   ];
 
   const handleAddClient = () => {
-    if (newClientName.trim()) {
-      addClient(newClientName, newClientType, newClientFee);
+    if (validClientName && validClientFee) {
+      addClient(newClientName.trim(), newClientType, newClientFee);
       setOpenAddDialog(false);
       setNewClientName('');
       setNewClientType('Corporation');
@@ -81,31 +81,15 @@ export default function Clients() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <TopNav />
-      <div style={{ display: 'flex', flex: 1 }}>
-        <SideNav />
-        <Box sx={{ p: 3, flex: 1, overflow: 'auto' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <>
+        <Box sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}>
             <Typography variant="h4" component="h1">
               Client Relations
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                onClick={() => setOpenAddDialog(true)}
-              >
-                + Add Client
-              </Button>
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                onClick={advanceMonth}
-              >
-                Advance Month →
-              </Button>
-            </Box>
+            <Button variant="contained" color="primary" onClick={() => setOpenAddDialog(true)}>
+              + Add Client
+            </Button>
           </Box>
 
           <Grid container spacing={3}>
@@ -159,7 +143,7 @@ export default function Clients() {
               <Card sx={{ height: '100%' }}>
                 <CardHeader title="Revenue by Client Type" />
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={180}>
                     <PieChart>
                       <Pie
                         data={revenueByType}
@@ -169,7 +153,6 @@ export default function Clients() {
                         outerRadius={80}
                         paddingAngle={5}
                         dataKey="revenue"
-                        label={(entry: any) => `${entry.type}: $${(entry.revenue/1000).toFixed(0)}k`}
                       >
                         {revenueByType.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -178,6 +161,14 @@ export default function Clients() {
                       <RechartsTooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
                     </PieChart>
                   </ResponsiveContainer>
+                  <Box component="ul" aria-label="Revenue by client type" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, p: 0, m: 0, listStyle: 'none' }}>
+                    {revenueByType.map((entry, index) => (
+                      <Box component="li" key={entry.type} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                        <Box component="span" sx={{ bgcolor: COLORS[index % COLORS.length], width: 10, height: 10, borderRadius: '50%', flexShrink: 0 }} />
+                        <Typography variant="caption">{entry.type}: ${entry.revenue.toLocaleString()}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>
@@ -247,8 +238,8 @@ export default function Clients() {
                   subheader="Manage your clients and track satisfaction"
                 />
                 <CardContent>
-                  <TableContainer component={Paper}>
-                    <Table>
+                  <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+                    <Table sx={{ minWidth: 760 }}>
                       <TableHead>
                         <TableRow>
                           <TableCell>Client Name</TableCell>
@@ -342,7 +333,6 @@ export default function Clients() {
             </Grid>
           </Grid>
         </Box>
-      </div>
 
       {/* Add Client Dialog */}
       <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)}>
@@ -353,6 +343,8 @@ export default function Clients() {
             fullWidth
             value={newClientName}
             onChange={(e) => setNewClientName(e.target.value)}
+            error={newClientName.length > 0 && !validClientName}
+            helperText={newClientName.length > 0 && !validClientName ? 'Enter a client name.' : undefined}
             sx={{ mt: 1 }}
           />
           <TextField
@@ -373,17 +365,20 @@ export default function Clients() {
             fullWidth
             value={newClientFee}
             onChange={(e) => setNewClientFee(Number(e.target.value))}
+            error={!validClientFee}
+            helperText={!validClientFee ? 'Enter a fee greater than zero.' : undefined}
+            slotProps={{ htmlInput: { min: 1, step: 1 } }}
             sx={{ mt: 2 }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddClient} variant="contained" color="primary">
+          <Button onClick={handleAddClient} variant="contained" color="primary" disabled={!validClientName || !validClientFee}>
             Add Client
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </>
   );
 }
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Card, CardContent, CardHeader, Grid, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Divider } from '@mui/material';
 import { useSimulation } from '@/context/SimulationContext';
 import HelpTooltip from '@/components/help/HelpTooltip';
+import { isValidAmount } from '@/lib/simulation/engine';
 
 export default function PartnerEconomicsView() {
   const { state, setPartnerDraw } = useSimulation();
@@ -31,6 +32,7 @@ export default function PartnerEconomicsView() {
     : 0;
 
   const handleSaveDraw = () => {
+    if (!isValidAmount(newDrawAmount, true)) return;
     setPartnerDraw(newDrawAmount);
     setDrawDialogOpen(false);
   };
@@ -198,12 +200,14 @@ export default function PartnerEconomicsView() {
             fullWidth
             value={newDrawAmount}
             onChange={(e) => setNewDrawAmount(Number(e.target.value))}
+            error={!isValidAmount(newDrawAmount, true)}
+            slotProps={{ htmlInput: { min: 0, step: 1 } }}
             helperText={`Current: $${partnerEconomics.monthlyDraw.toLocaleString()}/mo`}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDrawDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSaveDraw} variant="contained">Save</Button>
+          <Button onClick={handleSaveDraw} variant="contained" disabled={!isValidAmount(newDrawAmount, true)}>Save</Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -1,11 +1,17 @@
 "use client";
 
-import React from 'react';
-import { Drawer, List, ListItem, ListItemIcon, ListItemText, Divider, Toolbar, Typography, ListItemButton, Badge, Box } from '@mui/material';
-import { Dashboard, AttachMoney, Groups, BusinessCenter, Inbox } from '@mui/icons-material';
+import { useState } from 'react';
+import {
+  Alert, Badge, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText,
+  DialogTitle, Divider, Drawer, List, ListItem, ListItemButton, ListItemIcon,
+  ListItemText, Snackbar, Typography,
+} from '@mui/material';
+import { Dashboard, AttachMoney, Groups, BusinessCenter, Inbox, RestartAlt } from '@mui/icons-material';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSimulation } from '@/context/SimulationContext';
+import { useTutorial } from '@/context/TutorialContext';
+import { useSession } from '@/context/SessionContext';
 import TutorialProgressBar from '@/components/tutorial/TutorialProgressBar';
 
 const navItems = [
@@ -16,73 +22,55 @@ const navItems = [
   { path: '/inbox', label: 'Inbox', icon: <Inbox />, showBadge: true, tutorialTarget: 'sidenav-inbox' },
 ];
 
-export const SideNav = () => {
+export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { state } = useSimulation();
-  
-  const unreadCount = state.inbox.filter(m => !m.read).length;
+  const { currentStep, nextStep } = useTutorial();
+  const { newGame, notice, dismissNotice } = useSession();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const unreadCount = state.inbox.filter(message => !message.read).length;
 
-  return (
-    <Drawer 
-      variant="permanent" 
-      sx={{ 
-        width: 240, 
-        flexShrink: 0, 
-        bgcolor: '#f8f9fa',
-        '& .MuiDrawer-paper': {
-          width: 240,
-          boxSizing: 'border-box',
-          bgcolor: '#f8f9fa',
-          borderRight: '1px solid rgba(0,0,0,0.08)',
-        },
-      }}
-    >
-      <Toolbar sx={{ bgcolor: '#1976d2', color: 'white' }}>
-        <Typography variant="h6" color="inherit" sx={{ fontWeight: 600 }}>
-          Menu
-        </Typography>
-      </Toolbar>
-      <Divider />
-      <List sx={{ py: 1 }}>
-        {navItems.map((item) => {
+  const handleNavigate = (path: string) => {
+    if (currentStep?.requiresAction === 'navigate' && currentStep.actionTarget === path) {
+      nextStep();
+    }
+    if (path === pathname) onClose();
+  };
+
+  const navigation = (mobile: boolean) => (
+    <Box component="nav" aria-label={mobile ? 'Mobile navigation' : 'Primary navigation'} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {mobile && (
+        <Box sx={{ px: 2, py: 2 }}>
+          <Typography variant="h6" fontWeight={700}>Menu</Typography>
+        </Box>
+      )}
+      <List sx={{ px: 1, py: 1 }}>
+        {navItems.map(item => {
           const isActive = pathname === item.path;
           return (
-            <ListItem key={item.path} disablePadding sx={{ px: 1, py: 0.5 }} data-tutorial-target={item.tutorialTarget}>
+            <ListItem key={item.path} disablePadding sx={{ py: 0.25 }} data-tutorial-target={item.tutorialTarget}>
               <ListItemButton
                 component={Link}
                 href={item.path}
+                onClick={() => handleNavigate(item.path)}
                 selected={isActive}
-                sx={{ 
+                aria-current={isActive ? 'page' : undefined}
+                sx={{
                   borderRadius: 1,
-                  textAlign: 'left',
                   '&.Mui-selected': {
-                    bgcolor: 'primary.main',
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: 'primary.dark',
-                    },
-                    '& .MuiListItemIcon-root': {
-                      color: 'white',
-                    },
+                    bgcolor: 'primary.main', color: 'common.white',
+                    '&:hover': { bgcolor: 'primary.dark' },
+                    '& .MuiListItemIcon-root': { color: 'common.white' },
                   },
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
                   {item.showBadge && unreadCount > 0 ? (
-                    <Badge badgeContent={unreadCount} color="error">
-                      {item.icon}
-                    </Badge>
-                  ) : (
-                    item.icon
-                  )}
+                    <Badge badgeContent={unreadCount} color="error">{item.icon}</Badge>
+                  ) : item.icon}
                 </ListItemIcon>
-                <ListItemText 
-                  primary={item.label} 
-                  primaryTypographyProps={{ 
-                    fontWeight: isActive ? 600 : 400,
-                    fontSize: '0.9rem',
-                  }} 
-                />
+                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: isActive ? 700 : 400, fontSize: '0.9rem' }} />
               </ListItemButton>
             </ListItem>
           );
@@ -91,11 +79,61 @@ export const SideNav = () => {
       <Divider />
       <TutorialProgressBar />
       <Box sx={{ p: 2, mt: 'auto' }}>
-        <Typography variant="caption" color="text.secondary">
-          Managing Partner v1.0
+        <Button fullWidth variant="outlined" color="warning" startIcon={<RestartAlt />} onClick={() => setConfirmOpen(true)}>
+          New Game
+        </Button>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+          Managing Partner prototype
         </Typography>
       </Box>
-    </Drawer>
+    </Box>
   );
-};
 
+  return (
+    <>
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' }, width: 240, flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            position: 'relative', width: 240, height: '100%', boxSizing: 'border-box',
+            bgcolor: 'grey.50', borderRight: '1px solid', borderColor: 'divider',
+          },
+        }}
+      >
+        {navigation(false)}
+      </Drawer>
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={onClose}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { width: 'min(280px, 88vw)', boxSizing: 'border-box', bgcolor: 'grey.50' },
+        }}
+      >
+        {navigation(true)}
+      </Drawer>
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} aria-labelledby="new-game-title">
+        <DialogTitle id="new-game-title">Start a new game?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>This resets your simulation and tutorial progress on this device.</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button
+            color="warning"
+            variant="contained"
+            onClick={() => { newGame(); setConfirmOpen(false); onClose(); router.push('/'); }}
+          >
+            Start New Game
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar open={Boolean(notice)} autoHideDuration={6000} onClose={dismissNotice} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="info" onClose={dismissNotice} sx={{ width: '100%' }}>{notice}</Alert>
+      </Snackbar>
+    </>
+  );
+}

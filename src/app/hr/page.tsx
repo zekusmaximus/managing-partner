@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import { TopNav } from '@/components/layout/TopNav';
-import { SideNav } from '@/components/layout/SideNav';
 import { Box, Typography, Grid, Card, CardContent, CardHeader, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Tooltip } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import { useSimulation } from '@/context/SimulationContext';
@@ -14,12 +12,13 @@ import StaffingEconomics from '@/components/hr/StaffingEconomics';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function HR() {
-  const { state, hireEmployee, fireEmployee, adjustSalary, advanceMonth } = useSimulation();
+  const { state, hireEmployee, fireEmployee, adjustSalary } = useSimulation();
   const [openHireDialog, setOpenHireDialog] = useState(false);
   const [openSalaryDialog, setOpenSalaryDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [newRole, setNewRole] = useState<'Lobbyist' | 'Attorney' | 'Support'>('Lobbyist');
   const [newSalary, setNewSalary] = useState<number>(0);
+  const validSalary = Number.isFinite(newSalary) && newSalary > 0;
 
   // Calculate stats
   const totalPayroll = state.employees.reduce((sum, e) => sum + getEmployeeTotalCost(e), 0);
@@ -63,7 +62,7 @@ export default function HR() {
   };
 
   const handleSalarySave = () => {
-    if (selectedEmployee) {
+    if (selectedEmployee && validSalary) {
       adjustSalary(selectedEmployee.id, newSalary);
       setOpenSalaryDialog(false);
       setSelectedEmployee(null);
@@ -80,32 +79,20 @@ export default function HR() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <TopNav />
-      <div style={{ display: 'flex', flex: 1 }}>
-        <SideNav />
-        <Box sx={{ p: 3, flex: 1, overflow: 'auto' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <>
+        <Box sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}>
             <Typography variant="h4" component="h1">
               Human Resources
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => setOpenHireDialog(true)}
-                data-tutorial-target="hire-employee-btn"
-              >
-                + Hire Employee
-              </Button>
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={advanceMonth}
-              >
-                Advance Month →
-              </Button>
-            </Box>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setOpenHireDialog(true)}
+              data-tutorial-target="hire-employee-btn"
+            >
+              + Hire Employee
+            </Button>
           </Box>
 
           <Grid container spacing={3}>
@@ -247,8 +234,8 @@ export default function HR() {
                   subheader="Manage your team members"
                 />
                 <CardContent>
-                  <TableContainer component={Paper}>
-                    <Table>
+                  <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+                    <Table sx={{ minWidth: 840 }}>
                       <TableHead>
                         <TableRow>
                           <TableCell>Name</TableCell>
@@ -350,7 +337,6 @@ export default function HR() {
             </Grid>
           </Grid>
         </Box>
-      </div>
 
       {/* Hire Employee Dialog */}
       <Dialog open={openHireDialog} onClose={() => setOpenHireDialog(false)}>
@@ -361,7 +347,7 @@ export default function HR() {
             label="Role"
             fullWidth
             value={newRole}
-            onChange={(e) => setNewRole(e.target.value as any)}
+            onChange={(e) => setNewRole(e.target.value as Employee['role'])}
             sx={{ mt: 1 }}
           >
             <MenuItem value="Lobbyist">Lobbyist ($7,000-$9,000)</MenuItem>
@@ -391,6 +377,9 @@ export default function HR() {
             fullWidth
             value={newSalary}
             onChange={(e) => setNewSalary(Number(e.target.value))}
+            error={!validSalary}
+            helperText={!validSalary ? 'Enter a salary greater than zero.' : undefined}
+            slotProps={{ htmlInput: { min: 1, step: 1 } }}
             sx={{ mt: 1 }}
           />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
@@ -400,11 +389,11 @@ export default function HR() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenSalaryDialog(false)}>Cancel</Button>
-          <Button onClick={handleSalarySave} variant="contained" color="primary">
+          <Button onClick={handleSalarySave} variant="contained" color="primary" disabled={!validSalary}>
             Save
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </>
   );
 }
