@@ -129,6 +129,7 @@ const initialState: SimulationState = {
   }],
   lineOfCredit: initialLineOfCredit,
   taxPosition: { principalDue: initialTaxExpense, penaltiesDue: 0 },
+  lastManualCollection: null,
 };
 
 

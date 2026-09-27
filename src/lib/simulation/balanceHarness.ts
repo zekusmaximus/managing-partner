@@ -2,6 +2,7 @@ import type { InboxMessage, SimulationState } from '@/types/simulation';
 import { applyInboxChoice, advanceSimulationMonth } from './engine';
 import { createInitialSimulationState } from './initialState';
 import { generateInboxMessages } from './scenarios';
+import { getClientServiceCapacity } from './clientService';
 
 export type BalancePolicy = 'stewardship' | 'cash-guard' | 'cash-pressure';
 export type BalanceRecoveryPlan = 'full' | 'targeted';
@@ -18,6 +19,7 @@ export interface BalanceMonth {
   taxPayable: number;
   profit: number;
   clients: number;
+  serviceCapacity: number;
   churn: number;
   renewals: number;
   meanBurnout: number;
@@ -43,6 +45,7 @@ export interface BalanceRun {
   creditDrawnTotal: number;
   cumulativeProfit: number;
   endingClients: number;
+  endingServiceCapacity: number;
   clientChurn: number;
   clientRenewals: number;
   endingMeanBurnout: number;
@@ -229,6 +232,7 @@ export const runBalanceSimulation = ({
       taxPayable: state.taxPosition.principalDue + state.taxPosition.penaltiesDue,
       profit: state.financials.netProfit,
       clients: state.clients.length,
+      serviceCapacity: getClientServiceCapacity(state),
       churn,
       renewals,
       meanBurnout: average(state.employees.map(employee => employee.burnout)),
@@ -257,6 +261,7 @@ export const runBalanceSimulation = ({
     creditDrawnTotal: sum('creditDrawnThisMonth'),
     cumulativeProfit: sum('profit'),
     endingClients: last.clients,
+    endingServiceCapacity: last.serviceCapacity,
     clientChurn: sum('churn'),
     clientRenewals: sum('renewals'),
     endingMeanBurnout: last.meanBurnout,

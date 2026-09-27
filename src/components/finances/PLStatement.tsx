@@ -1,13 +1,14 @@
 "use client";
 
-import React from 'react';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Divider } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { useSimulation } from '@/context/SimulationContext';
 import { calculateProfitAndLoss } from '@/lib/simulation/metrics';
 import HelpTooltip from '@/components/help/HelpTooltip';
 
 export default function PLStatement() {
   const { state } = useSimulation();
+  const [mobilePeriod, setMobilePeriod] = useState<'month' | 'ytd'>('month');
 
   const currentEntry = state.financialHistory.at(-1);
   const current = calculateProfitAndLoss(currentEntry ? [currentEntry] : []);
@@ -49,15 +50,30 @@ export default function PLStatement() {
         Month {state.month}, {state.year}
       </Typography>
 
-      <TableContainer component={Paper} data-tutorial-target="finance-stats-row">
-        <Table size="small">
+      <Box data-tutorial-target="finance-stats-row">
+        <ToggleButtonGroup
+          value={mobilePeriod}
+          exclusive
+          onChange={(_, period: 'month' | 'ytd' | null) => { if (period) setMobilePeriod(period); }}
+          size="small"
+          aria-label="Statement period"
+          fullWidth
+          sx={{ display: { xs: 'flex', sm: 'none' }, mb: 1.5 }}
+        >
+          <ToggleButton value="month">This month</ToggleButton>
+          <ToggleButton value="ytd">Year to date</ToggleButton>
+        </ToggleButtonGroup>
+        <TableContainer component={Paper} sx={{ maxWidth: '100%' }}>
+        <Table size="small" aria-label="Profit and loss statement" sx={{ tableLayout: { xs: 'fixed', sm: 'auto' } }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 'bold' }}>Line Item</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold' }}>Current Month</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold' }}>% of Revenue</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold' }}>Year-to-Date</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 'bold' }}>YTD %</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', width: { xs: '52%', sm: 'auto' }, px: { xs: 1, sm: 2 } }}>Line Item</TableCell>
+              <TableCell align="right" sx={{ display: { xs: 'table-cell', sm: 'none' }, fontWeight: 'bold', width: '30%', px: 1 }}>Amount</TableCell>
+              <TableCell align="right" sx={{ display: { xs: 'table-cell', sm: 'none' }, fontWeight: 'bold', width: '18%', px: 1 }}>%</TableCell>
+              <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 'bold' }}>Current Month</TableCell>
+              <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 'bold' }}>% of Revenue</TableCell>
+              <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 'bold' }}>Year-to-Date</TableCell>
+              <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 'bold' }}>YTD %</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -69,27 +85,34 @@ export default function PLStatement() {
                   bgcolor: row.isSubtotal ? 'action.hover' : 'transparent',
                 }}
               >
-                <TableCell sx={{ fontWeight: row.isBold ? 'bold' : 'normal', pl: row.isSubtotal ? 2 : 4 }}>
+                <TableCell sx={{ fontWeight: row.isBold ? 'bold' : 'normal', pl: { xs: row.isSubtotal ? 1 : 2, sm: row.isSubtotal ? 2 : 4 }, pr: { xs: 0.5, sm: 2 }, overflowWrap: 'anywhere' }}>
                   {row.label}
                   {row.helpId && <> <HelpTooltip helpId={row.helpId} /></>}
                 </TableCell>
-                <TableCell align="right" sx={{ fontWeight: row.isBold ? 'bold' : 'normal', color: row.current < 0 ? 'error.main' : row.isSubtotal && row.current > 0 ? 'success.main' : 'text.primary' }}>
+                <TableCell align="right" sx={{ display: { xs: 'table-cell', sm: 'none' }, px: 1, fontSize: '0.78rem', fontWeight: row.isBold ? 'bold' : 'normal', color: (mobilePeriod === 'month' ? row.current : row.ytd) < 0 ? 'error.main' : row.isSubtotal && (mobilePeriod === 'month' ? row.current : row.ytd) > 0 ? 'success.main' : 'text.primary' }}>
+                  {fmt(mobilePeriod === 'month' ? row.current : row.ytd)}
+                </TableCell>
+                <TableCell align="right" sx={{ display: { xs: 'table-cell', sm: 'none' }, px: 1, fontSize: '0.78rem', color: 'text.secondary' }}>
+                  {row.showPct ? pct(mobilePeriod === 'month' ? row.current : row.ytd, mobilePeriod === 'month' ? revenue : ytdRevenue) : ''}
+                </TableCell>
+                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: row.isBold ? 'bold' : 'normal', color: row.current < 0 ? 'error.main' : row.isSubtotal && row.current > 0 ? 'success.main' : 'text.primary' }}>
                   {fmt(row.current)}
                 </TableCell>
-                <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, color: 'text.secondary' }}>
                   {row.showPct ? pct(row.current, revenue) : ''}
                 </TableCell>
-                <TableCell align="right" sx={{ fontWeight: row.isBold ? 'bold' : 'normal', color: row.ytd < 0 ? 'error.main' : row.isSubtotal && row.ytd > 0 ? 'success.main' : 'text.primary' }}>
+                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: row.isBold ? 'bold' : 'normal', color: row.ytd < 0 ? 'error.main' : row.isSubtotal && row.ytd > 0 ? 'success.main' : 'text.primary' }}>
                   {fmt(row.ytd)}
                 </TableCell>
-                <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, color: 'text.secondary' }}>
                   {row.showPct ? pct(row.ytd, ytdRevenue) : ''}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
+        </TableContainer>
+      </Box>
     </Box>
   );
 }

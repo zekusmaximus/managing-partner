@@ -2,7 +2,7 @@
 
 ## Current State
 
-Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. The gameplay balance pass was merged as PR #6 (`fa3b6a1`), adding a seeded balance harness, staff recovery, contract expiry resolution, and inbox-frequency tuning. The current `codex/cash-pressure-recovery` branch focuses on recovery choices and visible credit pressure. There is no account, backend, or cross-device sync.
+Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. PR #8 delivers staffing effects on client service and retention, constrained client and collections actions, and improved mobile decision and finance views. There is no account, backend, or cross-device sync.
 
 The earlier 15–20% completion estimate and checklist described work that has since been built. Progress toward a finished game cannot be stated as a precise percentage without defining the intended feature set.
 
@@ -49,7 +49,7 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Keep the version 4 save format and version 1–4 compatibility; accept the additive staff-recovery cash movement and verify reload cooldown.
 - [x] Pass 65 Bun tests, typecheck, lint, and production build; check all five routes at 390, 768, 1280, and 1440px, including keyboard recovery, finance tabs, renewal/churn, pending inbox and tax prompts, and reload persistence.
 
-## Cash-Constrained Play Pass on the Current Branch
+## Completed Cash-Constrained Play Pass
 
 - [x] Investigate the seeded cash-guard run that exhausts its credit line and ends with severe burnout.
 - [x] Add a smaller, cash-funded targeted recovery choice with an explicit per-person price, bounded effects, and the existing monthly cooldown and accounting.
@@ -57,12 +57,19 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Compare seeded cash-guard and recovery-under-pressure policies across cash, credit, profit, churn, burnout, efficacy, reputation, and pending inbox volume; label these as simulation results.
 - [x] Verify version 1–4 save compatibility, focused tests, Bun quality gates, and changed keyboard/reload flows at 390, 768, 1280, and 1440px.
 
+## Client Service and Mobile Usability Pass
+
+- [x] Link billable staffing, efficacy, affinity, and burnout to client service coverage, monthly satisfaction, and renewal odds; surface shortfalls in the dashboard and alerts.
+- [x] Route client acquisition and feedback through inbox decisions instead of repeatable free client controls.
+- [x] Limit manual collections to one attempt per game month, preserve the limit in existing version 4 saves, and explain it beside the action.
+- [x] Put a compact decision brief and alerts above dashboard detail on phones; make finance reports selectable and year-to-date P&L readable without sideways scrolling.
+- [x] Re-run the seeded balance check under the revised service rule and prepare a new-player session script.
+
 ## Next Work
 
-- [ ] Observe human play sessions to test whether the scripted policies reflect actual player choices and adjust balance if needed.
+- [ ] Run first-time-player sessions using `docs/new-player-playtest.md`; review participant notes and adjust service balance and UI where needed.
 - [ ] Decide whether the simplified month-opening tax estimate needs a deeper accounting model after playtesting.
 - [ ] Add a documented save export/import or account sync only if play across browsers or devices becomes a requirement.
-- [ ] Run usability sessions with new players and refine tutorial length and labels.
 
 ## Quality Gate
 

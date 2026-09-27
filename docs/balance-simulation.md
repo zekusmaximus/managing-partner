@@ -1,8 +1,10 @@
 # Cash pressure balance simulation
 
+> Historical PR #7 balance snapshot. The client service rule has since changed; see the [current service balance check](service-balance-simulation.md) for results under the revised rules.
+
 These are **deterministic simulation results, not human playtest findings**. The harness starts from the January 2026 opening state ($250,000 cash, no credit drawn, eight clients, five employees), then advances 24 months through January 2028. Each table entry is the arithmetic mean of runs with seeds `7, 23, 41, 89, 127`, unless identified as seed 23. The January opening snapshot is excluded from cumulative profit and event counts.
 
-Run `bun run scripts/balance-report.ts` for all three policies and individual seed results. `--months=12` selects the shorter supported horizon. The `--baseline` flag remains for reproducing the older PR #6 comparison against `0e4914f` in an isolated checkout; this page compares against merged `main` at `fa3b6a1` (PR #6). The merged cash-guard results were captured before this pass and are unchanged when rerun with the new action available.
+These recorded results came from the PR #7 rules and are retained for historical comparison. Running `bun run scripts/balance-report.ts` now uses the revised client service rules and produces the results in the [current report](service-balance-simulation.md). The `--baseline` flag remains for reproducing the older PR #6 comparison against `0e4914f` in an isolated checkout.
 
 ## Scripted decisions
 

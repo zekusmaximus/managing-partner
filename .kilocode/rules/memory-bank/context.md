@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype. The gameplay balance work was merged into `main` through PR #6 (`fa3b6a1`), including seeded balance simulation, staff recovery, contract renewal/churn resolution, and discretionary inbox tuning. The current `codex/cash-pressure-recovery` branch adds a smaller targeted recovery choice and a credit-capacity warning. Valid version 1–3 saves still migrate to version 4; existing version 4 saves remain valid. Human playtesting remains outstanding. No PR is requested for the current branch.
+**Project Status**: Playable single-browser prototype. PR #8 delivers the client-service and mobile usability pass: staffing influences service, satisfaction, and renewals; repeatable free client controls are removed and manual collections are limited to once per game month. The mobile dashboard and finance navigation are more compact. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid. Human playtesting remains outstanding; the user will run sessions and share notes.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -45,7 +45,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Keep the simplified game model internally consistent and make decision consequences clear. The cash-constrained play pass uses reproducible scripted decisions to examine burnout recovery alongside credit pressure, with an explicit price and limited effect for each recovery choice. Human play sessions should later test whether these scripted policies reflect actual choices. The tax balance remains deliberately simple.
+Keep the simplified game model internally consistent and make decision consequences clear. The next product priority is to validate the core staffing, client, and cash tradeoffs with human play sessions; scripted balance policies alone do not establish player behavior. The tax balance remains deliberately simple.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -101,6 +101,22 @@ Keep the simplified game model internally consistent and make decision consequen
 - Across five seeds, cash guard versus cash pressure ends with mean cash $168,809 versus $153,647; credit drawn $20,000 versus $27,389; cumulative profit -$29,022 versus -$51,572; churn 3.6 in both; burnout 99.7 versus 42.0; efficacy 6.4 versus 76.1; reputation 44.8 versus 72.4; and ending pending inbox 2.6 in both. Recovery improves staff measures at a cash cost. Seed 23 still fills the credit line after client revenue drops below recurring costs. These are simulation results, not human playtest findings.
 - Focused save/recovery/harness tests and the full Bun gate pass: 71 tests, typecheck, lint, and production build. At 390, 768, 1280, and 1440px, browser checks confirmed the low-credit warning and keyboard deep link to Cash Flow controls, an unaffordable full recovery quote beside the $500 targeted quote, keyboard funding, and reload persistence of the credit link and shared monthly cooldown. There was no horizontal overflow or browser console error in these changed flows.
 
+## Review Snapshot (2026-09-27)
+
+- Reviewed clean `main` after PR #7. The documented Bun gate passes: 71 tests, typecheck, lint, and production build. No code changes were made in this review.
+- The simulation currently bills and renews clients even with zero employees; employee affinity is displayed but has no modeled effect on service or renewals. Direct client addition at arbitrary fees and repeatable free satisfaction increases bypass the intended management tradeoffs.
+- The AR "Run Collections" action can be repeated in a month to accelerate nearly all overdue balances. The Clients contract timeline double-counts terms longer than 12 months in its 7–12 and >12 buckets.
+- Live UI checks found a usable desktop shell and mobile navigation, but six full-width KPI cards push the dashboard's chart, alerts, and roster far below the first phone screen. The five finance tabs and P&L table require horizontal scrolling on a 390px viewport without a clear scroll cue. This review sampled the welcome, dashboard, navigation, Clients desktop, and mobile P&L screens; it did not rerun the full tutorial.
+- The remaining product work is human playtesting of game balance and tutorial usability. Save portability, deeper tax accounting, and explicit win/loss conditions remain product decisions. `TODO.md` still describes the now-merged recovery branch as current, and the page metadata overstates model accuracy.
+
+## Client Service and Mobile Usability Pass (2026-09-27)
+
+- Billable staff supply effective client slots from efficacy, client affinity, and burnout. Effective support staff multiply the billable team's capacity. Monthly coverage changes satisfaction and renewal probability, with shortfall alerts and a dashboard service indicator. With no billable staff, expiring contracts cannot renew.
+- The Clients page no longer offers direct Add/Remove Client or free satisfaction adjustment. New business and client responses go through inbox decisions. Manual collections now use a saved month/year marker, allow one attempt per game month, and restore older version 4 saves without the field.
+- The phone dashboard begins with a compact cash/alerts/next-action/service brief, then alerts and a two-column KPI grid. Finance reports use a phone/tablet selector, and the phone P&L offers month or YTD in a three-column table. The contract timeline no longer counts long terms twice.
+- `docs/service-balance-simulation.md` records five seeded 24-month policy runs under the revised rule. The no-recovery policy still ends at mean -$117,238 cash with 0.4 clients. These results show scripted model behavior, not new-player outcomes. `docs/new-player-playtest.md` gives the user a 3–5 participant session plan; notes are pending before any deeper tax or persistence work.
+- Verification: 78 Bun tests, typecheck, lint, and production build pass. Read-only browser checks at 390px and 1280px found no dashboard/finance page overflow or console errors; the phone report selector and YTD toggle worked. A live employee dismissal check was rejected by automatic approval review as an unauthorized destructive test mutation, so the staffing transition was verified by pure tests instead.
+
 ## Session History
 
 | Date | Changes |
@@ -119,3 +135,6 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-26 | Added estimated tax payable and late charges, version 4 save migration, deterministic scenario generation, pending-decision retention, and tutorial accessibility fixes on the cash-flow branch; PR deferred pending this phase |
 | 2026-09-27 | Merged the tax, scenario, and tutorial pass as PR #5 (`0e4914f`); completed a seeded gameplay balance pass with staff recovery, contract expiry resolution, and inbox pacing on a new `codex/` branch |
 | 2026-09-27 | Merged the gameplay balance pass as PR #6 (`fa3b6a1`); started the cash-constrained recovery and credit-visibility pass on `codex/cash-pressure-recovery` |
+| 2026-09-27 | Reviewed merged PR #7 on `main`, verified 71 Bun tests and production quality gates, and recorded gameplay and status findings |
+| 2026-09-27 | Implemented service/retention and collections constraints, mobile dashboard/finance improvements, a seeded balance report, and a new-player session plan; human notes pending |
+| 2026-09-27 | Opened PR #8 for the client-service and mobile usability pass; user will run new-player sessions after merging and share notes |

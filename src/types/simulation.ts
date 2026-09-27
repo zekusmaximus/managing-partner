@@ -237,6 +237,9 @@ export type InboxScenario =
 export interface SimulationState {
   month: number;
   year: number;
+  // A manual AR collection push is allowed once per game month. Null also
+  // represents pre-feature saves that have not used the action yet.
+  lastManualCollection: { month: number; year: number } | null;
   financials: Financials;
   financialHistory: FinancialHistoryEntry[];
   employees: Employee[];

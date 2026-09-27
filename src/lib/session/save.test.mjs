@@ -221,6 +221,20 @@ describe('versioned game save', () => {
     expect(parseSession(storage.getItem(SESSION_STORAGE_KEY))?.simulation.taxPosition).toEqual({ principalDue: 0, penaltiesDue: 0 });
   });
 
+  test('persists the monthly collections limit and loads older V4 saves without it', () => {
+    const snapshot = createFreshSession();
+    snapshot.simulation.lastManualCollection = { month: 1, year: 2026 };
+    expect(parseSession(serializeSession(snapshot))?.simulation.lastManualCollection)
+      .toEqual({ month: 1, year: 2026 });
+
+    const priorV4 = JSON.parse(serializeSession(snapshot));
+    delete priorV4.simulation.lastManualCollection;
+    expect(parseSession(JSON.stringify(priorV4))?.simulation.lastManualCollection).toBeNull();
+
+    priorV4.simulation.lastManualCollection = { month: 13, year: 2026 };
+    expect(parseSession(JSON.stringify(priorV4))).toBeNull();
+  });
+
   for (const version of [1, 2, 3]) {
     test(`funds targeted recovery after loading a V${version} save`, () => {
       const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));

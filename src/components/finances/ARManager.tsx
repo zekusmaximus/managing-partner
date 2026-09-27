@@ -15,6 +15,9 @@ export default function ARManager() {
 
   const { arAging, clients, financialHistory, receivables } = state;
   const totalAR = getARTotal(arAging);
+  const hasOverdueAR = arAging.thirtyDay + arAging.sixtyDay + arAging.ninetyPlus > 0;
+  const collectionsRunThisMonth = state.lastManualCollection?.month === state.month &&
+    state.lastManualCollection.year === state.year;
   const validWriteOff = isValidAmount(writeOffAmount) && writeOffAmount <= arAging.ninetyPlus;
 
   // DSO calculation: (total AR / avg daily revenue)
@@ -112,14 +115,17 @@ export default function ARManager() {
       </Grid>
 
       {/* Actions */}
-      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-        <Button variant="contained" size="small" onClick={collectAR} disabled={arAging.thirtyDay + arAging.sixtyDay + arAging.ninetyPlus === 0}>
-          Run Collections
+      <Box sx={{ mb: 1, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+        <Button variant="contained" size="small" onClick={collectAR} disabled={!hasOverdueAR || collectionsRunThisMonth}>
+          {collectionsRunThisMonth ? 'Collections Run This Month' : 'Run Collections'}
         </Button>
         <Button variant="outlined" size="small" color="error" onClick={() => { setWriteOffAmount(arAging.ninetyPlus); setWriteOffOpen(true); }} disabled={arAging.ninetyPlus === 0}>
           Write Off 90+ ({`$${Math.round(arAging.ninetyPlus).toLocaleString()}`})
         </Button>
       </Box>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
+        Collections can be run once each month when receivables are overdue.
+      </Typography>
 
       {/* Aging Chart */}
       <Paper sx={{ p: 2, mb: 3 }}>

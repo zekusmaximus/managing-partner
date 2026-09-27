@@ -1,5 +1,6 @@
 import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
 import { AR_COLLECTION_RATES, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
+import { getClientServiceCapacity, getClientServiceCoverage } from './clientService';
 
 export interface EngineDeps {
   random: () => number;
@@ -99,6 +100,10 @@ export const getOverdueClientAccount = (state: SimulationState): ReceivableAccou
   }, undefined);
 
 export const collectOverdueReceivables = (state: SimulationState): SimulationState => {
+  if (state.lastManualCollection?.month === state.month && state.lastManualCollection.year === state.year) return state;
+  if (!state.receivables.some(account => account.aging.thirtyDay > 0 ||
+    account.aging.sixtyDay > 0 || account.aging.ninetyPlus > 0)) return state;
+  const lastManualCollection = { month: state.month, year: state.year };
   let collected = 0;
   const receivables = state.receivables.map(account => {
     const thirtyDay = collectAtRate(account.aging.thirtyDay, 0.3);
@@ -115,8 +120,9 @@ export const collectOverdueReceivables = (state: SimulationState): SimulationSta
       },
     };
   });
-  if (collected === 0) return state;
-  return recordCurrentCash({ ...state, receivables, arAging: sumReceivables(receivables) },
+  if (collected === 0) return { ...state, lastManualCollection };
+  return recordCurrentCash({ ...state, receivables, arAging: sumReceivables(receivables),
+    lastManualCollection },
     state.financials.cashOnHand + collected, collected);
 };
 
@@ -181,17 +187,24 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         return { ...emp, burnout: newBurnout, efficacy: newEfficacy };
       });
 
-      // 2. Resolve contracts when their final month ends. Satisfaction drives
-      // renewal odds; a renewal starts a fresh term and churn ends billing.
+      // 2. Billable capacity serves the current book. This month's service
+      // coverage changes satisfaction and directly affects renewal odds.
+      const serviceRoster = { employees: updatedEmployees, clients: prevState.clients };
+      const serviceCoverage = getClientServiceCoverage(serviceRoster);
+      const serviceAdjustment = Math.round((Math.min(1.25, serviceCoverage) - 1) * 12);
+
+      // Resolve contracts when their final month ends. A renewal starts a
+      // fresh term and churn ends billing; old receivables remain collectible.
       const renewedNames: string[] = [];
       const churnedNames: string[] = [];
       const updatedClients = prevState.clients.flatMap(client => {
         const satisfaction = Math.max(0, Math.min(100,
-          client.satisfaction + Math.floor(deps.random() * 11) - 5));
+          client.satisfaction + serviceAdjustment + Math.floor(deps.random() * 11) - 5));
         const remaining = Math.max(0, client.contractMonthsRemaining - 1);
         if (remaining > 0) return [{ ...client, satisfaction, contractMonthsRemaining: remaining }];
 
-        const renewalChance = Math.min(0.95, Math.max(0.15, 0.15 + satisfaction * 0.008));
+        const renewalChance = Math.min(0.95, Math.max(0.15, 0.15 + satisfaction * 0.008)) *
+          Math.min(1, serviceCoverage);
         if (deps.random() < renewalChance) {
           renewedNames.push(client.name);
           return [{ ...client, satisfaction, contractMonthsRemaining: 12 }];
@@ -211,6 +224,12 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         id: `contract-churned-${newYear}-${newMonth}`,
         type: 'warning',
         message: `${churnedNames.join(', ')} did not renew and left the client roster. Existing receivables remain collectible in Accounts Receivable.`,
+        timestamp: contractTimestamp,
+      });
+      if (prevState.clients.length > 0 && serviceCoverage < 0.9) contractAlerts.push({
+        id: `service-shortfall-${newYear}-${newMonth}`,
+        type: 'warning',
+        message: `Client service coverage is ${Math.round(serviceCoverage * 100)}% (${getClientServiceCapacity(serviceRoster).toFixed(1)} effective slots for ${prevState.clients.length} clients). Low coverage reduces satisfaction and renewal odds. Add billable or support staff, or restore team effectiveness.`,
         timestamp: contractTimestamp,
       });
 

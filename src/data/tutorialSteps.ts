@@ -247,7 +247,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/clients',
     title: 'Client Satisfaction',
     content:
-      'Client satisfaction measures how well your firm is serving each organization. In real GR, satisfaction depends on:\n\n\u2022 Legislative wins and policy outcomes\n\u2022 Responsiveness to client requests\n\u2022 Quality of strategic advice\n\u2022 Strength of personal relationships\n\nBelow 60% means the client is actively considering other firms. Below 40%, they\'re probably already talking to your competitors. Proactive communication is your best defense.',
+      'Client satisfaction measures how well your firm is serving each organization. Your team\'s capacity and performance affect service each month, and your responses to client requests in the Inbox can change satisfaction.\n\nIn real GR, satisfaction depends on policy outcomes, responsiveness, advice, and relationships. Below 60%, clients are at risk; below 40%, losing them becomes likely. Keep enough capable staff to serve the roster and respond thoughtfully when clients raise concerns.',
     targetSelector: '[data-tutorial-target="client-table"]',
     position: 'top',
     learningObjectiveIds: ['lo-m2-satisfaction'],
@@ -258,7 +258,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/clients',
     title: 'Contract Management',
     content:
-      'Every client engagement has a contract term. When it expires, the client decides whether to renew based on their satisfaction and the perceived value of your services.\n\nSmart managing partners begin renewal conversations 3-4 months before expiry — never wait until the last minute. Losing a client means losing their monthly retainer, which directly impacts your cash flow and profit.',
+      'Every client engagement has a contract term. When it expires, the client decides whether to renew based on satisfaction and the service your team has delivered.\n\nWatch contracts that expire in the next 3-4 months. Staffing and client decisions you make now affect whether those clients stay. Losing a client means losing their monthly retainer, which directly impacts cash flow and profit.',
     targetSelector: '[data-tutorial-target="contract-chart"]',
     position: 'left',
     learningObjectiveIds: ['lo-m2-satisfaction'],

@@ -114,7 +114,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Employee Efficacy',
     shortDescription: 'How effectively each team member performs their role.',
-    grExplanation: 'Efficacy reflects client outcomes, relationship quality on the Hill, successful advocacy campaigns, and overall productivity. High-efficacy lobbyists have strong networks, deep policy knowledge, and the trust of policymakers. Low efficacy often correlates with burnout, poor role fit, or insufficient mentoring.',
+    grExplanation: 'Efficacy reflects client outcomes, relationship quality on the Hill, successful advocacy campaigns, and overall productivity. In this simulation, efficacy affects billable capacity and how much support staff help the whole team. Low efficacy reduces service coverage, which can lower satisfaction and renewal odds.',
     relatedGlossaryTerms: ['efficacy', 'client-affinity', 'direct-lobbying'],
   },
   'hr-burnout': {
@@ -122,7 +122,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Burnout',
     shortDescription: 'Physical and emotional exhaustion from sustained high-pressure work.',
-    grExplanation: 'Burnout is a real crisis in the GR industry. Long hours, high-stakes advocacy, constant travel between DC and state capitals, tight legislative deadlines, and the pressure of representing client interests before powerful officials all contribute. When burnout exceeds 60%, performance drops sharply. Above 80%, you risk losing the employee entirely.',
+    grExplanation: 'Burnout is a real crisis in the GR industry. Long hours, high-stakes advocacy, constant travel between DC and state capitals, and tight legislative deadlines all contribute. In this simulation, burnout above 60% cuts effective client service capacity. If the team becomes stretched, satisfaction and renewal odds suffer.',
     relatedGlossaryTerms: ['burnout', 'managing-partner'],
   },
   'hr-recovery': {
@@ -138,7 +138,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Client Affinity',
     shortDescription: 'How well an employee connects with and serves clients.',
-    grExplanation: 'High-affinity lobbyists build deep trust with their clients, leading to renewals and referrals. In the real GR world, client relationships are often personal — clients hire specific lobbyists, not just firms. When a high-affinity lobbyist leaves, their clients may follow them to their new firm.',
+    grExplanation: 'High-affinity lobbyists build trust with clients. Here, affinity combines with efficacy to determine staff service effectiveness. Billable staff create client capacity, while support staff strengthen the whole team. More coverage protects satisfaction and improves renewal odds as the client roster grows.',
     relatedGlossaryTerms: ['client-affinity', 'book-of-business', 'rainmaker'],
   },
 
@@ -148,7 +148,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Client Satisfaction',
     shortDescription: 'How well your firm is meeting each client\'s GR needs.',
-    grExplanation: 'In reality, satisfaction is driven by legislative wins, responsiveness, quality of strategic advice, and the personal relationship with their assigned lobbyist. Below 60% means the client is actively considering other firms. Below 40% means they are likely already talking to competitors. Proactive communication and honest progress reporting are the best defenses.',
+    grExplanation: 'Each billable Lobbyist or Attorney can cover about two clients at 80% combined efficacy and affinity. Effective support staff help the whole team; without any support, billable capacity falls by about 15%. Burnout above 60% reduces staff effectiveness. When the team cannot cover the client roster, satisfaction tends to fall each month; spare capacity gives it a modest lift. Satisfaction also changes through inbox decisions.',
     relatedGlossaryTerms: ['client-affinity', 'direct-lobbying'],
   },
   'clients-contract': {
@@ -156,7 +156,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Contract Duration',
     shortDescription: 'Months remaining on each client\'s engagement.',
-    grExplanation: 'When contracts expire, clients decide whether to renew based on satisfaction and perceived value. High satisfaction leads to renewals; low satisfaction means they may take their business to a competing firm. Smart managing partners begin renewal conversations 3-4 months before expiry — never wait until the last minute.',
+    grExplanation: 'When a contract expires, renewal odds depend on both client satisfaction and current service coverage. An overloaded team has weaker renewal odds even with a happy client; with no billable staff, a contract cannot renew. Check capacity before taking on more clients or letting a contract reach its final month.',
     relatedGlossaryTerms: ['retainer', 'book-of-business'],
   },
   'clients-type': {
