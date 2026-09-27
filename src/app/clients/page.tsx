@@ -1,22 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Box, Typography, Grid, Card, CardContent, CardHeader, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Tooltip } from '@mui/material';
+import { Box, Typography, Grid, Card, CardContent, CardHeader, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import { useSimulation } from '@/context/SimulationContext';
-import type { Client } from '@/context/SimulationContext';
 import HelpTooltip from '@/components/help/HelpTooltip';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 export default function Clients() {
-  const { state, addClient, removeClient, updateClientSatisfaction } = useSimulation();
-  const [openAddDialog, setOpenAddDialog] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientType, setNewClientType] = useState<Client['type']>('Corporation');
-  const [newClientFee, setNewClientFee] = useState(15000);
-  const validClientName = newClientName.trim().length > 0;
-  const validClientFee = Number.isFinite(newClientFee) && newClientFee > 0;
+  const { state } = useSimulation();
 
   // Calculate stats
   const totalMonthlyRevenue = state.clients.reduce((sum, c) => sum + c.monthlyFee, 0);
@@ -44,29 +36,9 @@ export default function Clients() {
   const contractTimeline = [
     { months: '0-3', count: state.clients.filter(c => c.contractMonthsRemaining <= 3 && c.contractMonthsRemaining > 0).length },
     { months: '4-6', count: state.clients.filter(c => c.contractMonthsRemaining <= 6 && c.contractMonthsRemaining > 3).length },
-    { months: '7-12', count: state.clients.filter(c => c.contractMonthsRemaining > 6).length },
+    { months: '7-12', count: state.clients.filter(c => c.contractMonthsRemaining > 6 && c.contractMonthsRemaining <= 12).length },
     { months: '>12', count: state.clients.filter(c => c.contractMonthsRemaining > 12).length },
   ];
-
-  const handleAddClient = () => {
-    if (validClientName && validClientFee) {
-      addClient(newClientName.trim(), newClientType, newClientFee);
-      setOpenAddDialog(false);
-      setNewClientName('');
-      setNewClientType('Corporation');
-      setNewClientFee(15000);
-    }
-  };
-
-  const handleRemoveClient = (client: Client) => {
-    if (confirm(`Are you sure you want to remove ${client.name}?`)) {
-      removeClient(client.id);
-    }
-  };
-
-  const handleSatisfactionChange = (client: Client, delta: number) => {
-    updateClientSatisfaction(client.id, delta);
-  };
 
   const getSatisfactionColor = (satisfaction: number) => {
     if (satisfaction >= 80) return 'success';
@@ -83,13 +55,13 @@ export default function Clients() {
   return (
     <>
         <Box sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}>
-            <Typography variant="h4" component="h1">
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
               Client Relations
             </Typography>
-            <Button variant="contained" color="primary" onClick={() => setOpenAddDialog(true)}>
-              + Add Client
-            </Button>
+            <Typography variant="body2" color="text.secondary">
+              Review service health and contract terms here. Pursue new business and respond to client requests in the Inbox.
+            </Typography>
           </Box>
 
           <Grid container spacing={3}>
@@ -235,7 +207,7 @@ export default function Clients() {
               <Card>
                 <CardHeader
                   title="Client Roster"
-                  subheader="Manage your clients and track satisfaction"
+                  subheader="Track service health, fees, and renewal timing"
                 />
                 <CardContent>
                   <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
@@ -248,7 +220,6 @@ export default function Clients() {
                           <TableCell>Monthly Fee</TableCell>
                           <TableCell>Satisfaction</TableCell>
                           <TableCell>Contract</TableCell>
-                          <TableCell align="center">Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -294,38 +265,6 @@ export default function Clients() {
                                 color={getContractColor(client.contractMonthsRemaining) as any}
                               />
                             </TableCell>
-                            <TableCell align="center">
-                              <Tooltip title="Improve Satisfaction">
-                                <Button 
-                                  size="small" 
-                                  color="success"
-                                  aria-label={`Increase ${client.name} satisfaction by 5 points`}
-                                  onClick={() => handleSatisfactionChange(client, 5)}
-                                >
-                                  +5%
-                                </Button>
-                              </Tooltip>
-                              <Tooltip title="Decrease Satisfaction">
-                                <Button 
-                                  size="small" 
-                                  color="error"
-                                  aria-label={`Decrease ${client.name} satisfaction by 5 points`}
-                                  onClick={() => handleSatisfactionChange(client, -5)}
-                                >
-                                  -5%
-                                </Button>
-                              </Tooltip>
-                              <Tooltip title="Remove Client">
-                                <Button 
-                                  size="small" 
-                                  color="error"
-                                  aria-label={`Remove ${client.name}`}
-                                  onClick={() => handleRemoveClient(client)}
-                                >
-                                  Remove
-                                </Button>
-                              </Tooltip>
-                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -337,50 +276,6 @@ export default function Clients() {
           </Grid>
         </Box>
 
-      {/* Add Client Dialog */}
-      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)}>
-        <DialogTitle>Add New Client</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Client Name"
-            fullWidth
-            value={newClientName}
-            onChange={(e) => setNewClientName(e.target.value)}
-            error={newClientName.length > 0 && !validClientName}
-            helperText={newClientName.length > 0 && !validClientName ? 'Enter a client name.' : undefined}
-            sx={{ mt: 1 }}
-          />
-          <TextField
-            select
-            label="Client Type"
-            fullWidth
-            value={newClientType}
-            onChange={(e) => setNewClientType(e.target.value as Client['type'])}
-            sx={{ mt: 2 }}
-          >
-            <MenuItem value="Corporation">Corporation</MenuItem>
-            <MenuItem value="Trade Association">Trade Association</MenuItem>
-            <MenuItem value="Non-Profit">Non-Profit</MenuItem>
-          </TextField>
-          <TextField
-            label="Monthly Fee"
-            type="number"
-            fullWidth
-            value={newClientFee}
-            onChange={(e) => setNewClientFee(Number(e.target.value))}
-            error={!validClientFee}
-            helperText={!validClientFee ? 'Enter a fee greater than zero.' : undefined}
-            slotProps={{ htmlInput: { min: 1, step: 1 } }}
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddClient} variant="contained" color="primary" disabled={!validClientName || !validClientFee}>
-            Add Client
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 }

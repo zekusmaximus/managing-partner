@@ -32,6 +32,8 @@ describe('seeded balance simulation', () => {
           expect(Number.isFinite(month.cash)).toBe(true);
           expect(Number.isFinite(month.profit)).toBe(true);
           expect(month.clients).toBeGreaterThanOrEqual(0);
+          expect(Number.isFinite(month.serviceCapacity)).toBe(true);
+          expect(month.serviceCapacity).toBeGreaterThanOrEqual(0);
           expect(month.meanBurnout).toBeGreaterThanOrEqual(0);
           expect(month.meanBurnout).toBeLessThanOrEqual(100);
           expect(month.meanEfficacy).toBeGreaterThanOrEqual(0);

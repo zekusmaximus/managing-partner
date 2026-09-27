@@ -31,6 +31,7 @@ const rows = policies.map(policy => {
     creditDraws: mean(selected, 'creditDrawnTotal'),
     profit: mean(selected, 'cumulativeProfit'),
     clientsEnd: mean(selected, 'endingClients'),
+    serviceCapacityEnd: mean(selected, 'endingServiceCapacity'),
     churn: mean(selected, 'clientChurn'),
     renewals: mean(selected, 'clientRenewals'),
     burnoutEnd: mean(selected, 'endingMeanBurnout'),
@@ -50,7 +51,7 @@ const rows = policies.map(policy => {
 });
 
 console.log(JSON.stringify({
-  source: baseline ? 'baseline 0e4914f (staff recovery unavailable)' : 'current branch',
+  source: baseline ? 'baseline 0e4914f (staff recovery unavailable)' : 'current working tree',
   months,
   seeds,
   summaryMeanAcrossSeeds: rows,

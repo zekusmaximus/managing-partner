@@ -7,7 +7,6 @@ import type {
   BudgetItem, ARBuckets, LineOfCredit,
 } from '@/types/simulation';
 import {
-  getARTotal,
   getLOCMonthlyInterest, getLOCAvailable,
   HIRING_COST, SEVERANCE_COST,
 } from '@/types/simulation';
@@ -42,9 +41,6 @@ type SimulationContextType = {
   fireEmployee: (employeeId: string) => void;
   adjustSalary: (employeeId: string, newSalary: number) => void;
   fundStaffRecovery: (plan?: StaffRecoveryPlan) => void;
-  addClient: (name: string, type: Client['type'], monthlyFee: number) => void;
-  removeClient: (clientId: string) => void;
-  updateClientSatisfaction: (clientId: string, delta: number) => void;
   markInboxMessageRead: (messageId: string) => void;
   handleInboxChoice: (messageId: string, choiceId: string) => void;
   dismissAlert: (alertId: string) => void;
@@ -180,42 +176,6 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     setState(prevState => fundStaffRecovery(prevState, plan));
   }, [setState]);
 
-  // ============= CLIENT ACTIONS =============
-
-  const addClient = useCallback((name: string, type: Client['type'], monthlyFee: number) => {
-    if (!name.trim() || !isValidAmount(monthlyFee)) return;
-    setState(prevState => {
-      const profiles: Client['paymentProfile'][] = ['prompt', 'normal', 'slow'];
-      const newClient: Client = {
-        id: generateId(), name: name.trim(), type, feeStructure: 'Retainer', monthlyFee,
-        satisfaction: 70 + Math.floor(Math.random() * 20),
-        contractMonthsRemaining: 12,
-        paymentProfile: profiles[Math.floor(Math.random() * profiles.length)],
-        lastPaymentMonth: prevState.month,
-      };
-      return { ...prevState, clients: [...prevState.clients, newClient] };
-    });
-  }, [setState]);
-
-  const removeClient = useCallback((clientId: string) => {
-    setState(prevState => ({
-      ...prevState,
-      clients: prevState.clients.filter(client => client.id !== clientId),
-    }));
-  }, [setState]);
-
-  const updateClientSatisfaction = useCallback((clientId: string, delta: number) => {
-    if (!Number.isFinite(delta)) return;
-    setState(prevState => ({
-      ...prevState,
-      clients: prevState.clients.map(client =>
-        client.id === clientId
-          ? { ...client, satisfaction: Math.max(0, Math.min(100, client.satisfaction + delta)) }
-          : client
-      ),
-    }));
-  }, [setState]);
-
   // ============= INBOX ACTIONS =============
 
   const markInboxMessageRead = useCallback((messageId: string) => {
@@ -335,7 +295,6 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     <SimulationContext.Provider value={{
       state, advanceMonth,
       hireEmployee, fireEmployee, adjustSalary, fundStaffRecovery: fundStaffRecoveryAction,
-      addClient, removeClient, updateClientSatisfaction,
       markInboxMessageRead, handleInboxChoice, dismissAlert,
       addVendor, removeVendor, adjustOperatingCost,
       drawLineOfCredit, repayLineOfCredit,

@@ -8,6 +8,7 @@ import { useSimulation } from '@/context/SimulationContext';
 import { getEmployeeTotalCost, getARTotal, getLOCAvailable } from '@/types/simulation';
 import HelpTooltip from '@/components/help/HelpTooltip';
 import { calculateProfitAndLoss } from '@/lib/simulation/metrics';
+import { getClientServiceCoverage } from '@/lib/simulation/clientService';
 
 export const Dashboard = () => {
   const { state, dismissAlert } = useSimulation();
@@ -32,6 +33,13 @@ export const Dashboard = () => {
 
   const totalPayroll = state.employees.reduce((sum, e) => sum + getEmployeeTotalCost(e), 0);
   const totalClientRevenue = state.clients.reduce((sum, c) => sum + c.monthlyFee, 0);
+  const serviceCoverage = getClientServiceCoverage(state);
+  const unreadMessages = state.inbox.filter(message => !message.read).length;
+  const nextAction = state.alerts.length > 0
+    ? { label: 'Review alerts', href: '#alerts', description: 'Check active alerts before advancing the month.' }
+    : unreadMessages > 0
+      ? { label: 'Open inbox', href: '/inbox', description: 'Handle unread messages before advancing the month.' }
+      : { label: 'Review clients', href: '/clients', description: 'Check client health before advancing the month.' };
 
   // Enhanced KPIs
   const totalAR = getARTotal(state.arAging);
@@ -48,7 +56,7 @@ export const Dashboard = () => {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, sm: 3 }}>
         {creditNearlyExhausted && (
           <Grid size={{ xs: 12 }}>
             <Alert
@@ -66,14 +74,45 @@ export const Dashboard = () => {
             </Alert>
           </Grid>
         )}
+        <Grid size={{ xs: 12 }} sx={{ display: { xs: 'block', sm: 'none' } }}>
+          <Card>
+            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+              <Typography variant="overline" color="text.secondary">
+                Month {state.month}, {state.year} · Decision brief
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary">Cash on hand</Typography>
+                  <Typography variant="h5" fontWeight={700} color={state.financials.cashOnHand < 50000 ? 'error.main' : 'primary.main'}>
+                    ${state.financials.cashOnHand.toLocaleString()}
+                  </Typography>
+                </Box>
+                <Chip
+                  size="small"
+                  label={`${state.alerts.length} alert${state.alerts.length === 1 ? '' : 's'}`}
+                  color={state.alerts.length > 0 ? 'warning' : 'success'}
+                />
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {nextAction.description} {unreadMessages > 0 && `${unreadMessages} unread inbox message${unreadMessages === 1 ? '' : 's'}.`}
+              </Typography>
+              <Typography variant="caption" color={serviceCoverage < 0.85 ? 'error.main' : serviceCoverage < 1 ? 'warning.main' : 'text.secondary'} sx={{ display: 'block', mb: 1 }}>
+                {state.clients.length > 0 ? `Client service coverage: ${Math.round(serviceCoverage * 100)}%` : 'No client service demand yet'}
+              </Typography>
+              <Button component={Link} href={nextAction.href} size="small" variant="contained">
+                {nextAction.label}
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
         {/* Quick Stats Row */}
-        <Grid size={{ xs: 12 }} data-tutorial-target="stats-row">
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, sm: 6, md: 2 }} data-tutorial-target="stat-cash">
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
+        <Grid size={{ xs: 12 }} data-tutorial-target="stats-row" sx={{ order: { xs: 2, sm: 0 } }}>
+          <Grid container spacing={{ xs: 1, sm: 3 }}>
+            <Grid size={{ xs: 6, sm: 6, md: 2 }} data-tutorial-target="stat-cash">
+              <Card sx={{ height: '100%' }}>
+                <CardContent sx={{ textAlign: { xs: 'left', sm: 'center' }, p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                   <Typography variant="subtitle2" color="text.secondary">Cash on Hand <HelpTooltip helpId="dashboard-cash" /></Typography>
-                  <Typography variant="h5" color={state.financials.cashOnHand < 50000 ? 'error' : 'primary'}>
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }} color={state.financials.cashOnHand < 50000 ? 'error' : 'primary'}>
                     ${state.financials.cashOnHand.toLocaleString()}
                   </Typography>
                   {state.lineOfCredit.drawn > 0 && (
@@ -83,11 +122,11 @@ export const Dashboard = () => {
               </Card>
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 6, md: 2 }} data-tutorial-target="stat-revenue">
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
+            <Grid size={{ xs: 6, sm: 6, md: 2 }} data-tutorial-target="stat-revenue">
+              <Card sx={{ height: '100%' }}>
+                <CardContent sx={{ textAlign: { xs: 'left', sm: 'center' }, p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                   <Typography variant="subtitle2" color="text.secondary">Collections <HelpTooltip helpId="dashboard-collections" /></Typography>
-                  <Typography variant="h5" color="success.main">
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }} color="success.main">
                     ${state.financials.collectionsThisMonth.toLocaleString()}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">Billed: ${state.financials.grossRevenue.toLocaleString()}</Typography>
@@ -95,33 +134,33 @@ export const Dashboard = () => {
               </Card>
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
+            <Grid size={{ xs: 6, sm: 6, md: 2 }}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent sx={{ textAlign: { xs: 'left', sm: 'center' }, p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                   <Typography variant="subtitle2" color="text.secondary">Total Expenses <HelpTooltip helpId="dashboard-expenses" /></Typography>
-                  <Typography variant="h5" color="error.main">
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }} color="error.main">
                     ${state.financials.operatingExpenses.toLocaleString()}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 6, md: 2 }} data-tutorial-target="stat-profit">
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
+            <Grid size={{ xs: 6, sm: 6, md: 2 }} data-tutorial-target="stat-profit">
+              <Card sx={{ height: '100%' }}>
+                <CardContent sx={{ textAlign: { xs: 'left', sm: 'center' }, p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                   <Typography variant="subtitle2" color="text.secondary">Operating Margin <HelpTooltip helpId="dashboard-operating-margin" /></Typography>
-                  <Typography variant="h5" color={operatingMargin >= 20 ? 'success.main' : operatingMargin >= 0 ? 'warning.main' : 'error.main'}>
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }} color={operatingMargin >= 20 ? 'success.main' : operatingMargin >= 0 ? 'warning.main' : 'error.main'}>
                     {operatingMargin.toFixed(1)}%
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
+            <Grid size={{ xs: 6, sm: 6, md: 2 }}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent sx={{ textAlign: { xs: 'left', sm: 'center' }, p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                   <Typography variant="subtitle2" color="text.secondary">AR / DSO <HelpTooltip helpId="dashboard-dso" /></Typography>
-                  <Typography variant="h5" color={dso > 45 ? 'error.main' : dso > 30 ? 'warning.main' : 'success.main'}>
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }} color={dso > 45 ? 'error.main' : dso > 30 ? 'warning.main' : 'success.main'}>
                     {dso} days
                   </Typography>
                   <Typography variant="caption" color="text.secondary">${Math.round(totalAR).toLocaleString()} outstanding</Typography>
@@ -129,11 +168,11 @@ export const Dashboard = () => {
               </Card>
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 6, md: 2 }} data-tutorial-target="stat-reputation">
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
+            <Grid size={{ xs: 6, sm: 6, md: 2 }} data-tutorial-target="stat-reputation">
+              <Card sx={{ height: '100%' }}>
+                <CardContent sx={{ textAlign: { xs: 'left', sm: 'center' }, p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
                   <Typography variant="subtitle2" color="text.secondary">Firm Reputation <HelpTooltip helpId="dashboard-reputation" /></Typography>
-                  <Typography variant="h5" color="primary">
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }} color="primary">
                     {state.reputation}
                   </Typography>
                 </CardContent>
@@ -143,14 +182,18 @@ export const Dashboard = () => {
         </Grid>
 
         {/* Financial Health Chart */}
-        <Grid size={{ xs: 12, md: 8 }} data-tutorial-target="financial-chart">
+        <Grid size={{ xs: 12, md: 8 }} data-tutorial-target="financial-chart" sx={{ order: { xs: 5, sm: 1 } }}>
           <Card>
             <CardHeader
               title="Financial Performance"
               subheader={`Month ${state.month}, ${state.year} | Revenue vs Expenses vs Collections`}
             />
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              {chartData.length < 2 ? (
+                <Typography variant="body2" color="text.secondary">
+                  Your performance trend will appear after another month. Review this month’s revenue, collections, and expenses in the cards above.
+                </Typography>
+              ) : <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
@@ -161,19 +204,20 @@ export const Dashboard = () => {
                   <Bar dataKey="collections" name="Collections" fill="#4caf50" />
                   <Bar dataKey="expenses" name="Expenses" fill="#dc004e" />
                 </BarChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer>}
             </CardContent>
           </Card>
         </Grid>
 
         {/* Alerts/Action Items */}
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 4 }} sx={{ order: { xs: 1, sm: 2 } }}>
           <Card id="alerts">
             <CardHeader
               title="Alerts & Notifications"
               subheader={`${state.alerts.length} active alert(s)`}
+              sx={{ pb: { xs: 0, sm: 1 }, '& .MuiCardHeader-title': { fontSize: { xs: '1.25rem', sm: '1.5rem' } } }}
             />
-            <CardContent>
+            <CardContent sx={{ pt: { xs: 1, sm: 2 } }}>
               {state.alerts.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   No alerts at this time.
@@ -185,7 +229,7 @@ export const Dashboard = () => {
                       label={alert.message}
                       color={alert.type === 'error' ? 'error' : alert.type === 'warning' ? 'warning' : alert.type === 'success' ? 'success' : 'info'}
                       onDelete={() => dismissAlert(alert.id)}
-                      sx={{ flex: 1, justifyContent: 'left' }}
+                      sx={{ flex: 1, minWidth: 0, height: 'auto', justifyContent: 'left', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.75 } }}
                     />
                   </Box>
                 ))
@@ -195,11 +239,11 @@ export const Dashboard = () => {
         </Grid>
 
         {/* Employee Roster Summary */}
-        <Grid size={{ xs: 12, md: 6 }} data-tutorial-target="employee-summary">
+        <Grid size={{ xs: 12, md: 6 }} data-tutorial-target="employee-summary" sx={{ order: 3 }}>
           <Card>
             <CardHeader
               title="Employee Roster"
-              subheader={`${state.employees.length} team member(s) | Total Payroll: $${totalPayroll.toLocaleString()}/mo`}
+              subheader={`${state.employees.length} staff | $${totalPayroll.toLocaleString()}/mo payroll | ${Math.round(serviceCoverage * 100)}% service coverage`}
             />
             <CardContent>
               <TableContainer component={Paper} sx={{ maxHeight: 250 }}>
@@ -257,7 +301,7 @@ export const Dashboard = () => {
         </Grid>
 
         {/* Client Health Roster */}
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 6 }} sx={{ order: 4 }}>
           <Card>
             <CardHeader
               title="Client Roster"

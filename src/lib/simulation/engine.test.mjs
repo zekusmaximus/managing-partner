@@ -380,6 +380,30 @@ describe('client receivable accounts', () => {
     expect(next.financialHistory.at(-1).collections).toBe(600);
     expect(next.arAging).toEqual(sumReceivables(next.receivables));
     expect(next.receivables.map(item => item.aging.thirtyDay)).toEqual([700, 700]);
+    expect(next.lastManualCollection).toEqual({ month: state.month, year: state.year });
+    expect(collectOverdueReceivables(next)).toBe(next);
+    const followingMonth = advance(next);
+    const followingCollection = collectOverdueReceivables(followingMonth);
+    expect(followingCollection).not.toBe(followingMonth);
+    expect(followingCollection.lastManualCollection).toEqual({
+      month: followingMonth.month, year: followingMonth.year,
+    });
+    const sameCalendarMonthNextYear = { ...next, year: state.year + 1 };
+    expect(collectOverdueReceivables(sameCalendarMonthNextYear).lastManualCollection)
+      .toEqual({ month: state.month, year: state.year + 1 });
+  });
+
+  test('a rounded-zero collections attempt still uses the monthly action', () => {
+    const initial = createInitialSimulationState();
+    const empty = withAccounts(initial, []);
+    expect(collectOverdueReceivables(empty)).toBe(empty);
+    const state = withAccounts(initial, [
+      account('client2', 'GlobalCorp Inc.', 'prompt', aging(0, 0.01)),
+    ]);
+    const attempted = collectOverdueReceivables(state);
+    expect(attempted.lastManualCollection).toEqual({ month: state.month, year: state.year });
+    expect(attempted.financials.cashOnHand).toBe(state.financials.cashOnHand);
+    expect(collectOverdueReceivables(attempted)).toBe(attempted);
   });
 
   test('overdue selector chooses the largest active client account', () => {

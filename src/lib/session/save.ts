@@ -198,6 +198,8 @@ const simulationStateV3: Check = (value) => simulationStateV2(value) && record(v
 
 const simulationStateV4: Check = (value) => simulationStateV3(value) && record(value) &&
   fields(value.taxPosition, { principalDue: nonnegative, penaltiesDue: nonnegative }) &&
+  (value.lastManualCollection === undefined || value.lastManualCollection === null ||
+    fields(value.lastManualCollection, { month, year })) &&
   Array.isArray(value.financialHistory) && value.financialHistory.every((entry) =>
     fields(entry, { taxExpense: nonnegative, taxPenalty: nonnegative }));
 
@@ -266,6 +268,8 @@ export function parseSession(raw: string): SessionSnapshot | null {
     return {
       simulation: {
         ...simulation,
+        lastManualCollection: parsed.version === SESSION_VERSION
+          ? simulation.lastManualCollection ?? null : null,
         receivables,
         financialHistory: (parsed.version >= 3
           ? simulation.financialHistory : migrateLegacyCashHistory(simulation.financialHistory))
