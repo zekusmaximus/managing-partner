@@ -26,7 +26,7 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
   const pathname = usePathname();
   const router = useRouter();
   const { state } = useSimulation();
-  const { currentStep, nextStep } = useTutorial();
+  const { currentStep, nextStep, isTutorialActive } = useTutorial();
   const { newGame, notice, dismissNotice } = useSession();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const unreadCount = state.inbox.filter(message => !message.read).length;
@@ -104,13 +104,20 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         {navigation(false)}
       </Drawer>
       <Drawer
-        variant="temporary"
+        // A modal drawer hides the tutorial popover from assistive technology.
+        // During a lesson, use a fixed nonmodal drawer so both the highlighted
+        // link and tutorial controls remain available to keyboard users.
+        variant={isTutorialActive ? 'persistent' : 'temporary'}
         open={mobileOpen}
         onClose={onClose}
         ModalProps={{ keepMounted: true }}
         sx={{
           display: { xs: 'block', md: 'none' },
-          '& .MuiDrawer-paper': { width: 'min(280px, 88vw)', boxSizing: 'border-box', bgcolor: 'grey.50' },
+          ...(isTutorialActive ? { position: 'fixed', top: 0, left: 0, width: 0, zIndex: 1300 } : {}),
+          '& .MuiDrawer-paper': {
+            width: 'min(280px, 88vw)', boxSizing: 'border-box', bgcolor: 'grey.50',
+            ...(isTutorialActive ? { position: 'fixed', top: 0, left: 0, height: '100dvh' } : {}),
+          },
         }}
       >
         {navigation(true)}

@@ -12,7 +12,7 @@ with a 34-step interactive tutorial and a searchable industry glossary.
 
 There is **no backend, no database, and no API layer**. The game runs in client-side
 React state. One versioned browser-local save holds the simulation and tutorial together;
-version 1 saves migrate to version 2. There are no accounts or cross-device saves.
+valid version 1–3 saves migrate to version 4. There are no accounts or cross-device saves.
 
 ## Tech Stack
 
@@ -69,10 +69,10 @@ src/
 │   └── help/                  # HelpFab, GlossaryDrawer, HelpTooltip
 ├── context/
 │   ├── SessionContext.tsx     # One browser-local snapshot + New Game
-│   ├── SimulationContext.tsx  # Component-facing game actions + scenario generation
+│   ├── SimulationContext.tsx  # Component-facing game actions
 │   └── TutorialContext.tsx    # Tutorial flow; state stored by SessionContext
 ├── lib/
-│   ├── simulation/           # Pure month transitions, inbox decisions, metrics, initial state
+│   ├── simulation/           # Pure month transitions, inbox decisions, scenarios, metrics
 │   └── session/              # Versioned save validation, migration, tutorial defaults
 ├── data/                      # Static content (no logic)
 │   ├── tutorialSteps.ts       # 34 steps across 4 phases
@@ -91,7 +91,11 @@ The `@/*` path alias maps to `src/*` (see `tsconfig.json`). Always import with `
 `src/context/SessionContext.tsx` owns one snapshot with `SimulationState` and tutorial state.
 It loads after client hydration, saves both together, and resets both with New Game.
 `src/lib/session/save.ts` validates the data, restores dates, and migrates version 1 pooled
-receivables as explicitly unassigned balances. Keep these states in the same snapshot.
+receivables as explicitly unassigned balances. Version 1 and 2 cash histories retain unknown
+opening cash on the oldest retained entry and unclassified residual movements in later months.
+Valid version 1–3 saves migrate to version 4 with zero opening tax balance; unresolved legacy
+tax prompts expire because those saves recorded no tax payable. Keep simulation and tutorial
+state in the same snapshot.
 
 `SimulationContext` exposes gameplay actions through `useSimulation()`. Month advancement,
 inbox decisions, receivable operations, and financial selectors live in testable functions
@@ -111,9 +115,21 @@ Conventions when extending it:
   aging, payroll, operating/vendor costs, partner draw, line-of-credit auto draw/repay,
   budget tracking, reputation recalculation, financial-history snapshot, then alerts
   and inbox messages.
+- Monthly history records opening cash, recurring cash paid, and signed cash movements.
+  January starts as an opening snapshot: its P&L run rate is booked, but those recurring
+  costs have not yet been paid in cash. Manual and automatic credit-line activity,
+  distributions, estimated tax payments, equipment purchases, and one-time operating
+  costs are recorded in the month they occur.
 - Inbox messages carry typed scenario subjects and optional persisted `resolution` feedback.
   Decisions must use the named subject's state and show the actual result, including random
-  outcomes and unavailable subjects. A resolved message must not apply twice.
+  outcomes and unavailable subjects. A resolved message must not apply twice. Scenario
+  generation lives in `src/lib/simulation/scenarios.ts`, accepts injected random, ID, and
+  time functions for tests, and avoids duplicate pending decisions about the same subject.
+  Month advancement retains all pending decisions even when the normal inbox history fills.
+- The game books a fictional 25% estimated tax provision on positive pretax month-opening
+  profit. It adds a fictional 2% late charge on unpaid principal at quarter opening, without
+  compounding penalties. Payments reduce cash and clear penalties before principal. Later
+  same-month decisions can change profit without revising that opening tax estimate.
 - `useSimulation()` throws if used outside `SimulationProvider`.
 
 ### 2. Types and pure financial logic
@@ -154,7 +170,9 @@ Advance Month control; new pages provide content only and add their route to `Si
   `advance_month` action. Steps reference `learningObjectiveIds` from
   `src/data/learningObjectives.ts`.
 - The `TutorialOverlay` spotlights elements by selector — if you change DOM structure that a
-  step targets, update the step's `targetSelector`.
+  step targets, update the step's `targetSelector`. Tutorial progress stores both the month and
+  year at start so a resumed or restarted tutorial does not advance an already-passed month
+  checkpoint again. Spotlight keyboard focus stays within the tutorial and permitted target.
 
 ### 7. Help & glossary
 Searchable glossary lives in `src/data/glossaryTerms.ts`; per-metric help text in
@@ -177,11 +195,14 @@ Searchable glossary lives in `src/data/glossaryTerms.ts`; per-metric help text i
   employee efficacy, with small random drift.
 - **Inbox**: typed scenario events with `choices`; `handleInboxChoice` applies effects once
   and records the selected action and actual outcome for the inbox detail view.
-- `financialHistory` keeps the last 12 monthly snapshots (used for dashboard charts).
+- `financialHistory` keeps the last 12 monthly snapshots (used for dashboard charts and
+  cash reconciliation). Hiring, severance, and repairs enter the one-time operating cost
+  P&L category; equipment purchases, estimated tax payments, partner distributions, and
+  credit-line principal change cash without changing P&L. Tax provisions and late charges
+  change P&L and the payable balance without moving cash. Write-offs remain noncash.
 
-The model does not yet provide a full tax payable or penalty schedule, comprehensive
-classification of one-time expenses, or explicit cash-flow categories for distributions
-and credit-line movements. Treat these as future accounting work, not implemented rules.
+The tax balance and late charge are game estimates, not real-world tax calculations. The cash
+projection uses a short recurring run rate and is not a forecast of future decisions or collections.
 
 ## Workflow for Changes
 

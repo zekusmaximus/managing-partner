@@ -1,5 +1,5 @@
-import type { Alert, ARBuckets, BudgetItem, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
-import { AR_COLLECTION_RATES, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
+import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
+import { AR_COLLECTION_RATES, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
 
 export interface EngineDeps {
   random: () => number;
@@ -8,6 +8,24 @@ export interface EngineDeps {
 }
 
 const getCurrentQuarter = (month: number) => Math.ceil(month / 3);
+
+// A quarter's unpaid principal receives a flat late charge at the start of
+// the following quarter. Existing penalties do not compound.
+export const getQuarterOpeningTaxPenalty = (month: number, principalDue: number): number =>
+  month % 3 === 1 ? Math.round(principalDue * QUARTERLY_TAX_LATE_RATE) : 0;
+
+export const retainInboxMessages = (messages: InboxMessage[], limit = 20): InboxMessage[] => {
+  const pending = messages.filter(message => message.requiresAction);
+  if (pending.length >= limit) return pending;
+  const retainedOtherMessages = new Set(messages.filter(message => !message.requiresAction).slice(0, limit - pending.length));
+  return messages.filter(message => message.requiresAction || retainedOtherMessages.has(message));
+};
+
+const expireTaxDecisions = (messages: InboxMessage[]): InboxMessage[] => messages.map(message =>
+  message.requiresAction && message.scenario.kind === 'tax-planning'
+    ? { ...message, read: true, requiresAction: false,
+        resolution: { choiceId: 'expired', summary: 'No payment was made before month advance. The unpaid tax balance remains due; any quarterly late charge is recorded in Finances.' } }
+    : message);
 
 export const isValidAmount = (amount: number, allowZero = false): boolean =>
   Number.isFinite(amount) && (allowZero ? amount >= 0 : amount > 0);
@@ -20,6 +38,47 @@ export const recordCurrentCash = (state: SimulationState, cashOnHand: number, co
       ? { ...entry, cashOnHand, collections: entry.collections + collections }
       : entry),
 });
+
+export const recordCashMovement = (state: SimulationState, movement: CashMovement): SimulationState => {
+  if (!Number.isFinite(movement.amount) || movement.amount === 0 ||
+    (movement.kind === 'loc-draw' && movement.amount < 0) ||
+    (movement.kind !== 'loc-draw' && movement.kind !== 'unclassified' && movement.amount > 0)) return state;
+  const updated = recordCurrentCash(state, state.financials.cashOnHand + movement.amount);
+  return {
+    ...updated,
+    financialHistory: updated.financialHistory.map((entry, index, history) =>
+      index === history.length - 1 && entry.month === state.month && entry.year === state.year
+        ? { ...entry, cashMovements: [...entry.cashMovements, movement] }
+        : entry),
+  };
+};
+
+export const recordOneTimeOperatingExpense = (
+  state: SimulationState,
+  kind: 'hiring' | 'severance' | 'repair',
+  amount: number,
+): SimulationState => {
+  if (!isValidAmount(amount)) return state;
+  const updated = recordCashMovement(state, { kind, amount: -amount });
+  const budgetCategory = kind === 'repair' ? 'Misc' : 'Payroll';
+  const quarter = getCurrentQuarter(state.month);
+  return {
+    ...updated,
+    financials: {
+      ...updated.financials,
+      operatingExpenses: updated.financials.operatingExpenses + amount,
+      netProfit: updated.financials.netProfit - amount,
+    },
+    financialHistory: updated.financialHistory.map((entry, index, history) =>
+      index === history.length - 1 && entry.month === state.month && entry.year === state.year
+        ? { ...entry, expenses: entry.expenses + amount, profit: entry.profit - amount,
+            oneTimeOperatingExpenses: entry.oneTimeOperatingExpenses + amount }
+        : entry),
+    budget: updated.budget.map(item => item.category === budgetCategory && item.quarter === quarter && item.year === state.year
+      ? { ...item, actualQuarterlySpend: item.actualQuarterlySpend + amount }
+      : item),
+  };
+};
 
 export const sumReceivables = (accounts: ReceivableAccount[]): ARBuckets =>
   accounts.reduce<ARBuckets>((total, account) => ({
@@ -189,19 +248,30 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       const partnerDraw = prevState.partnerEconomics.monthlyDraw;
       const locInterest = getLOCMonthlyInterest(prevState.lineOfCredit);
       const cashExpenses = totalPayroll + opCosts + vendorCosts + partnerDraw + locInterest;
-      const totalExpenses = cashExpenses + autoWriteOff;
+      const pretaxExpenses = cashExpenses + autoWriteOff;
+      // The estimate is fixed when this month is created. Later one-time
+      // decisions can change final profit without rewriting the provision.
+      const taxExpense = Math.round(Math.max(0, monthlyRevenue - pretaxExpenses) * ESTIMATED_TAX_RATE);
+      const taxPenalty = getQuarterOpeningTaxPenalty(newMonth, prevState.taxPosition.principalDue);
+      const totalExpenses = pretaxExpenses + taxExpense + taxPenalty;
+      const taxPosition = {
+        principalDue: prevState.taxPosition.principalDue + taxExpense,
+        penaltiesDue: prevState.taxPosition.penaltiesDue + taxPenalty,
+      };
 
-      // 6. Cash flow: cash += collections - expenses
+      // 6. Cash flow: only recurring cash costs are paid at month creation.
       let newCash = prevState.financials.cashOnHand + totalCollections - cashExpenses;
 
       // 7. Line of credit mechanics
       let newLOC = { ...prevState.lineOfCredit };
+      const cashMovements: CashMovement[] = [];
       if (newCash < 20000 && newLOC.drawn < newLOC.limit) {
         // Auto-draw to bring cash to $50K
         const drawAmount = Math.min(50000 - newCash, newLOC.limit - newLOC.drawn);
         if (drawAmount > 0) {
           newCash += drawAmount;
           newLOC = { ...newLOC, drawn: newLOC.drawn + drawAmount };
+          cashMovements.push({ kind: 'loc-draw', amount: drawAmount });
         }
       } else if (newCash > 80000 && newLOC.drawn > 0) {
         // Auto-repay
@@ -209,6 +279,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         if (repayAmount > 0) {
           newCash -= repayAmount;
           newLOC = { ...newLOC, drawn: newLOC.drawn - repayAmount };
+          cashMovements.push({ kind: 'loc-repayment', amount: -repayAmount });
         }
       }
 
@@ -267,10 +338,15 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       // Financial history
       const newHistoryEntry: FinancialHistoryEntry = {
         month: newMonth, year: newYear,
+        openingCash: prevState.financials.cashOnHand,
+        isOpeningSnapshot: false,
+        recurringCashExpensesPaid: cashExpenses,
+        cashMovements,
+        oneTimeOperatingExpenses: 0,
         revenue: monthlyRevenue, expenses: totalExpenses, profit: netProfit,
         collections: totalCollections, operatingCosts: opCosts, operatingCostBreakdown: { ...prevState.operatingCosts }, vendorCosts,
         partnerDraw, payroll: totalPayroll, arWriteOff: autoWriteOff,
-        locInterest, cashOnHand: newCash,
+        locInterest, taxExpense, taxPenalty, cashOnHand: newCash,
       };
       const newHistory = [...prevState.financialHistory, newHistoryEntry].slice(-12);
 
@@ -299,9 +375,11 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         arAging: newAR,
         receivables: newReceivables,
         lineOfCredit: newLOC,
+        taxPosition,
         vendors: updatedVendors,
         partnerEconomics: newPartnerEconomics,
         budget: recordedBudget,
+        inbox: expireTaxDecisions(prevState.inbox),
       };
 
       const newAlerts = deps.generateAlerts(nextState);
@@ -310,7 +388,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       return {
         ...nextState,
         alerts: [...newAlerts, ...prevState.alerts].slice(0, 10),
-        inbox: [...newInboxMessages, ...prevState.inbox].slice(0, 20),
+        inbox: retainInboxMessages([...newInboxMessages, ...nextState.inbox]),
       };
 };
 
@@ -431,7 +509,7 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       const pool = Math.min(state.partnerEconomics.distributionPool, scenario.availablePool);
       const paid = choiceId === 'full-distribution' ? pool : choiceId === 'partial-distribution' ? Math.round(pool / 2) : 0;
       if (paid > 0) {
-        next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand - paid };
+        next = recordCashMovement(next, { kind: 'partner-distribution', amount: -paid });
         next.partnerEconomics = { ...state.partnerEconomics, distributionPool: state.partnerEconomics.distributionPool - paid,
           totalDistributed: state.partnerEconomics.totalDistributed + paid,
           lastDistributionMonth: state.month, lastDistributionYear: state.year };
@@ -480,7 +558,8 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       break;
     }
     case 'equipment-failure': {
-      if (choiceId === 'buy-equipment' || choiceId === 'temp-fix') next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand - (choiceId === 'buy-equipment' ? 8000 : 1000) };
+      if (choiceId === 'buy-equipment') next = recordCashMovement(next, { kind: 'equipment-purchase', amount: -8000 });
+      if (choiceId === 'temp-fix') next = recordOneTimeOperatingExpense(next, 'repair', 1000);
       if (choiceId === 'lease-equipment') next.vendors = [...state.vendors, { id: deps.generateId(), name: 'Equipment Lease', category: 'Other', monthlyCost: 300, contractMonths: 36 }];
       resolutionSummary = choiceId === 'lease-equipment'
         ? 'Added an equipment lease costing $300 per month.'
@@ -488,12 +567,24 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       break;
     }
     case 'tax-planning': {
-      if (choiceId === 'pay-taxes' || choiceId === 'accelerate-expenses') {
-        const paid = choiceId === 'pay-taxes' ? scenario.estimatedTax : Math.round(scenario.estimatedTax * 0.6);
-        next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand - paid };
-        resolutionSummary = `Paid $${paid.toLocaleString()} in estimated taxes; cash is now $${next.financials.cashOnHand.toLocaleString()}.`;
+      const outstanding = state.taxPosition.principalDue + state.taxPosition.penaltiesDue;
+      const quotedPayment = choiceId === 'pay-taxes' ? scenario.estimatedTax
+        : choiceId === 'accelerate-expenses' ? Math.round(scenario.estimatedTax * 0.6) : 0;
+      const paid = Math.min(outstanding, quotedPayment);
+      if (paid > 0) {
+        const penaltiesPaid = Math.min(paid, state.taxPosition.penaltiesDue);
+        next = recordCashMovement(next, { kind: 'tax-payment', amount: -paid });
+        next.taxPosition = {
+          principalDue: state.taxPosition.principalDue - (paid - penaltiesPaid),
+          penaltiesDue: state.taxPosition.penaltiesDue - penaltiesPaid,
+        };
       }
-      else resolutionSummary = 'Deferred the estimated tax payment; cash did not change.';
+      const remaining = next.taxPosition.principalDue + next.taxPosition.penaltiesDue;
+      resolutionSummary = paid > 0
+        ? `Paid $${paid.toLocaleString()} toward estimated taxes and late charges; $${remaining.toLocaleString()} remains due.`
+        : choiceId === 'defer-taxes'
+          ? `Deferred payment; $${remaining.toLocaleString()} remains due and cash did not change.`
+          : 'No tax balance remained to pay; cash did not change.';
       break;
     }
     case 'industry-update': {

@@ -16,6 +16,8 @@ export const BENEFITS_RATE = 0.25; // 25% of salary
 export const PAYROLL_TAX_RATE = 0.0765; // 7.65% FICA
 export const HIRING_COST = 5000;
 export const SEVERANCE_COST = 2000;
+export const ESTIMATED_TAX_RATE = 0.25;
+export const QUARTERLY_TAX_LATE_RATE = 0.02;
 
 export const getEmployeeTotalCost = (emp: Employee): number => {
   return Math.round(emp.salary * (1 + BENEFITS_RATE + PAYROLL_TAX_RATE));
@@ -116,7 +118,7 @@ export interface BudgetItem {
 export interface Financials {
   cashOnHand: number;
   grossRevenue: number;       // total invoiced this month
-  operatingExpenses: number;  // P&L expenses: payroll, overhead, vendors, draw, interest, and bad debt
+  operatingExpenses: number;  // Total P&L expenses, including draw, interest, tax provision, and late charges
   netProfit: number;          // revenue - expenses
   collectionsThisMonth: number; // cash actually collected from AR
   totalPayroll: number;       // salary + benefits + payroll tax
@@ -129,6 +131,14 @@ export interface Financials {
 export interface FinancialHistoryEntry {
   month: number;
   year: number;
+  // The first saved legacy month may have an unknown opening balance. New
+  // sessions begin with a known cash snapshot, even though their January P&L
+  // run rate has not been paid in cash.
+  openingCash: number | null;
+  isOpeningSnapshot: boolean;
+  recurringCashExpensesPaid: number | null;
+  cashMovements: CashMovement[];
+  oneTimeOperatingExpenses: number;
   revenue: number;
   expenses: number;
   profit: number;
@@ -140,7 +150,33 @@ export interface FinancialHistoryEntry {
   payroll: number;
   arWriteOff: number;
   locInterest: number;
+  taxExpense: number; // 25% estimate on the positive pretax month snapshot
+  taxPenalty: number; // quarterly late charge on unpaid tax principal
   cashOnHand: number;
+}
+
+// Signed cash impact: inflows are positive, outflows are negative. The
+// unclassified kind is reserved for historical activity that cannot be
+// identified when older browser saves are migrated.
+export type CashMovementKind =
+  | 'loc-draw'
+  | 'loc-repayment'
+  | 'partner-distribution'
+  | 'tax-payment'
+  | 'equipment-purchase'
+  | 'hiring'
+  | 'severance'
+  | 'repair'
+  | 'unclassified';
+
+export interface CashMovement {
+  kind: CashMovementKind;
+  amount: number;
+}
+
+export interface TaxPosition {
+  principalDue: number;
+  penaltiesDue: number;
 }
 
 // ============= ALERTS & INBOX =============
@@ -207,6 +243,7 @@ export interface SimulationState {
   arAging: ARBuckets;
   receivables: ReceivableAccount[];
   lineOfCredit: LineOfCredit;
+  taxPosition: TaxPosition;
 }
 
 // AR collection rates by payment profile

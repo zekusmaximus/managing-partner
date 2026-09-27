@@ -73,8 +73,9 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       status: 'in_progress',
       showWelcomeModal: false,
       simulationMonthAtStart: simState.month,
+      simulationYearAtStart: simState.year,
     });
-  }, [simState.month, setTutorialState]);
+  }, [simState.month, simState.year, setTutorialState]);
 
   const skipTutorial = useCallback(() => {
     setTutorialState((prev) => ({
@@ -106,8 +107,9 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       status: 'in_progress',
       showWelcomeModal: false,
       simulationMonthAtStart: simState.month,
+      simulationYearAtStart: simState.year,
     });
-  }, [simState.month, setTutorialState]);
+  }, [simState.month, simState.year, setTutorialState]);
 
   const nextStep = useCallback(() => {
     setTutorialState(advanceStep);

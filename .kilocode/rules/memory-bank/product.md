@@ -16,4 +16,4 @@ A 34-step tutorial introduces the metrics and actions. Contextual help and a glo
 
 ## First-Pass Boundaries
 
-One local save slot is supported. Accounts, cloud sync, new win/loss conditions, and a full real-world accounting model are later product decisions. Tax payable and penalties, classification of one-time expenses, partner distributions, and cash-flow category detail are not yet modeled completely.
+One local save slot is supported. Accounts, cloud sync, new win/loss conditions, and a full real-world accounting model are later product decisions. The game now tracks an estimated tax balance and fictional late charge; its month-opening estimate does not recalculate after later actions. Scenario balance and tutorial length still need observation with new players.

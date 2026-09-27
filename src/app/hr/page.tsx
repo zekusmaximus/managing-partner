@@ -312,6 +312,7 @@ export default function HR() {
                               <Tooltip title="Adjust Salary">
                                 <Button
                                   size="small"
+                                  aria-label={`Adjust salary for ${employee.name}`}
                                   onClick={() => handleSalaryClick(employee)}
                                 >
                                   Salary
@@ -321,6 +322,7 @@ export default function HR() {
                                 <Button
                                   size="small"
                                   color="error"
+                                  aria-label={`Fire ${employee.name}`}
                                   onClick={() => handleFire(employee)}
                                 >
                                   Fire

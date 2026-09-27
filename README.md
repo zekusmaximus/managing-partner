@@ -6,18 +6,18 @@
 
 **Managing Partner** is a business simulation game where players take on the role of a managing partner at a mid-size government relations firm in Washington, D.C. Make strategic decisions about finances, human resources, and client relationships to grow your firm's reputation and profitability. An interactive tutorial system guides new players through the fundamentals of GR industry management.
 
-This is a playable prototype with a simplified financial model. Progress is saved in the current browser; a confirmed **New Game** action resets the simulation and tutorial together. Version 1 saves migrate to the current version 2 format on load.
+This is a playable prototype with a simplified financial model. Progress is saved in the current browser; a confirmed **New Game** action resets the simulation and tutorial together. Valid version 1–3 saves migrate to the current version 4 format on load.
 
 ## Features
 
 - **Dashboard Overview**: Real-time KPIs including cash position, collections, operating margin, DSO, and reputation
-- **Financial Management**: 5-tab interface with P&L statements, budget tracking, client-attributed AR aging, cash flow analysis, and partner economics
+- **Financial Management**: 5-tab interface with P&L statements, budget tracking, client-attributed AR aging, a reconciled cash waterfall, tax balance, and partner economics
 - **HR Management**: Manage lobbyists, attorneys, and support staff — track efficacy, burnout, salary, and staffing economics
 - **Client Relations**: Monitor satisfaction, contract timelines, and revenue across corporations, trade associations, and non-profits
-- **Inbox System**: Handle scenario-based decisions including compensation requests, vendor contracts, budget overruns, and new business opportunities; completed messages show the choice and actual outcome
+- **Inbox System**: Handle scenario-based decisions including compensation requests, vendor contracts, budget overruns, tax payments, and new business opportunities; pending decisions remain available and completed messages show the actual outcome
 - **Interactive Tutorial**: 34-step guided tutorial across 4 phases teaching GR industry fundamentals and firm management
 - **Help System**: Searchable glossary with 55+ industry terms, contextual help tooltips on every metric, and a floating help button
-- **Local Save**: Simulation decisions, receivables, inbox outcomes, and tutorial progress resume together after a reload
+- **Local Save**: Simulation decisions, receivables, cash activity, inbox outcomes, and tutorial progress resume together after a reload
 
 ## Tech Stack
 
@@ -114,7 +114,7 @@ src/
 The game tracks the following:
 
 - **Month/Year**: Current simulation date
-- **Financials**: Cash on hand, revenue, expenses, collections, profit, client-attributed accounts receivable (4-bucket aging), line of credit
+- **Financials**: Cash on hand, revenue, expenses, collections, profit, client-attributed accounts receivable (4-bucket aging), line of credit, and estimated tax balance
 - **Employees**: Lobbyists, attorneys, and support staff with efficacy, burnout, salary, and client affinity metrics
 - **Clients**: Corporations, trade associations, and non-profits with satisfaction, contract terms, and payment profiles (prompt/normal/slow)
 - **Reputation**: Overall firm reputation (0-100)
@@ -129,10 +129,12 @@ The game tracks the following:
 - Receivables from former clients remain visible and collectible. Opening balances and migrated version 1 balances with no known client stay explicitly labeled as unassigned rather than being attributed to a current client.
 - Payroll: salary + 25% benefits + 7.65% FICA
 - Line of credit with 8% annual interest (auto-draw/repay)
+- A monthly cash waterfall separates collections, recurring costs, one-time decisions, partner distributions, and credit-line draws/repayments. Older saves retain unexplained prior movements as unclassified rather than assigning them a fictional cause.
+- The game books a fictional 25% estimated tax expense on positive pretax profit when each month opens. It records the unpaid amount separately from cash. A fictional 2% late charge applies to unpaid tax principal at the start of each quarter; existing penalties do not compound. Quarter-end inbox decisions can pay all, pay 60%, or defer, with payments clearing penalties first. The estimate stays fixed if later decisions change that month’s profit.
 - Quarterly budget tracking with variance analysis
 - Hiring cost: $5K | Severance: $2K
 
-This is an educational model, not a full accounting ledger. Tax payments and deferrals do not yet use a payable or penalty schedule. One-time costs still need explicit P&L treatment; partner distributions and line-of-credit movements need explicit cash-flow categories. The cash-flow view should be read as a simplified reconciliation until those rules are defined.
+This is an educational game model, not a full accounting ledger or a model of real tax obligations. The cash projection is a simple run-rate estimate rather than a forecast of future decisions or collections.
 
 ### Tutorial System
 
@@ -154,7 +156,7 @@ Covers 13 learning objectives from understanding GR industry basics to strategic
 | `bun run start` | Start production server |
 | `bun run lint` | Run ESLint |
 | `bun run typecheck` | Run TypeScript type checking |
-| `bun test` | Run focused simulation and save-state tests |
+| `bun test` | Run focused simulation, scenario, tutorial, and save-state tests |
 
 ## Contributing
 
