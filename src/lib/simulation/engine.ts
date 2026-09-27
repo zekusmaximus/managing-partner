@@ -1,5 +1,5 @@
 import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
-import { AR_COLLECTION_RATES, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
+import { AR_COLLECTION_RATES, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
 
 export interface EngineDeps {
   random: () => number;
@@ -8,6 +8,24 @@ export interface EngineDeps {
 }
 
 const getCurrentQuarter = (month: number) => Math.ceil(month / 3);
+
+// A quarter's unpaid principal receives a flat late charge at the start of
+// the following quarter. Existing penalties do not compound.
+export const getQuarterOpeningTaxPenalty = (month: number, principalDue: number): number =>
+  month % 3 === 1 ? Math.round(principalDue * QUARTERLY_TAX_LATE_RATE) : 0;
+
+export const retainInboxMessages = (messages: InboxMessage[], limit = 20): InboxMessage[] => {
+  const pending = messages.filter(message => message.requiresAction);
+  if (pending.length >= limit) return pending;
+  const retainedOtherMessages = new Set(messages.filter(message => !message.requiresAction).slice(0, limit - pending.length));
+  return messages.filter(message => message.requiresAction || retainedOtherMessages.has(message));
+};
+
+const expireTaxDecisions = (messages: InboxMessage[]): InboxMessage[] => messages.map(message =>
+  message.requiresAction && message.scenario.kind === 'tax-planning'
+    ? { ...message, read: true, requiresAction: false,
+        resolution: { choiceId: 'expired', summary: 'No payment was made before month advance. The unpaid tax balance remains due; any quarterly late charge is recorded in Finances.' } }
+    : message);
 
 export const isValidAmount = (amount: number, allowZero = false): boolean =>
   Number.isFinite(amount) && (allowZero ? amount >= 0 : amount > 0);
@@ -230,9 +248,18 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       const partnerDraw = prevState.partnerEconomics.monthlyDraw;
       const locInterest = getLOCMonthlyInterest(prevState.lineOfCredit);
       const cashExpenses = totalPayroll + opCosts + vendorCosts + partnerDraw + locInterest;
-      const totalExpenses = cashExpenses + autoWriteOff;
+      const pretaxExpenses = cashExpenses + autoWriteOff;
+      // The estimate is fixed when this month is created. Later one-time
+      // decisions can change final profit without rewriting the provision.
+      const taxExpense = Math.round(Math.max(0, monthlyRevenue - pretaxExpenses) * ESTIMATED_TAX_RATE);
+      const taxPenalty = getQuarterOpeningTaxPenalty(newMonth, prevState.taxPosition.principalDue);
+      const totalExpenses = pretaxExpenses + taxExpense + taxPenalty;
+      const taxPosition = {
+        principalDue: prevState.taxPosition.principalDue + taxExpense,
+        penaltiesDue: prevState.taxPosition.penaltiesDue + taxPenalty,
+      };
 
-      // 6. Cash flow: cash += collections - expenses
+      // 6. Cash flow: only recurring cash costs are paid at month creation.
       let newCash = prevState.financials.cashOnHand + totalCollections - cashExpenses;
 
       // 7. Line of credit mechanics
@@ -319,7 +346,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         revenue: monthlyRevenue, expenses: totalExpenses, profit: netProfit,
         collections: totalCollections, operatingCosts: opCosts, operatingCostBreakdown: { ...prevState.operatingCosts }, vendorCosts,
         partnerDraw, payroll: totalPayroll, arWriteOff: autoWriteOff,
-        locInterest, cashOnHand: newCash,
+        locInterest, taxExpense, taxPenalty, cashOnHand: newCash,
       };
       const newHistory = [...prevState.financialHistory, newHistoryEntry].slice(-12);
 
@@ -348,9 +375,11 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         arAging: newAR,
         receivables: newReceivables,
         lineOfCredit: newLOC,
+        taxPosition,
         vendors: updatedVendors,
         partnerEconomics: newPartnerEconomics,
         budget: recordedBudget,
+        inbox: expireTaxDecisions(prevState.inbox),
       };
 
       const newAlerts = deps.generateAlerts(nextState);
@@ -359,7 +388,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       return {
         ...nextState,
         alerts: [...newAlerts, ...prevState.alerts].slice(0, 10),
-        inbox: [...newInboxMessages, ...prevState.inbox].slice(0, 20),
+        inbox: retainInboxMessages([...newInboxMessages, ...nextState.inbox]),
       };
 };
 
@@ -538,12 +567,24 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       break;
     }
     case 'tax-planning': {
-      if (choiceId === 'pay-taxes' || choiceId === 'accelerate-expenses') {
-        const paid = choiceId === 'pay-taxes' ? scenario.estimatedTax : Math.round(scenario.estimatedTax * 0.6);
-        if (paid > 0) next = recordCashMovement(next, { kind: 'tax-payment', amount: -paid });
-        resolutionSummary = `Paid $${paid.toLocaleString()} in estimated taxes; cash is now $${next.financials.cashOnHand.toLocaleString()}.`;
+      const outstanding = state.taxPosition.principalDue + state.taxPosition.penaltiesDue;
+      const quotedPayment = choiceId === 'pay-taxes' ? scenario.estimatedTax
+        : choiceId === 'accelerate-expenses' ? Math.round(scenario.estimatedTax * 0.6) : 0;
+      const paid = Math.min(outstanding, quotedPayment);
+      if (paid > 0) {
+        const penaltiesPaid = Math.min(paid, state.taxPosition.penaltiesDue);
+        next = recordCashMovement(next, { kind: 'tax-payment', amount: -paid });
+        next.taxPosition = {
+          principalDue: state.taxPosition.principalDue - (paid - penaltiesPaid),
+          penaltiesDue: state.taxPosition.penaltiesDue - penaltiesPaid,
+        };
       }
-      else resolutionSummary = 'Deferred the estimated tax payment; cash did not change.';
+      const remaining = next.taxPosition.principalDue + next.taxPosition.penaltiesDue;
+      resolutionSummary = paid > 0
+        ? `Paid $${paid.toLocaleString()} toward estimated taxes and late charges; $${remaining.toLocaleString()} remains due.`
+        : choiceId === 'defer-taxes'
+          ? `Deferred payment; $${remaining.toLocaleString()} remains due and cash did not change.`
+          : 'No tax balance remained to pay; cash did not change.';
       break;
     }
     case 'industry-update': {

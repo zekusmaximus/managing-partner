@@ -82,7 +82,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'Cash on Hand',
     content:
-      'Cash on Hand is your firm\'s available operating capital — the money in your bank account right now. In the GR industry, firms aim to maintain 3-6 months of operating expenses as a cash buffer.\n\nYour current reserve is {{cash}}. At the current expense rate of {{expenses}} per month, cash alone covers about {{runway}} months before collections. Available credit is a separate buffer. This position can change quickly if you lose a major client or hire aggressively.',
+      'Cash on Hand is your firm\'s available operating capital — the money in your bank account right now. In the GR industry, firms aim to maintain 3-6 months of operating expenses as a cash buffer.\n\nYour current reserve is {{cash}}. At the current recurring cash-cost estimate of {{expenses}} per month, cash alone covers about {{runway}} months before collections. Available credit is a separate buffer. This position can change quickly if you lose a major client or hire aggressively.',
     targetSelector: '[data-tutorial-target="stat-cash"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m1-cash-mgmt'],
@@ -139,7 +139,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/finances',
     title: 'Financial Management',
     content:
-      'This page gives you the full financial picture of your firm. In a real GR practice, your CFO or office manager would prepare reports like these monthly.\n\nThe summary cards show your current financial position. The charts below track trends over time — which is where the real insights live. A single month\'s numbers can be misleading, but trends reveal the truth about your firm\'s trajectory.',
+      'This page gives you several ways to review your firm’s finances. The highlighted P&L statement compares billed revenue with payroll, operating costs, and net income for the current month and year to date.\n\nUse the tabs above to inspect budgets, receivables, cash activity, and partner economics. A profitable month on the P&L does not necessarily mean clients have paid their bills yet.',
     targetSelector: '[data-tutorial-target="finance-stats-row"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m1-financials'],
@@ -194,9 +194,9 @@ export const tutorialSteps: TutorialStep[] = [
     id: 'm1-advance-month',
     phase: 'month1',
     page: '/hr',
-    title: 'Advance to Month 2',
+    title: 'Advance to the Next Month',
     content:
-      'You\'ve reviewed your firm\'s position — finances, team, and metrics. Now advance to Month 2 to see how things evolve. Click "Advance Month" in the top bar.\n\nEach month, employee burnout increases, client satisfaction fluctuates, contracts tick down, and new situations land in your inbox. This is the heartbeat of your firm.',
+      'You\'ve reviewed your firm\'s position — finances, team, and metrics. Advance the month to see how things evolve. Click "Advance Month" in the top bar.\n\nEach month, employee burnout increases, client satisfaction fluctuates, contracts tick down, and new situations land in your inbox. This is the heartbeat of your firm.',
     targetSelector: '[data-tutorial-target="advance-month"]',
     position: 'bottom',
     learningObjectiveIds: [],
@@ -210,9 +210,9 @@ export const tutorialSteps: TutorialStep[] = [
     id: 'm2-intro',
     phase: 'month2',
     page: '/',
-    title: 'Month 2: Client Management',
+    title: 'Client Management',
     content:
-      'Welcome to Month 2. This month, we focus on your clients — the organizations that pay your firm for government relations services.\n\nClient management is a core competency for any managing partner. You need to keep existing clients happy while also developing new business. Let\'s start by reviewing your client roster.',
+      'In this part of the tutorial, we focus on your clients — the organizations that pay your firm for government relations services.\n\nClient management is a core competency for any managing partner. You need to keep existing clients happy while also developing new business. Let\'s start by reviewing your client roster.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: ['lo-m2-client-types'],
@@ -313,9 +313,9 @@ export const tutorialSteps: TutorialStep[] = [
     id: 'm2-advance-month',
     phase: 'month2',
     page: '/inbox',
-    title: 'Advance to Month 3',
+    title: 'Advance to the Next Month',
     content:
-      'Handle your inbox messages, then advance to Month 3 to continue learning. Review any decisions you need to make, then click "Advance Month" when ready.',
+      'Handle your inbox messages, then advance the month to continue learning. Review any decisions you need to make, then click "Advance Month" when ready.',
     targetSelector: '[data-tutorial-target="advance-month"]',
     position: 'bottom',
     learningObjectiveIds: [],
@@ -329,9 +329,9 @@ export const tutorialSteps: TutorialStep[] = [
     id: 'm3-intro',
     phase: 'month3',
     page: '/',
-    title: 'Month 3: Strategic Thinking',
+    title: 'Strategic Thinking',
     content:
-      'Welcome to Month 3. Now that you understand the fundamentals — finances, team, and clients — let\'s think about long-term strategy.\n\nReal GR firm leaders don\'t just manage day-to-day operations. They think quarters and years ahead, anticipating industry shifts, planning for growth, and positioning their firm for success in a competitive market.',
+      'Now that you understand the fundamentals — finances, team, and clients — let\'s think about long-term strategy.\n\nReal GR firm leaders don\'t just manage day-to-day operations. They think quarters and years ahead, anticipating industry shifts, planning for growth, and positioning their firm for success in a competitive market.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: ['lo-m3-strategy'],
@@ -342,7 +342,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'Reading the Trends',
     content:
-      'Notice how your numbers have shifted over three months. This chart tells the story of your firm\'s trajectory.\n\nTrends matter more than any single month\'s numbers. Is revenue growing or flat? Are expenses outpacing revenue? Is profit consistent or volatile? A real managing partner would look at charts like this to identify emerging problems before they become crises.',
+      'Notice how your numbers have shifted as the game has advanced. This chart tells the story of your firm\'s trajectory.\n\nTrends matter more than any single month\'s numbers. Is revenue growing or flat? Are expenses outpacing revenue? Is profit consistent or volatile? A real managing partner would look at charts like this to identify emerging problems before they become crises.',
     targetSelector: '[data-tutorial-target="financial-chart"]',
     position: 'top',
     learningObjectiveIds: ['lo-m3-trends'],
@@ -399,7 +399,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/hr',
     title: 'Tutorial Complete!',
     content:
-      'Congratulations! You\'ve completed the Managing Partner tutorial.\n\nYou now understand the fundamentals of managing a government relations firm:\n\n\u2022 Financial management — revenue, expenses, profit, and cash flow\n\u2022 Team leadership — hiring, compensation, burnout, and efficacy\n\u2022 Client relations — satisfaction, contracts, and diversification\n\u2022 Decision-making — trade-offs, urgency, and long-term thinking\n\u2022 Strategic planning — trends, resource allocation, and reputation',
+      'Congratulations! You\'ve completed the Managing Partner tutorial.\n\nYou now understand the fundamentals of managing a government relations firm:\n\n\u2022 Financial management — revenue, expenses, profit, and receivables\n\u2022 Team leadership — hiring, compensation, burnout, and efficacy\n\u2022 Client relations — satisfaction, contracts, and diversification\n\u2022 Decision-making — trade-offs, urgency, and long-term thinking\n\u2022 Strategic planning — trends, resource allocation, and reputation',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: [],

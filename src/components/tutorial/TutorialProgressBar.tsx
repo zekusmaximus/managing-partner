@@ -7,9 +7,9 @@ import { useTutorial } from '@/context/TutorialContext';
 
 const phaseLabels: Record<string, string> = {
   welcome: 'Welcome',
-  month1: 'Month 1',
-  month2: 'Month 2',
-  month3: 'Month 3',
+  month1: 'Part 1',
+  month2: 'Part 2',
+  month3: 'Part 3',
   completed: 'Complete',
 };
 

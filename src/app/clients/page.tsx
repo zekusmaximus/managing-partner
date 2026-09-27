@@ -299,6 +299,7 @@ export default function Clients() {
                                 <Button 
                                   size="small" 
                                   color="success"
+                                  aria-label={`Increase ${client.name} satisfaction by 5 points`}
                                   onClick={() => handleSatisfactionChange(client, 5)}
                                 >
                                   +5%
@@ -308,6 +309,7 @@ export default function Clients() {
                                 <Button 
                                   size="small" 
                                   color="error"
+                                  aria-label={`Decrease ${client.name} satisfaction by 5 points`}
                                   onClick={() => handleSatisfactionChange(client, -5)}
                                 >
                                   -5%
@@ -317,6 +319,7 @@ export default function Clients() {
                                 <Button 
                                   size="small" 
                                   color="error"
+                                  aria-label={`Remove ${client.name}`}
                                   onClick={() => handleRemoveClient(client)}
                                 >
                                   Remove

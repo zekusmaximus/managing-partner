@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { SessionStore } from '@/context/SessionContext';
 import {
   createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession, parseSession,
-  serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
+  serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
 } from './save';
 
 function memoryStorage() {
@@ -23,6 +23,22 @@ function removeV3CashFields(entry) {
   delete legacy.oneTimeOperatingExpenses;
   delete legacy.isOpeningSnapshot;
   return legacy;
+}
+
+function removeV4TaxFields(snapshot) {
+  delete snapshot.simulation.taxPosition;
+  snapshot.simulation.financialHistory.forEach(entry => {
+    const oldTaxExpense = entry.taxExpense + entry.taxPenalty;
+    entry.expenses -= oldTaxExpense;
+    entry.profit += oldTaxExpense;
+    delete entry.taxExpense;
+    delete entry.taxPenalty;
+  });
+  const current = snapshot.simulation.financialHistory.at(-1);
+  snapshot.simulation.financials.operatingExpenses = current.expenses;
+  snapshot.simulation.financials.netProfit = current.profit;
+  delete snapshot.tutorial.simulationYearAtStart;
+  return snapshot;
 }
 
 describe('versioned game save', () => {
@@ -62,7 +78,12 @@ describe('versioned game save', () => {
 
   test('rejects wrong versions and malformed nested data', () => {
     const valid = JSON.parse(serializeSession(createFreshSession()));
-    expect(parseSession(JSON.stringify({ ...valid, version: 4 }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, version: 5 }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, simulation: { ...valid.simulation, taxPosition: { principalDue: -1, penaltiesDue: 0 } } }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, tutorial: { ...valid.tutorial, simulationYearAtStart: 2019 } }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, simulation: { ...valid.simulation,
+      financialHistory: [{ ...valid.simulation.financialHistory[0], taxPenalty: Infinity }],
+    } }))).toBeNull();
     expect(parseSession(JSON.stringify({ ...valid, simulation: {
       ...valid.simulation,
       financialHistory: [{ ...valid.simulation.financialHistory[0], cashMovements: [{ kind: 'invented', amount: 1 }] }],
@@ -114,7 +135,7 @@ describe('versioned game save', () => {
 
   test('migrates pooled AR without assigning it to a current client', () => {
     const storage = memoryStorage();
-    const previous = JSON.parse(serializeSession(createFreshSession()));
+    const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));
     previous.version = 1;
     delete previous.simulation.receivables;
     previous.simulation.financialHistory = previous.simulation.financialHistory.map(removeV3CashFields);
@@ -135,9 +156,9 @@ describe('versioned game save', () => {
     expect(loadSession(storage).status).toBe('loaded');
   });
 
-  test('migrates V2 cash differences as unclassified and retires its key after a V3 save', () => {
+  test('migrates V2 cash differences as unclassified and retires its key after a V4 save', () => {
     const storage = memoryStorage();
-    const previous = JSON.parse(serializeSession(createFreshSession()));
+    const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));
     previous.version = 2;
     const january = removeV3CashFields(previous.simulation.financialHistory[0]);
     const february = {
@@ -147,7 +168,7 @@ describe('versioned game save', () => {
     previous.simulation.month = 2;
     previous.simulation.financials.cashOnHand = february.cashOnHand;
     previous.simulation.financialHistory = [january, february];
-    storage.setItem(PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous));
+    storage.setItem(SECOND_SESSION_STORAGE_KEY, JSON.stringify(previous));
 
     const store = new SessionStore(storage);
     const history = store.getSnapshot().snapshot.simulation.financialHistory;
@@ -160,19 +181,50 @@ describe('versioned game save', () => {
       oneTimeOperatingExpenses: 0, isOpeningSnapshot: false,
     });
     store.initializeStorage();
-    expect(storage.getItem(PREVIOUS_SESSION_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(SECOND_SESSION_STORAGE_KEY)).toBeNull();
     const upgraded = JSON.parse(storage.getItem(SESSION_STORAGE_KEY));
-    expect(upgraded.version).toBe(3);
+    expect(upgraded.version).toBe(4);
     expect(parseSession(JSON.stringify(upgraded))?.simulation.financialHistory[1].cashMovements).toEqual([
       { kind: 'unclassified', amount: 5000 },
     ]);
   });
 
-  test('does not discard older saves when the V3 write fails', () => {
-    const previous = JSON.parse(serializeSession(createFreshSession()));
+  test('migrates V3 without inventing tax debt and expires its pending tax quote', () => {
+    const storage = memoryStorage();
+    const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));
+    previous.version = 3;
+    previous.simulation.month = 1;
+    previous.simulation.year = 2027;
+    previous.simulation.financialHistory[0].year = 2027;
+    previous.tutorial.simulationMonthAtStart = 12;
+    previous.simulation.inbox = [{
+      id: 'old-tax', type: 'request', title: 'Quarterly Tax Planning', description: 'Old estimate',
+      urgency: 'medium', requiresAction: true, read: false,
+      choices: [{ id: 'pay-taxes', label: 'Pay estimate', effect: 'Cash decreases' }],
+      timestamp: '2026-12-31T12:00:00.000Z',
+      scenario: { kind: 'tax-planning', estimatedTax: 5000 },
+    }];
+    storage.setItem(PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous));
+
+    const store = new SessionStore(storage);
+    const snapshot = store.getSnapshot().snapshot;
+    expect(snapshot.simulation.taxPosition).toEqual({ principalDue: 0, penaltiesDue: 0 });
+    expect(snapshot.simulation.financialHistory[0]).toMatchObject({ taxExpense: 0, taxPenalty: 0 });
+    expect(snapshot.simulation.inbox[0]).toMatchObject({
+      read: true, requiresAction: false, resolution: { choiceId: 'expired' },
+    });
+    expect(snapshot.simulation.inbox[0].resolution.summary).toContain('no payable balance');
+    expect(snapshot.tutorial.simulationYearAtStart).toBe(2026);
+    store.initializeStorage();
+    expect(storage.getItem(PREVIOUS_SESSION_STORAGE_KEY)).toBeNull();
+    expect(parseSession(storage.getItem(SESSION_STORAGE_KEY))?.simulation.taxPosition).toEqual({ principalDue: 0, penaltiesDue: 0 });
+  });
+
+  test('does not discard older saves when the V4 write fails', () => {
+    const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));
     previous.version = 2;
     previous.simulation.financialHistory = previous.simulation.financialHistory.map(removeV3CashFields);
-    const values = new Map([[PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous)]]);
+    const values = new Map([[SECOND_SESSION_STORAGE_KEY, JSON.stringify(previous)]]);
     const storage = {
       getItem: (key) => values.get(key) ?? null,
       setItem: (key) => { if (key === SESSION_STORAGE_KEY) throw new Error('quota'); },
@@ -180,18 +232,18 @@ describe('versioned game save', () => {
     };
     const store = new SessionStore(storage);
     store.initializeStorage();
-    expect(values.has(PREVIOUS_SESSION_STORAGE_KEY)).toBe(true);
+    expect(values.has(SECOND_SESSION_STORAGE_KEY)).toBe(true);
     expect(store.getSnapshot().notice).toContain('storage is unavailable');
   });
 
-  test('a corrupt V3 save cannot silently restore a stale V2 save', () => {
+  test('a corrupt V4 save cannot silently restore a stale V2 save', () => {
     const storage = memoryStorage();
     storage.setItem(SESSION_STORAGE_KEY, '{corrupt');
-    const previous = JSON.parse(serializeSession(createFreshSession()));
+    const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));
     previous.version = 2;
     previous.simulation.month = 8;
     previous.simulation.financialHistory = previous.simulation.financialHistory.map(removeV3CashFields);
-    storage.setItem(PREVIOUS_SESSION_STORAGE_KEY, JSON.stringify(previous));
+    storage.setItem(SECOND_SESSION_STORAGE_KEY, JSON.stringify(previous));
     const store = new SessionStore(storage);
     expect(store.getSnapshot().snapshot.simulation.month).toBe(1);
     expect(store.getSnapshot().notice).toContain('saved game could not be read');

@@ -1,5 +1,5 @@
 import type { Employee, Client, SimulationState, OperatingCosts, Vendor, PartnerEconomics, BudgetItem, ARBuckets, LineOfCredit } from '@/types/simulation';
-import { getEmployeeTotalCost, getOperatingCostsTotal } from '@/types/simulation';
+import { ESTIMATED_TAX_RATE, getEmployeeTotalCost, getOperatingCostsTotal } from '@/types/simulation';
 
 const initialEmployees: Employee[] = [
   { id: 'emp1', name: 'Alex Johnson', role: 'Lobbyist', efficacy: 85, burnout: 20, salary: 8000, clientAffinity: 75, hireDate: { month: 6, year: 2025 } },
@@ -61,6 +61,7 @@ const initialOpCosts = getOperatingCostsTotal(initialOperatingCosts);
 const initialVendorCosts = initialVendors.reduce((sum, v) => sum + v.monthlyCost, 0);
 const initialRevenue = initialClients.reduce((sum, c) => sum + c.monthlyFee, 0);
 const initialTotalExpenses = initialTotalPayroll + initialOpCosts + initialVendorCosts + initialPartnerEconomics.monthlyDraw;
+const initialTaxExpense = Math.round(Math.max(0, initialRevenue - initialTotalExpenses) * ESTIMATED_TAX_RATE);
 
 const initialBudget: BudgetItem[] = [
   { category: 'Payroll', plannedQuarterly: initialTotalPayroll * 3, actualQuarterlySpend: initialTotalPayroll, quarter: 1, year: 2026 },
@@ -79,8 +80,8 @@ const initialState: SimulationState = {
   financials: {
     cashOnHand: 250000,
     grossRevenue: initialRevenue,
-    operatingExpenses: initialTotalExpenses,
-    netProfit: initialRevenue - initialTotalExpenses,
+    operatingExpenses: initialTotalExpenses + initialTaxExpense,
+    netProfit: initialRevenue - initialTotalExpenses - initialTaxExpense,
     collectionsThisMonth: 0,
     totalPayroll: initialTotalPayroll,
     totalOperatingCosts: initialOpCosts,
@@ -96,8 +97,8 @@ const initialState: SimulationState = {
     cashMovements: [],
     oneTimeOperatingExpenses: 0,
     revenue: initialRevenue,
-    expenses: initialTotalExpenses,
-    profit: initialRevenue - initialTotalExpenses,
+    expenses: initialTotalExpenses + initialTaxExpense,
+    profit: initialRevenue - initialTotalExpenses - initialTaxExpense,
     collections: 0,
     operatingCosts: initialOpCosts,
     operatingCostBreakdown: { ...initialOperatingCosts },
@@ -106,6 +107,8 @@ const initialState: SimulationState = {
     payroll: initialTotalPayroll,
     arWriteOff: 0,
     locInterest: 0,
+    taxExpense: initialTaxExpense,
+    taxPenalty: 0,
     cashOnHand: 250000,
   }],
   employees: initialEmployees,
@@ -125,6 +128,7 @@ const initialState: SimulationState = {
     aging: { ...initialARBuckets },
   }],
   lineOfCredit: initialLineOfCredit,
+  taxPosition: { principalDue: initialTaxExpense, penaltiesDue: 0 },
 };
 
 

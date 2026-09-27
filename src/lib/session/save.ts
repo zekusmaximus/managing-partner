@@ -4,11 +4,12 @@ import { sumReceivables } from '@/lib/simulation/engine';
 import { createInitialTutorialState, type TutorialState } from './tutorialState';
 import type { SimulationState } from '@/types/simulation';
 
-export const SESSION_STORAGE_KEY = 'managing-partner-session-v3';
-export const PREVIOUS_SESSION_STORAGE_KEY = 'managing-partner-session-v2';
+export const SESSION_STORAGE_KEY = 'managing-partner-session-v4';
+export const PREVIOUS_SESSION_STORAGE_KEY = 'managing-partner-session-v3';
+export const SECOND_SESSION_STORAGE_KEY = 'managing-partner-session-v2';
 export const FIRST_SESSION_STORAGE_KEY = 'managing-partner-session-v1';
 export const LEGACY_TUTORIAL_STORAGE_KEY = 'managing-partner-tutorial';
-export const SESSION_VERSION = 3;
+export const SESSION_VERSION = 4;
 
 export interface SessionSnapshot {
   simulation: SimulationState;
@@ -195,6 +196,11 @@ const simulationStateV2: Check = (value) => {
 const simulationStateV3: Check = (value) => simulationStateV2(value) && record(value) &&
   Array.isArray(value.financialHistory) && value.financialHistory.every(financialHistoryEntryV3);
 
+const simulationStateV4: Check = (value) => simulationStateV3(value) && record(value) &&
+  fields(value.taxPosition, { principalDue: nonnegative, penaltiesDue: nonnegative }) &&
+  Array.isArray(value.financialHistory) && value.financialHistory.every((entry) =>
+    fields(entry, { taxExpense: nonnegative, taxPenalty: nonnegative }));
+
 // Older saves only record each closing balance. Their unexplained difference
 // stays unclassified; it cannot safely be called a tax payment or LOC draw.
 function migrateLegacyCashHistory(history: SimulationState['financialHistory']): SimulationState['financialHistory'] {
@@ -222,7 +228,7 @@ function migrateLegacyCashHistory(history: SimulationState['financialHistory']):
 }
 
 const validStepIds = new Set(tutorialSteps.map((step) => step.id));
-const tutorialState: Check = (value) => fields(value, {
+const tutorialStateLegacy: Check = (value) => fields(value, {
   status: oneOf('not_started', 'in_progress', 'completed', 'skipped'),
   currentStepIndex: (index) => integer(index) && (index as number) >= 0 &&
     (index as number) < tutorialSteps.length,
@@ -230,6 +236,7 @@ const tutorialState: Check = (value) => fields(value, {
   completedSteps: arrayOf((id) => text(id) && validStepIds.has(id as string)),
   showWelcomeModal: bool, isPaused: bool, simulationMonthAtStart: month,
 });
+const tutorialStateV4: Check = (value) => tutorialStateLegacy(value) && record(value) && year(value.simulationYearAtStart);
 
 export function createFreshSession(): SessionSnapshot {
   return {
@@ -245,11 +252,12 @@ export function serializeSession(snapshot: SessionSnapshot): string {
 export function parseSession(raw: string): SessionSnapshot | null {
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!record(parsed) || (parsed.version !== SESSION_VERSION && parsed.version !== 2 && parsed.version !== 1) ||
+    if (!record(parsed) || (parsed.version !== SESSION_VERSION && parsed.version !== 3 && parsed.version !== 2 && parsed.version !== 1) ||
       !(parsed.version === 1 ? simulationStateBase(parsed.simulation)
         : parsed.version === 2 ? simulationStateV2(parsed.simulation)
-          : simulationStateV3(parsed.simulation)) ||
-      !tutorialState(parsed.tutorial)) return null;
+          : parsed.version === 3 ? simulationStateV3(parsed.simulation)
+            : simulationStateV4(parsed.simulation)) ||
+      !(parsed.version === SESSION_VERSION ? tutorialStateV4(parsed.tutorial) : tutorialStateLegacy(parsed.tutorial))) return null;
 
     const simulation = parsed.simulation as unknown as SimulationState;
     const receivables = parsed.version === 1
@@ -259,16 +267,29 @@ export function parseSession(raw: string): SessionSnapshot | null {
       simulation: {
         ...simulation,
         receivables,
-        financialHistory: parsed.version === SESSION_VERSION
-          ? simulation.financialHistory : migrateLegacyCashHistory(simulation.financialHistory),
+        financialHistory: (parsed.version >= 3
+          ? simulation.financialHistory : migrateLegacyCashHistory(simulation.financialHistory))
+          .map(entry => parsed.version === SESSION_VERSION ? entry : { ...entry, taxExpense: 0, taxPenalty: 0 }),
+        taxPosition: parsed.version === SESSION_VERSION
+          ? simulation.taxPosition : { principalDue: 0, penaltiesDue: 0 },
         alerts: simulation.alerts.map((alert) => ({
           ...alert, timestamp: new Date(alert.timestamp),
         })),
         inbox: simulation.inbox.map((message) => ({
           ...message, timestamp: new Date(message.timestamp),
+          ...(parsed.version !== SESSION_VERSION && message.requiresAction && message.scenario.kind === 'tax-planning'
+            ? { read: true, requiresAction: false,
+                resolution: { choiceId: 'expired', summary: 'This prior tax estimate expired during save migration because no payable balance was recorded. Future quarters use the new tax balance.' } }
+            : {}),
         })),
       },
-      tutorial: parsed.tutorial as TutorialState,
+      tutorial: parsed.version === SESSION_VERSION
+        ? parsed.tutorial as TutorialState
+        : {
+          ...(parsed.tutorial as TutorialState),
+          simulationYearAtStart: Math.max(2020, simulation.year -
+            (simulation.month < (parsed.tutorial as TutorialState).simulationMonthAtStart ? 1 : 0)),
+        },
     };
   } catch {
     return null;
@@ -280,6 +301,7 @@ export function loadSession(storage: SessionStorage): LoadResult {
   try {
     raw = storage.getItem(SESSION_STORAGE_KEY);
     if (raw === null) raw = storage.getItem(PREVIOUS_SESSION_STORAGE_KEY);
+    if (raw === null) raw = storage.getItem(SECOND_SESSION_STORAGE_KEY);
     if (raw === null) raw = storage.getItem(FIRST_SESSION_STORAGE_KEY);
   } catch {
     return { status: 'unavailable' };

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createInitialSimulationState } from './initialState';
-import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, getOverdueClientAccount, isValidAmount, reallocateBudget, recordCashMovement, recordOneTimeOperatingExpense, sumReceivables, writeOffReceivables } from './engine';
+import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, getOverdueClientAccount, getQuarterOpeningTaxPenalty, isValidAmount, reallocateBudget, recordCashMovement, recordOneTimeOperatingExpense, retainInboxMessages, sumReceivables, writeOffReceivables } from './engine';
 import { calculateProfitAndLoss } from './metrics';
 
 const deps = { random: () => 0.6, generateAlerts: () => [], generateInboxMessages: () => [] };
@@ -37,8 +37,9 @@ describe('month advancement and finance', () => {
     const next = advance(state);
     const entry = next.financialHistory.at(-1);
     expect(entry.arWriteOff).toBeGreaterThan(0);
-    expect(entry.expenses).toBe(entry.payroll + entry.operatingCosts + entry.vendorCosts + entry.partnerDraw + entry.locInterest + entry.arWriteOff);
-    expect(next.financials.cashOnHand).toBe(state.financials.cashOnHand + entry.collections - (entry.expenses - entry.arWriteOff));
+    expect(entry.expenses).toBe(entry.payroll + entry.operatingCosts + entry.vendorCosts + entry.partnerDraw + entry.locInterest + entry.arWriteOff + entry.taxExpense + entry.taxPenalty);
+    expect(next.financials.cashOnHand).toBe(state.financials.cashOnHand + entry.collections -
+      (entry.expenses - entry.arWriteOff - entry.taxExpense - entry.taxPenalty));
     expect(next.financials.netProfit).toBe(entry.revenue - entry.expenses);
   });
 
@@ -160,6 +161,122 @@ describe('cash activity and one-time costs', () => {
     expect(distributed.partnerEconomics.distributionPool).toBe(5000);
     expect(reconcile(entry)).toBe(entry.cashOnHand);
     expect(applyInboxChoice(distributed, 'cash-choice', 'partial-distribution', { random: () => 0, generateId: () => 'new' })).toBe(distributed);
+  });
+});
+
+describe('fictional tax balance', () => {
+  const taxMessage = (quote) => ({
+    id: 'tax-choice', type: 'request', title: 'Quarterly Tax Planning', description: 'Estimate',
+    urgency: 'medium', requiresAction: true, read: false, timestamp: new Date(),
+    scenario: { kind: 'tax-planning', estimatedTax: quote },
+    choices: [
+      { id: 'pay-taxes', label: 'Pay full', effect: 'Cash payment' },
+      { id: 'accelerate-expenses', label: 'Pay 60%', effect: 'Cash payment' },
+      { id: 'defer-taxes', label: 'Defer', effect: 'No cash payment' },
+    ],
+  });
+  const chooseTax = (state, quote, choiceId) => applyInboxChoice(
+    { ...state, inbox: [taxMessage(quote)] }, 'tax-choice', choiceId,
+    { random: () => 0, generateId: () => 'new' },
+  );
+
+  test('January and new months book a fixed 25% positive pretax provision without paying cash', () => {
+    const january = createInitialSimulationState();
+    const firstEntry = january.financialHistory[0];
+    const pretax = firstEntry.revenue - (firstEntry.expenses - firstEntry.taxExpense);
+    expect(firstEntry.taxExpense).toBe(Math.round(Math.max(0, pretax) * 0.25));
+    expect(january.taxPosition).toEqual({ principalDue: firstEntry.taxExpense, penaltiesDue: 0 });
+    expect(firstEntry.cashOnHand).toBe(250000);
+    expect(calculateProfitAndLoss([firstEntry]).netIncome).toBe(firstEntry.profit);
+
+    const february = advance(january);
+    const secondEntry = february.financialHistory.at(-1);
+    expect(secondEntry.taxExpense).toBe(Math.round(Math.max(0,
+      secondEntry.revenue - (secondEntry.expenses - secondEntry.taxExpense)) * 0.25));
+    expect(secondEntry.taxPenalty).toBe(0);
+    expect(february.taxPosition.principalDue).toBe(january.taxPosition.principalDue + secondEntry.taxExpense);
+    const adjusted = recordOneTimeOperatingExpense(february, 'repair', 1000);
+    expect(adjusted.financialHistory.at(-1).taxExpense).toBe(secondEntry.taxExpense);
+    expect(adjusted.taxPosition).toEqual(february.taxPosition);
+  });
+
+  test('unpaid principal incurs a noncompounding 2% charge at quarter opening, including January rollover', () => {
+    let state = createInitialSimulationState();
+    state = advance(advance(state));
+    const march = state.taxPosition.principalDue;
+    state = advance(state);
+    expect([state.month, state.year]).toEqual([4, 2026]);
+    expect(state.financialHistory.at(-1).taxPenalty).toBe(getQuarterOpeningTaxPenalty(4, march));
+    expect(state.taxPosition.penaltiesDue).toBe(Math.round(march * 0.02));
+    expect(calculateProfitAndLoss([state.financialHistory.at(-1)]).netIncome).toBe(state.financialHistory.at(-1).profit);
+    const aprilPenalty = state.taxPosition.penaltiesDue;
+    state = advance(state);
+    expect(state.taxPosition.penaltiesDue).toBe(aprilPenalty);
+    for (let index = 0; index < 8; index += 1) state = advance(state);
+    expect([state.month, state.year]).toEqual([1, 2027]);
+    const december = state.financialHistory.at(-2);
+    const januaryPenalty = state.financialHistory.at(-1).taxPenalty;
+    const decemberPosition = state.taxPosition.principalDue - state.financialHistory.at(-1).taxExpense;
+    expect(januaryPenalty).toBe(Math.round(decemberPosition * 0.02));
+    expect(januaryPenalty).toBeGreaterThan(0);
+    expect(december.month).toBe(12);
+  });
+
+  test('payments use the quote, cap at outstanding, clear penalties first, and cannot repeat', () => {
+    const state = {
+      ...createInitialSimulationState(),
+      taxPosition: { principalDue: 1000, penaltiesDue: 100 },
+    };
+    const paid = chooseTax(state, 1100, 'accelerate-expenses');
+    expect(paid.taxPosition).toEqual({ principalDue: 440, penaltiesDue: 0 });
+    expect(paid.financials.cashOnHand).toBe(state.financials.cashOnHand - 660);
+    expect(paid.financialHistory.at(-1).cashMovements.at(-1)).toEqual({ kind: 'tax-payment', amount: -660 });
+    expect(paid.financialHistory.at(-1).profit).toBe(state.financialHistory.at(-1).profit);
+    expect(applyInboxChoice(paid, 'tax-choice', 'accelerate-expenses', { random: () => 0, generateId: () => 'new' })).toBe(paid);
+
+    const capped = chooseTax(state, 2000, 'pay-taxes');
+    expect(capped.taxPosition).toEqual({ principalDue: 0, penaltiesDue: 0 });
+    expect(capped.financials.cashOnHand).toBe(state.financials.cashOnHand - 1100);
+    const staleQuote = chooseTax(state, 900, 'pay-taxes');
+    expect(staleQuote.taxPosition).toEqual({ principalDue: 200, penaltiesDue: 0 });
+    expect(staleQuote.inbox[0].resolution.summary).toContain('200');
+  });
+
+  test('a fully paid quarter has no late charge, and old penalties do not themselves incur a charge', () => {
+    const march = advance(advance(createInitialSimulationState()));
+    const fullyPaid = chooseTax(march, march.taxPosition.principalDue, 'pay-taxes');
+    const april = advance(fullyPaid);
+    expect(april.financialHistory.at(-1).taxPenalty).toBe(0);
+    expect(april.taxPosition.penaltiesDue).toBe(0);
+
+    const withOnlyPenalty = { ...march, taxPosition: { principalDue: 0, penaltiesDue: 100 } };
+    const next = advance(withOnlyPenalty);
+    expect(next.financialHistory.at(-1).taxPenalty).toBe(0);
+    expect(next.taxPosition.penaltiesDue).toBe(100);
+  });
+
+  test('deferral keeps balance and a pending quarterly choice expires on month advance', () => {
+    const january = createInitialSimulationState();
+    const deferred = chooseTax(january, january.taxPosition.principalDue, 'defer-taxes');
+    expect(deferred.taxPosition).toEqual(january.taxPosition);
+    expect(deferred.financials.cashOnHand).toBe(january.financials.cashOnHand);
+    expect(deferred.inbox[0].resolution.summary).toContain('remains due');
+
+    const pending = { ...january, inbox: [taxMessage(january.taxPosition.principalDue)] };
+    const next = advance(pending);
+    expect(next.inbox[0].requiresAction).toBe(false);
+    expect(next.inbox[0].resolution.choiceId).toBe('expired');
+    expect(next.taxPosition.principalDue).toBeGreaterThan(january.taxPosition.principalDue);
+  });
+
+  test('inbox limit preserves unresolved decisions and trims older informational messages', () => {
+    const pending = Array.from({ length: 22 }, (_, index) => ({ ...taxMessage(100), id: `pending-${index}` }));
+    const info = Array.from({ length: 4 }, (_, index) => ({ ...taxMessage(0), id: `info-${index}`, requiresAction: false }));
+    expect(retainInboxMessages([...pending, ...info])).toHaveLength(22);
+    expect(retainInboxMessages([...info, ...pending]).every(message => message.requiresAction)).toBe(true);
+    const fewPending = pending.slice(0, 3);
+    const retained = retainInboxMessages([...info, ...fewPending], 5);
+    expect(retained.map(message => message.id)).toEqual(['info-0', 'info-1', 'pending-0', 'pending-1', 'pending-2']);
   });
 });
 

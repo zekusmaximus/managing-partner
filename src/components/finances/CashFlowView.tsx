@@ -41,9 +41,11 @@ export default function CashFlowView() {
   const [locAmount, setLocAmount] = useState(0);
 
   const { financials, lineOfCredit, financialHistory } = state;
+  const taxBalance = state.taxPosition.principalDue + state.taxPosition.penaltiesDue;
   const locAvailable = getLOCAvailable(lineOfCredit);
   const locInterest = getLOCMonthlyInterest(lineOfCredit);
-  const locMaximum = locAction === 'draw' ? locAvailable : Math.min(lineOfCredit.drawn, Math.max(0, financials.cashOnHand));
+  const repayMaximum = Math.min(lineOfCredit.drawn, Math.max(0, financials.cashOnHand));
+  const locMaximum = locAction === 'draw' ? locAvailable : repayMaximum;
   const validLOCAmount = isValidAmount(locAmount) && locAmount <= locMaximum;
 
   const currentEntry = financialHistory.at(-1);
@@ -110,7 +112,7 @@ export default function CashFlowView() {
   };
 
   const openDraw = () => { setLocAction('draw'); setLocAmount(Math.min(10000, locAvailable)); setLocDialogOpen(true); };
-  const openRepay = () => { setLocAction('repay'); setLocAmount(Math.min(10000, lineOfCredit.drawn)); setLocDialogOpen(true); };
+  const openRepay = () => { setLocAction('repay'); setLocAmount(Math.min(10000, repayMaximum)); setLocDialogOpen(true); };
 
   return (
     <Box>
@@ -242,10 +244,31 @@ export default function CashFlowView() {
                 <Button variant="outlined" size="small" onClick={openDraw} disabled={locAvailable === 0}>
                   Draw
                 </Button>
-                <Button variant="outlined" size="small" color="success" onClick={openRepay} disabled={lineOfCredit.drawn === 0}>
+                <Button variant="outlined" size="small" color="success" onClick={openRepay} disabled={repayMaximum === 0}>
                   Repay
                 </Button>
               </Box>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ mb: 3 }}>
+            <CardHeader title={<>Tax Position <HelpTooltip helpId="finance-tax-payable" /></>} subheader="Estimated unpaid balance" />
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                <Typography variant="body2">Estimated tax due</Typography>
+                <Typography variant="body2">${state.taxPosition.principalDue.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 1 }}>
+                <Typography variant="body2">Late charges due</Typography>
+                <Typography variant="body2">${state.taxPosition.penaltiesDue.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                <Typography variant="body2" fontWeight="bold">Total payable</Typography>
+                <Typography variant="body2" fontWeight="bold">${taxBalance.toLocaleString()}</Typography>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+                Tax expense is recorded when estimated; cash changes only when a tax payment is made through the inbox.
+              </Typography>
             </CardContent>
           </Card>
 
@@ -304,7 +327,9 @@ export default function CashFlowView() {
             error={!validLOCAmount}
             slotProps={{ htmlInput: { min: 0, max: locMaximum, step: 1 } }}
             sx={{ mt: 1 }}
-            helperText={locAction === 'draw' ? `Available: $${locAvailable.toLocaleString()}` : `Balance: $${lineOfCredit.drawn.toLocaleString()}`}
+            helperText={locAction === 'draw'
+              ? `Available to draw: $${locAvailable.toLocaleString()}`
+              : `Maximum repayable now: $${repayMaximum.toLocaleString()} (balance: $${lineOfCredit.drawn.toLocaleString()})`}
           />
         </DialogContent>
         <DialogActions>

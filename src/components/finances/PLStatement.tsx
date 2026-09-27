@@ -34,6 +34,8 @@ export default function PLStatement() {
     { label: 'Operating Income', current: current.operatingIncome, ytd: ytd.operatingIncome, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-operating-margin' },
     { label: 'Partner Draw', current: current.partnerDraw, ytd: ytd.partnerDraw },
     { label: 'LOC Interest', current: current.locInterest, ytd: ytd.locInterest },
+    { label: 'Estimated Tax Expense', current: current.taxExpense, ytd: ytd.taxExpense, helpId: 'finance-tax-expense' },
+    { label: 'Late Tax Penalty', current: current.taxPenalty, ytd: ytd.taxPenalty },
     { label: 'Net Income', current: current.netIncome, ytd: ytd.netIncome, isBold: true, isSubtotal: true, showPct: true, helpId: 'finance-pl' },
   ];
 

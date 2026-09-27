@@ -6,6 +6,8 @@ import { Close, ArrowBack, ArrowForward, School } from '@mui/icons-material';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTutorial } from '@/context/TutorialContext';
 import { useSimulation } from '@/context/SimulationContext';
+import { isTutorialMonthAdvanceAlreadySatisfied } from '@/lib/session/tutorialState';
+import { getLOCMonthlyInterest } from '@/types/simulation';
 import LearningObjectivesCard from '@/components/tutorial/LearningObjectivesCard';
 
 interface TargetRect {
@@ -35,6 +37,15 @@ export default function TutorialOverlay() {
   const [isNavigating, setIsNavigating] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const targetRef = useRef<HTMLElement | null>(null);
+  const monthAlreadyAdvanced = currentStep?.requiresAction === 'advance_month' &&
+    isTutorialMonthAdvanceAlreadySatisfied(
+      currentStep.id,
+      tutorialState.simulationMonthAtStart,
+      tutorialState.simulationYearAtStart,
+      simulation.month,
+      simulation.year,
+    );
 
   useEffect(() => {
     if (isTutorialActive && !isNavigating) dialogRef.current?.focus();
@@ -42,7 +53,8 @@ export default function TutorialOverlay() {
 
   // Find and measure target element
   const findTarget = useCallback((scrollToTarget = false) => {
-    if (!currentStep || currentStep.targetSelector === 'center') {
+    if (!currentStep || currentStep.targetSelector === 'center' || monthAlreadyAdvanced) {
+      targetRef.current = null;
       setTargetRect(null);
       return true;
     }
@@ -52,6 +64,7 @@ export default function TutorialOverlay() {
       return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.left < window.innerWidth;
     });
     if (el) {
+      targetRef.current = el;
       if (scrollToTarget) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       const rect = el.getBoundingClientRect();
       setTargetRect({
@@ -62,9 +75,10 @@ export default function TutorialOverlay() {
       });
       return true;
     }
+    targetRef.current = null;
     setTargetRect(null);
     return false;
-  }, [currentStep]);
+  }, [currentStep, monthAlreadyAdvanced]);
 
   // Poll for target element after navigation
   useEffect(() => {
@@ -125,19 +139,61 @@ export default function TutorialOverlay() {
     };
   }, [isTutorialActive, currentStep, findTarget]);
 
+  // The visual blockers only stop pointer events. Keep Tab within the tutorial
+  // controls and, for action steps, the highlighted link or button.
+  useEffect(() => {
+    if (!isTutorialActive || isNavigating) return;
+    const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        pauseTutorial();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const visible = (element: HTMLElement) => element.getClientRects().length > 0;
+      const dialogControls = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector)).filter(visible);
+      const target = currentStep?.requiresAction && !monthAlreadyAdvanced ? targetRef.current : null;
+      const targetControls = target
+        ? [
+            ...(target.matches(focusableSelector) ? [target] : []),
+            ...Array.from(target.querySelectorAll<HTMLElement>(focusableSelector)),
+          ].filter(visible)
+        : [];
+      const allowed = [...dialogControls, ...targetControls];
+      if (allowed.length === 0) return;
+      const currentIndex = allowed.indexOf(document.activeElement as HTMLElement);
+      const nextIndex = currentIndex < 0
+        ? event.shiftKey ? allowed.length - 1 : 0
+        : (currentIndex + (event.shiftKey ? allowed.length - 1 : 1)) % allowed.length;
+      event.preventDefault();
+      allowed[nextIndex].focus();
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [currentStep, isNavigating, isTutorialActive, monthAlreadyAdvanced, pauseTutorial]);
+
   if (!isTutorialActive || !currentStep || isNavigating) return null;
 
-  const isCenter = currentStep.targetSelector === 'center';
+  const isCenter = currentStep.targetSelector === 'center' || monthAlreadyAdvanced;
   const stepNumber = tutorialState.currentStepIndex + 1;
   const isFirstStep = tutorialState.currentStepIndex === 0;
   const isActionStep = !!currentStep.requiresAction;
   const showLearningObjectives =
     currentStep.id.includes('intro') || currentStep.id === 'welcome-game-overview';
-  const monthlyExpenses = simulation.financials.operatingExpenses;
-  const content = currentStep.content.replace(/\{\{(cash|expenses|runway)\}\}/g, (_, key: string) => {
+  const monthlyCashCosts = simulation.financials.totalPayroll +
+    simulation.financials.totalOperatingCosts + simulation.financials.totalVendorCosts +
+    simulation.financials.partnerDrawThisMonth + getLOCMonthlyInterest(simulation.lineOfCredit);
+  const stepContent = monthAlreadyAdvanced
+    ? 'The game has already moved past this tutorial checkpoint. Continue to the next lesson without advancing another month.'
+    : currentStep.content;
+  const content = stepContent.replace(/\{\{(cash|expenses|runway)\}\}/g, (_, key: string) => {
     if (key === 'cash') return `$${Math.round(simulation.financials.cashOnHand).toLocaleString()}`;
-    if (key === 'expenses') return `$${Math.round(monthlyExpenses).toLocaleString()}`;
-    return monthlyExpenses > 0 ? (simulation.financials.cashOnHand / monthlyExpenses).toFixed(1) : 'unlimited';
+    if (key === 'expenses') return `$${Math.round(monthlyCashCosts).toLocaleString()}`;
+    return monthlyCashCosts > 0 ? (simulation.financials.cashOnHand / monthlyCashCosts).toFixed(1) : 'unlimited';
   });
 
   // Handle next/navigation
@@ -146,8 +202,11 @@ export default function TutorialOverlay() {
       router.push(currentStep.actionTarget);
       nextStep();
     } else if (currentStep.requiresAction === 'advance_month') {
-      advanceMonth();
-      onMonthAdvanced();
+      if (monthAlreadyAdvanced) nextStep();
+      else {
+        advanceMonth();
+        onMonthAdvanced();
+      }
     } else if (!isActionStep) {
       nextStep();
     }
@@ -155,7 +214,7 @@ export default function TutorialOverlay() {
 
   const getActionHintText = (): string => {
     if (currentStep.requiresAction === 'advance_month') {
-      return 'Click "Advance Month" to continue';
+      return monthAlreadyAdvanced ? 'The game has already advanced; continue the tutorial' : 'Click "Advance Month" to continue';
     }
     if (currentStep.requiresAction === 'navigate') {
       return 'Click the highlighted item to continue';
@@ -183,6 +242,7 @@ export default function TutorialOverlay() {
           elevation={8}
           ref={dialogRef}
           role="dialog"
+          aria-modal="true"
           aria-label={currentStep.title}
           tabIndex={-1}
           onKeyDown={(event) => { if (event.key === 'Escape') pauseTutorial(); }}
@@ -464,7 +524,7 @@ export default function TutorialOverlay() {
               </Button>
             ) : currentStep.requiresAction === 'advance_month' ? (
               <Button size="small" variant="contained" onClick={handleNext}>
-                Advance Month
+                {monthAlreadyAdvanced ? 'Continue' : 'Advance Month'}
               </Button>
             ) : isActionStep ? null : (
               <Button

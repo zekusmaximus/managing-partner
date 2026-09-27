@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype. The stabilization and client-receivables passes are merged into `main`. The current cash-flow branch records categorized cash movements, reconciles the monthly waterfall, and migrates older saves to version 3. Tax liabilities, penalties, and broader gameplay balance remain future work.
+**Project Status**: Playable single-browser prototype. The stabilization and client-receivables passes are merged into `main`. The current branch adds categorized cash movements, a fictional estimated tax balance and late charge, reliable inbox generation, and tutorial usability fixes. Valid version 1–3 saves migrate to version 4. Broader gameplay balance still needs playtesting. No PR has been opened for this branch yet.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -45,7 +45,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Keep the simplified game model internally consistent and make decision consequences clear. The remaining accounting decision is whether tax liabilities and penalties need a payable schedule. Scenario balance and tutorial usability need observation with new players.
+Keep the simplified game model internally consistent and make decision consequences clear. The tax balance now has a deliberately simple payable schedule; playtesting should guide scenario balance, staff burnout, and tutorial length.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -72,7 +72,15 @@ Keep the simplified game model internally consistent and make decision consequen
 - The initial January entry is an opening cash snapshot: its P&L run rate is displayed but recurring costs have not been paid in cash. The cash waterfall shows categorized activity and reconciles to ending cash. The projection uses observed recurring cash months and excludes one-time decisions.
 - The version 3 local save migrates version 1 and 2 records. The oldest retained legacy month has unknown opening cash; later unexplained changes are preserved as unclassified movements rather than assigned invented causes. Older save keys are retired after a successful version 3 write.
 - Verification: 33 Bun tests, typecheck, lint, and production build pass. All five routes were checked at 390, 768, 1280, and 1440px without horizontal overflow; the month control stayed visible. Keyboard LOC actions, same-month draw/repayment reconciliation, reload persistence, and browser error logs were checked.
-- This remains a simplified educational model without tax payable or penalty accounting.
+- This remains a simplified educational model; the later phase below adds a fictional tax balance and late charge.
+
+## Tax, Scenario, and Tutorial Pass Snapshot (2026-09-26)
+
+- A fictional 25% estimate on positive pretax profit is booked when a month opens, including the initial January snapshot. Unpaid principal receives a fictional 2% late charge at quarter opening. Tax expense and penalties reduce P&L profit but not cash; quarter-end payment decisions clear penalties first and move cash once. Later one-time actions can alter final profit without revising the month-opening estimate.
+- The Finance P&L shows tax expense and late charges; Cash Flow shows the payable components. Repay LOC defaults to an amount covered by current cash and disables when repayment is unavailable.
+- Version 4 saves migrate valid version 1–3 records with zero opening tax debt rather than inventing old liabilities. Legacy unresolved tax prompts expire; pending non-tax decisions remain available. Scenario generation is deterministic in tests, deduplicates pending subjects, includes more prospect names, and offers an outstanding-balance tax prompt at quarter end.
+- Tutorial month checkpoints remember the starting year and avoid a second advance if the game has moved past a checkpoint. Spotlight keyboard focus is confined to the tutorial controls and highlighted target, including mobile navigation. The finance copy and runway example now match the displayed model.
+- Verification: 51 Bun tests, typecheck, lint, and production build pass. All five routes have no horizontal overflow at 390, 768, 1280, and 1440px. The 34-step tutorial completed across those widths; mobile menu navigation and Tab focus, AR tab targeting, stale month checkpoints, the quarter-end tax prompt, and the quarter-opening penalty were checked in the browser with no console errors.
 
 ## Session History
 
@@ -89,3 +97,4 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-25 | Implemented first stabilization pass: pure simulation functions, local save, responsive shell, tutorial and UI fixes, tests, and documentation updates |
 | 2026-09-26 | Merged first stabilization pass; implemented client-attributed AR, version 1 to 2 save migration, and inbox outcome feedback |
 | 2026-09-26 | Merged client-receivables pass as PR #4; implemented categorized cash movements, P&L one-time costs, version 3 save migration, and reconciled cash view on a new branch |
+| 2026-09-26 | Added estimated tax payable and late charges, version 4 save migration, deterministic scenario generation, pending-decision retention, and tutorial accessibility fixes on the cash-flow branch; PR deferred pending this phase |

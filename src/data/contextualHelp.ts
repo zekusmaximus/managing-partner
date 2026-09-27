@@ -259,6 +259,20 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     grExplanation: 'The waterfall separates client collections, recurring payments, one-time decisions, partner distributions, and line-of-credit principal. The starting January P&L is a run-rate snapshot, so those costs do not appear as January cash payments. Older saves may show an unclassified movement where the original decision was not recorded. The projection uses observed recurring cash months and excludes one-time events.',
     relatedGlossaryTerms: ['working-capital', 'line-of-credit', 'accounts-receivable'],
   },
+  'finance-tax-expense': {
+    id: 'finance-tax-expense',
+    page: '/finances',
+    metricName: 'Estimated Tax Expense',
+    shortDescription: 'An estimated provision recorded when the month is created.',
+    grExplanation: 'The simulation estimates tax at 25% of positive pre-tax income at the monthly snapshot. It appears in the P&L even when the cash has not been paid. Unpaid amounts remain in the tax position, and late charges are recorded separately.',
+  },
+  'finance-tax-payable': {
+    id: 'finance-tax-payable',
+    page: '/finances',
+    metricName: 'Tax Position',
+    shortDescription: 'Estimated unpaid tax and accumulated late charges.',
+    grExplanation: 'A tax payment reduces this balance and cash, but does not create a second P&L expense. Deferring leaves the principal outstanding; at the next quarter opening, a 2% late charge is added to unpaid principal.',
+  },
   'finance-one-time-costs': {
     id: 'finance-one-time-costs',
     page: '/finances',

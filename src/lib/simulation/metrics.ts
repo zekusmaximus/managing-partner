@@ -13,6 +13,8 @@ export interface ProfitAndLoss {
   operatingMarginPercent: number;
   partnerDraw: number;
   locInterest: number;
+  taxExpense: number;
+  taxPenalty: number;
   netIncome: number;
 }
 
@@ -33,14 +35,16 @@ export const calculateProfitAndLoss = (entries: FinancialHistoryEntry[]): Profit
   const arWriteOff = entries.reduce((sum, entry) => sum + entry.arWriteOff, 0);
   const partnerDraw = entries.reduce((sum, entry) => sum + entry.partnerDraw, 0);
   const locInterest = entries.reduce((sum, entry) => sum + entry.locInterest, 0);
+  const taxExpense = entries.reduce((sum, entry) => sum + entry.taxExpense, 0);
+  const taxPenalty = entries.reduce((sum, entry) => sum + entry.taxPenalty, 0);
   const grossMargin = revenue - payroll;
   const totalOperatingExpenses = Object.values(operatingCosts).reduce((sum, amount) => sum + amount, 0) + vendorCosts + oneTimeOperatingExpenses + arWriteOff;
   const operatingIncome = grossMargin - totalOperatingExpenses;
-  const netIncome = operatingIncome - partnerDraw - locInterest;
+  const netIncome = operatingIncome - partnerDraw - locInterest - taxExpense - taxPenalty;
   return {
     revenue, payroll, grossMargin, operatingCosts, vendorCosts, oneTimeOperatingExpenses, arWriteOff,
     totalOperatingExpenses, operatingIncome,
     operatingMarginPercent: revenue > 0 ? operatingIncome / revenue * 100 : 0,
-    partnerDraw, locInterest, netIncome,
+    partnerDraw, locInterest, taxExpense, taxPenalty, netIncome,
   };
 };
