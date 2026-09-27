@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype. The stabilization, client-receivables, cash-flow, estimated-tax, inbox-reliability, and responsive-tutorial work are merged into `main` through PR #5 (`0e4914f`). The `codex/gameplay-balance-pass` branch adds seeded balance simulation, staff recovery, contract renewal/churn resolution, and discretionary inbox tuning. Valid version 1–3 saves still migrate to version 4; existing version 4 saves remain valid. Human playtesting remains outstanding. No PR has been opened for the balance branch.
+**Project Status**: Playable single-browser prototype. The gameplay balance work was merged into `main` through PR #6 (`fa3b6a1`), including seeded balance simulation, staff recovery, contract renewal/churn resolution, and discretionary inbox tuning. The current `codex/cash-pressure-recovery` branch adds a smaller targeted recovery choice and a credit-capacity warning. Valid version 1–3 saves still migrate to version 4; existing version 4 saves remain valid. Human playtesting remains outstanding. No PR is requested for the current branch.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -45,7 +45,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Keep the simplified game model internally consistent and make decision consequences clear. The current balance pass uses reproducible scripted decisions to test 24-month behavior and prices a staff burnout intervention. Human play sessions should later test whether these scripted policies reflect actual choices. The tax balance remains deliberately simple.
+Keep the simplified game model internally consistent and make decision consequences clear. The cash-constrained play pass uses reproducible scripted decisions to examine burnout recovery alongside credit pressure, with an explicit price and limited effect for each recovery choice. Human play sessions should later test whether these scripted policies reflect actual choices. The tax balance remains deliberately simple.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -92,6 +92,15 @@ Keep the simplified game model internally consistent and make decision consequen
 - Scripted cash-guard behavior still allows severe burnout and can exhaust the credit line; one final seed ended with negative cash. Human playtesting and any deeper tax model remain later decisions.
 - Verification: 65 Bun tests, typecheck, lint, and production build pass. Browser checks cover all five routes without horizontal overflow at 390, 768, 1280, and 1440px. Keyboard activation and reload were checked for staff recovery and finance tabs, renewal/churn and former-client AR, and quarter-end tax and retained inbox decisions at all four widths; there were no browser console errors.
 
+## Cash-Constrained Play Pass Snapshot (2026-09-27)
+
+- PR #6 merged the balance pass into `main` as `fa3b6a1`. The current branch starts at that commit with a clean working tree.
+- Seed 23 under cash guard retains the early staff burnout burden while client revenue drops below recurring costs in 2027. The $100,000 credit line fills in December 2027 and the run ends with negative cash in January 2028. This is a deterministic simulation outcome, not a human playtest observation.
+- Targeted staff recovery covers up to two highest-burnout eligible employees at $500 each, reduces burnout by up to 15 and raises efficacy by up to 3 per person. With $500–$999 available, the quote covers one person. It shares the full program's monthly cooldown and current-month cash, P&L, and Payroll budget entries without changing the version 4 save shape.
+- The dashboard exposes remaining credit at or below 20% of the limit and links to the existing Cash Flow borrowing/repayment controls.
+- Across five seeds, cash guard versus cash pressure ends with mean cash $168,809 versus $153,647; credit drawn $20,000 versus $27,389; cumulative profit -$29,022 versus -$51,572; churn 3.6 in both; burnout 99.7 versus 42.0; efficacy 6.4 versus 76.1; reputation 44.8 versus 72.4; and ending pending inbox 2.6 in both. Recovery improves staff measures at a cash cost. Seed 23 still fills the credit line after client revenue drops below recurring costs. These are simulation results, not human playtest findings.
+- Focused save/recovery/harness tests and the full Bun gate pass: 71 tests, typecheck, lint, and production build. At 390, 768, 1280, and 1440px, browser checks confirmed the low-credit warning and keyboard deep link to Cash Flow controls, an unaffordable full recovery quote beside the $500 targeted quote, keyboard funding, and reload persistence of the credit link and shared monthly cooldown. There was no horizontal overflow or browser console error in these changed flows.
+
 ## Session History
 
 | Date | Changes |
@@ -109,3 +118,4 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-26 | Merged client-receivables pass as PR #4; implemented categorized cash movements, P&L one-time costs, version 3 save migration, and reconciled cash view on a new branch |
 | 2026-09-26 | Added estimated tax payable and late charges, version 4 save migration, deterministic scenario generation, pending-decision retention, and tutorial accessibility fixes on the cash-flow branch; PR deferred pending this phase |
 | 2026-09-27 | Merged the tax, scenario, and tutorial pass as PR #5 (`0e4914f`); completed a seeded gameplay balance pass with staff recovery, contract expiry resolution, and inbox pacing on a new `codex/` branch |
+| 2026-09-27 | Merged the gameplay balance pass as PR #6 (`fa3b6a1`); started the cash-constrained recovery and credit-visibility pass on `codex/cash-pressure-recovery` |

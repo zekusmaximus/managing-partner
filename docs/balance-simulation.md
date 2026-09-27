@@ -1,60 +1,55 @@
-# Seeded gameplay balance simulation
+# Cash pressure balance simulation
 
-These are **simulation results**, not observations from human playtests. The harness starts from the January 2026 opening state and advances 24 times, ending in January 2028. It runs seeds `7, 23, 41, 89, 127` under each of two fixed decision policies. Every number in the tables is the arithmetic mean of the five seed runs for that policy. The baseline uses source from merged commit `0e4914f`; the final run uses this branch. Both use the same harness and seeds. The baseline has no staff recovery action.
+These are **deterministic simulation results, not human playtest findings**. The harness starts from the January 2026 opening state ($250,000 cash, no credit drawn, eight clients, five employees), then advances 24 months through January 2028. Each table entry is the arithmetic mean of runs with seeds `7, 23, 41, 89, 127`, unless identified as seed 23. The January opening snapshot is excluded from cumulative profit and event counts.
 
-Run the current model with `bun run scripts/balance-report.ts`. The script emits the means and each seed's results as JSON; `--months=12` runs the supported shorter horizon. To reproduce the baseline, check out `0e4914f` in an isolated directory, copy `src/lib/simulation/balanceHarness.ts` and `scripts/balance-report.ts` from this branch into it, and run `bun run scripts/balance-report.ts --baseline`. The `--baseline` flag omits the staff recovery action, which did not exist at that commit. The January opening snapshot is excluded from cumulative profit and event counts.
+Run `bun run scripts/balance-report.ts` for all three policies and individual seed results. `--months=12` selects the shorter supported horizon. The `--baseline` flag remains for reproducing the older PR #6 comparison against `0e4914f` in an isolated checkout; this page compares against merged `main` at `fa3b6a1` (PR #6). The merged cash-guard results were captured before this pass and are unchanged when rerun with the new action available.
 
-## Decision policies
+## Scripted decisions
 
-| Scenario | Stewardship | Cash guard |
-| --- | --- | --- |
-| Raise request | Counter at +8% salary | Deny |
-| Client feedback | Address | Ignore |
-| New client | Pursue | Pass |
-| Lease renewal | Negotiate | Move to cheaper space |
-| IT vendor | Switch | Leave pending |
-| Benefits increase | Absorb cost | Pass cost to staff |
-| Partner distribution | Defer | Leave pending |
-| Collections problem | Personal call | Formal demand |
-| Budget overrun | Reallocate | Leave pending |
-| Equipment failure | Temporary fix | Temporary fix |
-| Tax planning | Pay full balance | Pay full balance |
+The cash-guard and cash-pressure policies make identical inbox choices. They deny raises, ignore client feedback, pass on new clients, take the cheaper lease, pass benefits costs to staff, use a formal collections demand, and make temporary equipment fixes. Both pay the full outstanding tax balance when prompted and leave vendor, partner-distribution, and budget decisions pending. The stewardship reference instead counters raises, addresses feedback, pursues new clients, negotiates the lease, switches the vendor, absorbs benefits increases, defers distributions, calls on collections, and reallocates budgets; it also pays taxes and makes temporary equipment fixes.
 
-Stewardship also funds staff recovery after decisions when mean employee burnout reaches 35 and the action is affordable. Cash guard never funds it. Leaving some decisions open in cash guard exercises pending inbox retention. Informational industry updates require no decision.
+Cash guard never funds staff recovery. Cash pressure considers recovery after inbox decisions when mean burnout reaches 35. It funds the full program only if cash after its quoted cost would cover **three months of the latest recurring cash outflow**. Otherwise it funds targeted recovery only if cash after its quoted cost would cover **one month of that outflow**. It stops discretionary recovery whenever the credit line has a balance. This reserve uses the last recorded outflow as a simple policy signal, not a forecast. The targeted quote covers up to two eligible employees at $500 each, reducing each participant's burnout by up to 15 and restoring up to 3 efficacy. Both plans share the once-per-month cooldown. Stewardship continues to use the full plan at mean burnout 35 when cash covers its quote.
 
-## Measured outcomes
+## Before and after: cash guard versus cash pressure
 
-Cash and profit are dollars. Cumulative profit sums the final P&L result for each of the 24 advanced months, including same-month decision costs. Minimum cash and peak credit are observed after each month transition, inbox choice, and recovery action. Gross credit draws count recorded line-of-credit draw movements.
+Both policies run the same merged game rules and seeds. They differ only in their recovery decisions, so this is a **scripted policy comparison**, not evidence that a player will choose or experience the same outcome. Dollars are rounded to the nearest dollar; staff and inbox means are rounded to one decimal.
 
-| Policy and source | Ending cash | Minimum cash | Gross credit draws | Peak / ending credit | Cumulative profit | Ending clients | Churn | Renewals |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Stewardship, baseline | -112,612 | -112,612 | 80,000 | 80,000 / 80,000 | -384,129 | 3.6 | 9.6 | 0 |
-| Stewardship, final | 640,629 | 162,305 | 0 | 0 / 0 | 568,186 | 10.6 | 3.2 | 12.6 |
-| Cash guard, baseline | -496,394 | -496,394 | 100,000 | 100,000 / 100,000 | -854,597 | 0 | 8.0 | 0 |
-| Cash guard, final | 168,809 | 99,234 | 20,000 | 20,000 / 20,000 | -29,022 | 4.4 | 3.6 | 9.4 |
+| Metric, five-seed mean | Before: cash guard | After: cash pressure |
+| --- | ---: | ---: |
+| Ending cash | $168,809 | $153,647 |
+| Minimum cash | $99,234 | $96,520 |
+| Gross credit draws | $20,000 | $27,389 |
+| Peak / ending credit used | $20,000 / $20,000 | $27,389 / $27,389 |
+| Cumulative profit | -$29,022 | -$51,572 |
+| Ending clients | 4.4 | 4.4 |
+| Client churn / renewals | 3.6 / 9.4 | 3.6 / 9.4 |
+| Ending mean burnout | 99.7 | 42.0 |
+| Ending mean efficacy | 6.4 | 76.1 |
+| Ending reputation | 44.8 | 72.4 |
+| Pending inbox before / after decisions, monthly mean | 3.2 / 2.0 | 3.2 / 2.0 |
+| Peak / ending pending inbox | 5.4 / 2.6 | 5.4 / 2.6 |
+| Recovery spend | $0 | $22,500 |
+| Full / targeted recovery actions | 0 / 0 | 1.8 / 9.0 |
 
-Churn counts clients removed across the run. A renewal counts only when a client's expiring term becomes a **positive new term**. The baseline's zero renewals expose the expired contract bug; some clients stayed active at zero months and later churned, while the final model resolves each expiry.
+The stewardship reference remains at $640,629 ending cash, zero credit use, $568,186 cumulative profit, 3.2 churn, 13.4 ending burnout, 94.8 efficacy, 88.8 reputation, and zero ending pending messages. It spends $29,400 on full recovery. Its different client and inbox decisions make it an orientation point, not a recovery-only comparison.
 
-| Policy and source | Ending mean burnout | Ending mean efficacy | Ending reputation | Staff recovery spend | Discretionary prompts | Tax prompts | Information updates |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Stewardship, baseline | 99.4 | 24.8 | 59.6 | 0 | 42.0 | 4.6 | 3.0 |
-| Stewardship, final | 13.4 | 94.8 | 88.8 | 29,400 | 35.4 | 8.0 | 4.8 |
-| Cash guard, baseline | 100.0 | 4.2 | 31.8 | 0 | 34.8 | 4.0 | 4.2 |
-| Cash guard, final | 99.7 | 6.4 | 44.8 | 0 | 27.0 | 5.0 | 6.2 |
+Gross credit draws sum recorded draw movements. Minimum cash and peak credit include the state after each month transition, inbox choice, and recovery action. Pending before and after are monthly snapshots; peak pending is the mean of each seed's maximum. The report script prints the individual seed results as JSON.
 
-Discretionary prompts exclude guaranteed quarter-end tax prompts and the informational fallback. The tuned probabilities reduced discretionary prompts by about 16% in stewardship and 22% in cash guard, while still offering 1.5 and 1.1 per month respectively. Tax prompts appear at every quarter end with an outstanding balance; their counts rise in the final model because more months remain profitable.
+## Seed 23: credit exhaustion and the remaining tradeoff
 
-| Policy and source | Mean pending before decisions | Mean pending after decisions | Peak pending | Ending pending |
-| --- | ---: | ---: | ---: | ---: |
-| Stewardship, baseline | 1.9 | 0 | 5.2 | 0 |
-| Stewardship, final | 1.8 | 0 | 4.6 | 0 |
-| Cash guard, baseline | 3.8 | 2.3 | 6.0 | 2.8 |
-| Cash guard, final | 3.2 | 2.0 | 5.4 | 2.6 |
+| Metric | Cash guard | Cash pressure |
+| --- | ---: | ---: |
+| Ending cash | -$19,430 | -$38,683 |
+| Peak / ending credit used | $100,000 / $100,000 | $100,000 / $100,000 |
+| Cumulative profit | -$322,543 | -$341,796 |
+| Churn / renewals | 5 / 7 | 5 / 7 |
+| Ending mean burnout / efficacy | 100 / 3.8 | 77 / 67.6 |
+| Ending reputation | 46 | 72 |
+| Ending pending inbox | 4 | 4 |
+| Recovery spend and actions | $0; none | $19,000; two full, four targeted |
 
-The mean pending values average 24 monthly snapshots per seed before averaging seeds. Peak pending is the mean of each seed's maximum, not the maximum across all seeds. The 24-month test also retains an intentionally unresolved decision through every month and verifies all eight quarter-end tax prompts when tax remains due.
+In cash guard, eight clients generate $111,000 monthly revenue against $88,881 recurring cash paid through October 2026. One client leaves in November, bringing revenue to $91,000. Two more leave by January 2027: five clients then generate $58,000 against about $85,881 recurring cash paid, **including the unchanged $15,000 monthly partner draw**. Profit turns roughly -$30,000 per month. Tax payable is zero during this 2027 slide, so unpaid tax is not the cause. Cash falls from $279,570 in January 2027 to $45,215 in September. Credit begins drawing in October 2027, reaches its $100,000 limit in December, and cash becomes negative in January 2028.
 
-## Interpretation and limits
+Cash pressure spends on staff before the reserve is lost, then stops. It improves staff and reputation, but the scripted policy still passes on new clients; renewal and churn counts stay the same. The recovery spend and related credit interest make seed 23's ending cash worse while the revenue shortfall remains. The smaller plan gives a bounded staff option, **not a fix for an unprofitable client portfolio**. The existing finance controls for partner draw, collections, and credit remain relevant once the warning appears.
 
-The final stewardship policy spends about $29,400 on recovery over 24 months and ends with substantially lower burnout and higher efficacy. Contract renewal fixes account for much of the financial improvement, so the before/after cash change must not be attributed solely to recovery or inbox pacing. Same seeds make runs reproducible, but changed decisions and event counts consume random draws differently; they are not matched counterfactual histories.
-
-The fictional model can still reach negative cash after exhausting the $100,000 credit line: final cash guard seed `23` ends at `-$19,430`. Cash guard's staff metrics also show that leaving burnout untreated remains severe. The harness is a bounded 12–24 month model check, not a prediction of player behavior, real firm finances, or tax outcomes. Human play sessions are still needed to judge whether the choices feel fair and clear.
+The model uses simple fictional taxes, contract odds, cash collection rates, and staff effects. Different decisions can change random draw consumption, so shared seeds alone do not guarantee matched counterfactual histories. These 12–24 month checks are reproducible model probes, not forecasts or observations of how people play. Human play sessions are still needed to judge whether the new choice and warning are clear and fair.

@@ -2,7 +2,7 @@
 
 ## Current State
 
-Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. The cash, tax, inbox-reliability, and responsive-tutorial pass was merged as PR #5 (`0e4914f`). The current `codex/gameplay-balance-pass` branch adds a seeded balance harness, staff recovery, contract expiry resolution, and inbox-frequency tuning. There is no account, backend, or cross-device sync.
+Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. The gameplay balance pass was merged as PR #6 (`fa3b6a1`), adding a seeded balance harness, staff recovery, contract expiry resolution, and inbox-frequency tuning. The current `codex/cash-pressure-recovery` branch focuses on recovery choices and visible credit pressure. There is no account, backend, or cross-device sync.
 
 The earlier 15–20% completion estimate and checklist described work that has since been built. Progress toward a finished game cannot be stated as a precise percentage without defining the intended feature set.
 
@@ -40,7 +40,7 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Keep overdue tutorial month checkpoints from advancing the game twice, confine keyboard focus to tutorial controls and the highlighted action, and correct finance copy and repayment affordances.
 - [x] Pass 51 Bun tests, typecheck, lint, and production build; check all five routes at 390, 768, 1280, and 1440px, then complete the tutorial across those widths with keyboard navigation.
 
-## Gameplay Balance Pass on the Current Branch
+## Completed Gameplay Balance Pass
 
 - [x] Run a reproducible 24-month, five-seed simulation under stewardship and cash-guard policies; record before/after cash, credit, profit, churn, staff, reputation, and inbox metrics as model results.
 - [x] Add a priced, once-per-month staff recovery program with bounded burnout and efficacy effects, explicit HR quote, P&L and cash entries, and Payroll budget actuals.
@@ -48,6 +48,14 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Reduce discretionary inbox prompts while preserving unresolved decisions and quarter-end tax decisions.
 - [x] Keep the version 4 save format and version 1–4 compatibility; accept the additive staff-recovery cash movement and verify reload cooldown.
 - [x] Pass 65 Bun tests, typecheck, lint, and production build; check all five routes at 390, 768, 1280, and 1440px, including keyboard recovery, finance tabs, renewal/churn, pending inbox and tax prompts, and reload persistence.
+
+## Cash-Constrained Play Pass on the Current Branch
+
+- [x] Investigate the seeded cash-guard run that exhausts its credit line and ends with severe burnout.
+- [x] Add a smaller, cash-funded targeted recovery choice with an explicit per-person price, bounded effects, and the existing monthly cooldown and accounting.
+- [x] Show low remaining credit on the dashboard with a direct link to the existing Cash Flow controls.
+- [x] Compare seeded cash-guard and recovery-under-pressure policies across cash, credit, profit, churn, burnout, efficacy, reputation, and pending inbox volume; label these as simulation results.
+- [x] Verify version 1–4 save compatibility, focused tests, Bun quality gates, and changed keyboard/reload flows at 390, 768, 1280, and 1440px.
 
 ## Next Work
 

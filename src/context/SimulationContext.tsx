@@ -14,7 +14,7 @@ import {
 import { useSession } from '@/context/SessionContext';
 import { generateInboxMessages as createInboxMessages } from '@/lib/simulation/scenarios';
 import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, isValidAmount, recordCashMovement, recordOneTimeOperatingExpense, writeOffReceivables } from '@/lib/simulation/engine';
-import { fundStaffRecovery } from '@/lib/simulation/burnout';
+import { fundStaffRecovery, type StaffRecoveryPlan } from '@/lib/simulation/burnout';
 
 // Re-export types for consumers
 export type { Employee, Client, Financials, FinancialHistoryEntry, Alert, InboxMessage, MessageChoice, SimulationState, OperatingCosts, Vendor, PartnerEconomics, BudgetItem, ARBuckets, LineOfCredit };
@@ -41,7 +41,7 @@ type SimulationContextType = {
   hireEmployee: (role: 'Lobbyist' | 'Attorney' | 'Support') => void;
   fireEmployee: (employeeId: string) => void;
   adjustSalary: (employeeId: string, newSalary: number) => void;
-  fundStaffRecovery: () => void;
+  fundStaffRecovery: (plan?: StaffRecoveryPlan) => void;
   addClient: (name: string, type: Client['type'], monthlyFee: number) => void;
   removeClient: (clientId: string) => void;
   updateClientSatisfaction: (clientId: string, delta: number) => void;
@@ -176,8 +176,8 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
     }));
   }, [setState]);
 
-  const fundStaffRecoveryAction = useCallback(() => {
-    setState(prevState => fundStaffRecovery(prevState));
+  const fundStaffRecoveryAction = useCallback((plan: StaffRecoveryPlan = 'full') => {
+    setState(prevState => fundStaffRecovery(prevState, plan));
   }, [setState]);
 
   // ============= CLIENT ACTIONS =============

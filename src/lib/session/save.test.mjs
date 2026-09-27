@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { SessionStore } from '@/context/SessionContext';
+import { fundStaffRecovery, getStaffRecoveryQuote } from '@/lib/simulation/burnout';
 import {
   createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession, parseSession,
   serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
@@ -219,6 +220,27 @@ describe('versioned game save', () => {
     expect(storage.getItem(PREVIOUS_SESSION_STORAGE_KEY)).toBeNull();
     expect(parseSession(storage.getItem(SESSION_STORAGE_KEY))?.simulation.taxPosition).toEqual({ principalDue: 0, penaltiesDue: 0 });
   });
+
+  for (const version of [1, 2, 3]) {
+    test(`funds targeted recovery after loading a V${version} save`, () => {
+      const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));
+      previous.version = version;
+      if (version === 1) delete previous.simulation.receivables;
+      if (version < 3) previous.simulation.financialHistory = previous.simulation.financialHistory.map(removeV3CashFields);
+
+      const migrated = parseSession(JSON.stringify(previous));
+      expect(migrated).not.toBeNull();
+      expect(getStaffRecoveryQuote(migrated.simulation, 'targeted')).toMatchObject({
+        cost: 1000, canFund: true,
+      });
+      const funded = fundStaffRecovery(migrated.simulation, 'targeted');
+      const reloaded = parseSession(serializeSession({ ...migrated, simulation: funded }));
+      expect(reloaded).not.toBeNull();
+      expect(reloaded.simulation.financialHistory.at(-1).cashMovements)
+        .toContainEqual({ kind: 'staff-recovery', amount: -1000 });
+      expect(getStaffRecoveryQuote(reloaded.simulation).alreadyFunded).toBe(true);
+    });
+  }
 
   test('does not discard older saves when the V4 write fails', () => {
     const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));

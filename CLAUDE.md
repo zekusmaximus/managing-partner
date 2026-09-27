@@ -123,7 +123,10 @@ Conventions when extending it:
 - Staff recovery is a once-per-month, cash-funded action with its cooldown encoded by a
   `staff-recovery` movement in the current month's history. It adds a one-time P&L cost
   and Payroll budget actual; the version 4 save schema accepts the additional movement
-  kind without a new required field or version migration.
+  kind without a new required field or version migration. The full plan covers up to 12
+  eligible staff at $1,500 each (-25 burnout, up to +5 efficacy). The targeted plan
+  covers up to two at $500 each (-15 burnout, up to +3 efficacy), or one when only
+  one is eligible or $500–$999 cash is available. Both plans share the monthly cooldown.
 - Expiring client contracts resolve into churn or a positive new 12-month term.
   Contract outcome alerts use simulation-month dates; former-client receivables keep aging
   and collecting after churn.
@@ -209,8 +212,8 @@ Searchable glossary lives in `src/data/glossaryTerms.ts`; per-metric help text i
   change P&L and the payable balance without moving cash. Write-offs remain noncash.
 
 The deterministic balance harness is in `src/lib/simulation/balanceHarness.ts`. Run
-`bun run scripts/balance-report.ts` for five seeds, two scripted policies, and 24 monthly
-advances; see `docs/balance-simulation.md` for baseline comparison, definitions, and limits.
+`bun run scripts/balance-report.ts` for five seeds, three scripted policies, and 24 monthly
+advances; see `docs/balance-simulation.md` for the cash-pressure comparison, definitions, and limits.
 These runs are simulation checks, not human playtest evidence.
 
 The tax balance and late charge are game estimates, not real-world tax calculations. The cash

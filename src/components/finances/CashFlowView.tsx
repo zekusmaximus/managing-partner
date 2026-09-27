@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, Grid, Card, CardContent, CardHeader, Dialog, DialogTitle, DialogContent, DialogActions, TextField, LinearProgress } from '@mui/material';
 import { useSimulation } from '@/context/SimulationContext';
 import { getLOCAvailable, getLOCMonthlyInterest } from '@/types/simulation';
@@ -40,6 +40,13 @@ export default function CashFlowView() {
   const [locDialogOpen, setLocDialogOpen] = useState(false);
   const [locAction, setLocAction] = useState<'draw' | 'repay'>('draw');
   const [locAmount, setLocAmount] = useState(0);
+
+  useEffect(() => {
+    if (window.location.hash !== '#credit-controls') return;
+    const frame = window.requestAnimationFrame(() =>
+      document.getElementById('credit-controls')?.scrollIntoView({ block: 'start' }));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const { financials, lineOfCredit, financialHistory } = state;
   const taxBalance = state.taxPosition.principalDue + state.taxPosition.penaltiesDue;
@@ -221,7 +228,7 @@ export default function CashFlowView() {
         {/* LOC + Projections */}
         <Grid size={{ xs: 12, md: 6 }}>
           {/* Line of Credit */}
-          <Card sx={{ mb: 3 }}>
+          <Card id="credit-controls" sx={{ mb: 3, scrollMarginTop: 16 }}>
             <CardHeader title={<>Line of Credit <HelpTooltip helpId="finance-loc" /></>} subheader={`${(lineOfCredit.interestRate * 100).toFixed(1)}% APR`} />
             <CardContent>
               <Box sx={{ mb: 2 }}>

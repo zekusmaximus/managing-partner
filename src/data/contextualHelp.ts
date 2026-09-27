@@ -128,9 +128,9 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
   'hr-recovery': {
     id: 'hr-recovery',
     page: '/hr',
-    metricName: 'Staff Recovery Program',
+    metricName: 'Staff Recovery',
     shortDescription: 'Paid coverage and recovery time for staff at 20% burnout or higher.',
-    grExplanation: 'The program treats up to 12 staff with the highest burnout once per month. It costs $1,500 per participant immediately, reduces burnout by up to 25 points, and restores up to 5 efficacy points. The payment reduces cash and current-month profit, and counts toward the Payroll budget. You need enough cash to fund it.',
+    grExplanation: 'Choose one recovery option per month. The full program covers up to 12 highest-burnout staff for $1,500 each, reducing burnout by up to 25 points and restoring up to 5 efficacy points each. Targeted recovery covers up to 2 for $500 each, reducing burnout by up to 15 and restoring up to 3 efficacy points each; when cash covers only one, it costs $500. Both options require cash on hand. Payment reduces cash and current-month profit, and counts toward the Payroll budget.',
     relatedGlossaryTerms: ['burnout', 'efficacy'],
   },
   'hr-affinity': {
