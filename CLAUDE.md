@@ -102,7 +102,7 @@ inbox decisions, receivable operations, and financial selectors live in testable
 under `src/lib/simulation/`; do not move those calculations back into page components.
 
 Exposed actions (from the provider value): `advanceMonth`, `hireEmployee`, `fireEmployee`,
-`adjustSalary`, `addClient`, `removeClient`, `updateClientSatisfaction`,
+`adjustSalary`, `fundStaffRecovery`, `addClient`, `removeClient`, `updateClientSatisfaction`,
 `markInboxMessageRead`, `handleInboxChoice`, `dismissAlert`, `addVendor`, `removeVendor`,
 `adjustOperatingCost`, `drawLineOfCredit`, `repayLineOfCredit`, `setPartnerDraw`,
 `setBudget`, `writeOffAR`, `collectAR`.
@@ -120,6 +120,13 @@ Conventions when extending it:
   costs have not yet been paid in cash. Manual and automatic credit-line activity,
   distributions, estimated tax payments, equipment purchases, and one-time operating
   costs are recorded in the month they occur.
+- Staff recovery is a once-per-month, cash-funded action with its cooldown encoded by a
+  `staff-recovery` movement in the current month's history. It adds a one-time P&L cost
+  and Payroll budget actual; the version 4 save schema accepts the additional movement
+  kind without a new required field or version migration.
+- Expiring client contracts resolve into churn or a positive new 12-month term.
+  Contract outcome alerts use simulation-month dates; former-client receivables keep aging
+  and collecting after churn.
 - Inbox messages carry typed scenario subjects and optional persisted `resolution` feedback.
   Decisions must use the named subject's state and show the actual result, including random
   outcomes and unavailable subjects. A resolved message must not apply twice. Scenario
@@ -137,7 +144,7 @@ Conventions when extending it:
 `src/lib/simulation/` holds transitions and shared metrics. Put reusable,
 side-effect-free calculations in one of these places rather than inlining them in UI:
 - Constants: `BENEFITS_RATE` (0.25), `PAYROLL_TAX_RATE` (0.0765), `HIRING_COST` (5000),
-  `SEVERANCE_COST` (2000), `AR_COLLECTION_RATES`.
+  `SEVERANCE_COST` (2000), staff recovery constants, `AR_COLLECTION_RATES`.
 - Helpers: `getEmployeeTotalCost`, `getEmployeeBenefits`, `getEmployeePayrollTax`,
   `getOperatingCostsTotal`, `getARTotal`, `getLOCAvailable`, `getLOCMonthlyInterest`.
 
@@ -190,7 +197,7 @@ Searchable glossary lives in `src/data/glossaryTerms.ts`; per-metric help text i
 - **Employees**: roles `Lobbyist | Attorney | Support`; metrics efficacy, burnout, salary,
   clientAffinity. Fully-loaded cost = salary × (1 + 0.25 benefits + 0.0765 FICA).
 - **Clients**: types `Trade Association | Corporation | Non-Profit`; satisfaction, monthly
-  fee, contract months remaining.
+  fee, contract months remaining. Renewals begin a new 12-month term and churn ends billing.
 - **Reputation** (0–100): recomputed each month as 60% avg client satisfaction + 40% avg
   employee efficacy, with small random drift.
 - **Inbox**: typed scenario events with `choices`; `handleInboxChoice` applies effects once
@@ -200,6 +207,11 @@ Searchable glossary lives in `src/data/glossaryTerms.ts`; per-metric help text i
   P&L category; equipment purchases, estimated tax payments, partner distributions, and
   credit-line principal change cash without changing P&L. Tax provisions and late charges
   change P&L and the payable balance without moving cash. Write-offs remain noncash.
+
+The deterministic balance harness is in `src/lib/simulation/balanceHarness.ts`. Run
+`bun run scripts/balance-report.ts` for five seeds, two scripted policies, and 24 monthly
+advances; see `docs/balance-simulation.md` for baseline comparison, definitions, and limits.
+These runs are simulation checks, not human playtest evidence.
 
 The tax balance and late charge are game estimates, not real-world tax calculations. The cash
 projection uses a short recurring run rate and is not a forecast of future decisions or collections.

@@ -8,11 +8,12 @@ import type { Employee } from '@/context/SimulationContext';
 import { getEmployeeTotalCost, getEmployeeBenefits, getEmployeePayrollTax } from '@/types/simulation';
 import HelpTooltip from '@/components/help/HelpTooltip';
 import StaffingEconomics from '@/components/hr/StaffingEconomics';
+import { getStaffRecoveryQuote } from '@/lib/simulation/burnout';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function HR() {
-  const { state, hireEmployee, fireEmployee, adjustSalary } = useSimulation();
+  const { state, hireEmployee, fireEmployee, adjustSalary, fundStaffRecovery } = useSimulation();
   const [openHireDialog, setOpenHireDialog] = useState(false);
   const [openSalaryDialog, setOpenSalaryDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -29,6 +30,7 @@ export default function HR() {
     ? state.employees.reduce((sum, e) => sum + e.burnout, 0) / state.employees.length
     : 0;
   const highBurnoutCount = state.employees.filter(e => e.burnout >= 60).length;
+  const recoveryQuote = getStaffRecoveryQuote(state);
 
   // Role distribution data
   const roleDistribution = [
@@ -145,6 +147,44 @@ export default function HR() {
             {/* Staffing Economics */}
             <Grid size={{ xs: 12 }} data-tutorial-target="staffing-economics">
               <StaffingEconomics />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Card>
+                <CardHeader title={<>Staff Recovery Program <HelpTooltip helpId="hr-recovery" /></>} />
+                <CardContent>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Paid coverage and recovery time for up to 12 staff with the highest burnout (20% or more).
+                    Each participant costs $1,500, loses up to 25 burnout points, and regains up to 5 efficacy points.
+                    Available once per month with cash on hand.
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    {recoveryQuote.participantIds.length} eligible · ${recoveryQuote.cost.toLocaleString()} now ·
+                    {' '}{recoveryQuote.totalBurnoutReduction} total burnout points reduced ·
+                    {' '}{recoveryQuote.totalEfficacyGain} total efficacy points restored
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    The cost reduces cash and current-month profit and is included in the Payroll budget.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    onClick={fundStaffRecovery}
+                    disabled={!recoveryQuote.canFund}
+                    aria-label={`Fund staff recovery program for $${recoveryQuote.cost.toLocaleString()}`}
+                  >
+                    Fund Staff Recovery
+                  </Button>
+                  {!recoveryQuote.canFund && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      {recoveryQuote.alreadyFunded
+                        ? 'Program already funded this month.'
+                        : recoveryQuote.participantIds.length === 0
+                          ? 'No staff currently meets the 20% burnout threshold.'
+                          : `Requires $${recoveryQuote.cost.toLocaleString()} cash; available $${Math.max(0, state.financials.cashOnHand).toLocaleString()}.`}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
             </Grid>
 
             {/* Role Distribution Chart */}

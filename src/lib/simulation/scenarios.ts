@@ -25,7 +25,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
   // Employee raise request
   const employeesWithoutRequests = currentState.employees.filter(employee =>
     !hasPending('raise-request', scenario => scenario.kind === 'raise-request' && scenario.employeeId === employee.id));
-  if (deps.random() > 0.5 && employeesWithoutRequests.length > 0) {
+  if (deps.random() > 0.75 && employeesWithoutRequests.length > 0) {
     const emp = employeesWithoutRequests[Math.floor(deps.random() * employeesWithoutRequests.length)];
     messages.push({
       id: deps.generateId(), type: 'request', title: 'Raise Request',
@@ -44,7 +44,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
   // Client complaint
   const lowSatisfactionClients = currentState.clients.filter(client => client.satisfaction < 75 &&
     !hasPending('client-feedback', scenario => scenario.kind === 'client-feedback' && scenario.clientId === client.id));
-  if (lowSatisfactionClients.length > 0 && deps.random() > 0.5) {
+  if (lowSatisfactionClients.length > 0 && deps.random() > 0.6) {
     const client = lowSatisfactionClients[Math.floor(deps.random() * lowSatisfactionClients.length)];
     messages.push({
       id: deps.generateId(), type: 'alert', title: 'Client Feedback',
@@ -61,7 +61,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
   }
 
   // New business opportunity
-  if (deps.random() > 0.7) {
+  if (deps.random() > 0.75) {
     const unavailableNames = new Set([
       ...currentState.clients.map(client => client.name.toLowerCase()),
       ...pending.flatMap(message => message.scenario.kind === 'new-client'
@@ -109,7 +109,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
   }
 
   // IT vendor pitch
-  if (deps.random() > 0.85) {
+  if (deps.random() > 0.9) {
     const itVendor = currentState.vendors.find(vendor => vendor.category === 'IT' &&
       vendor.name !== 'TechForward Solutions' &&
       !hasPending('it-vendor', scenario => scenario.kind === 'it-vendor' && scenario.vendorId === vendor.id));
@@ -173,7 +173,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       !hasPending('collections-problem', scenario => scenario.kind === 'collections-problem' &&
         scenario.clientId === account.clientId)),
   });
-  if (overdueClient && overdueClient.aging.sixtyDay > 5000 && deps.random() > 0.5) {
+  if (overdueClient && overdueClient.aging.sixtyDay > 5000 && deps.random() > 0.6) {
     const overdueAmount = overdueClient.aging.sixtyDay;
     messages.push({
       id: deps.generateId(), type: 'alert', title: 'Collections Problem',
@@ -196,7 +196,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
     !hasPending('budget-overrun', scenario => scenario.kind === 'budget-overrun' &&
       scenario.category === b.category && scenario.quarter === quarter && scenario.year === currentState.year)
   );
-  if (overBudgetItems.length > 0 && deps.random() > 0.5) {
+  if (overBudgetItems.length > 0 && deps.random() > 0.65) {
     const item = overBudgetItems[0];
     const overrun = Math.round(item.actualQuarterlySpend - item.plannedQuarterly);
     messages.push({
@@ -214,7 +214,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
   }
 
   // Office equipment failure
-  if (deps.random() > 0.9 && !hasPending('equipment-failure')) {
+  if (deps.random() > 0.93 && !hasPending('equipment-failure')) {
     const equipment = ['network server', 'multifunction copier', 'phone system', 'HVAC unit'][Math.floor(deps.random() * 4)];
     messages.push({
       id: deps.generateId(), type: 'alert', title: 'Office Equipment Failure',

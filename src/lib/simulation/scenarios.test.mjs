@@ -18,7 +18,7 @@ const pending = (scenario, requiresAction = true) => ({
 });
 
 describe('scenario generation', () => {
-  test('uses injected randomness, IDs, and time while preserving the existing event odds', () => {
+  test('uses injected randomness, IDs, and time with the tuned event odds', () => {
     const state = createInitialSimulationState();
     const first = generate(state);
     const second = generate(state);

@@ -16,6 +16,10 @@ export const BENEFITS_RATE = 0.25; // 25% of salary
 export const PAYROLL_TAX_RATE = 0.0765; // 7.65% FICA
 export const HIRING_COST = 5000;
 export const SEVERANCE_COST = 2000;
+export const STAFF_RECOVERY_COST_PER_EMPLOYEE = 1500;
+export const STAFF_RECOVERY_MAX_PARTICIPANTS = 12;
+export const STAFF_RECOVERY_MIN_BURNOUT = 20;
+export const STAFF_RECOVERY_BURNOUT_REDUCTION = 25;
 export const ESTIMATED_TAX_RATE = 0.25;
 export const QUARTERLY_TAX_LATE_RATE = 0.02;
 
@@ -166,6 +170,7 @@ export type CashMovementKind =
   | 'equipment-purchase'
   | 'hiring'
   | 'severance'
+  | 'staff-recovery'
   | 'repair'
   | 'unclassified';
 

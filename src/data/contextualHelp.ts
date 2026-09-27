@@ -125,6 +125,14 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     grExplanation: 'Burnout is a real crisis in the GR industry. Long hours, high-stakes advocacy, constant travel between DC and state capitals, tight legislative deadlines, and the pressure of representing client interests before powerful officials all contribute. When burnout exceeds 60%, performance drops sharply. Above 80%, you risk losing the employee entirely.',
     relatedGlossaryTerms: ['burnout', 'managing-partner'],
   },
+  'hr-recovery': {
+    id: 'hr-recovery',
+    page: '/hr',
+    metricName: 'Staff Recovery Program',
+    shortDescription: 'Paid coverage and recovery time for staff at 20% burnout or higher.',
+    grExplanation: 'The program treats up to 12 staff with the highest burnout once per month. It costs $1,500 per participant immediately, reduces burnout by up to 25 points, and restores up to 5 efficacy points. The payment reduces cash and current-month profit, and counts toward the Payroll budget. You need enough cash to fund it.',
+    relatedGlossaryTerms: ['burnout', 'efficacy'],
+  },
   'hr-affinity': {
     id: 'hr-affinity',
     page: '/hr',
@@ -276,10 +284,18 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
   'finance-one-time-costs': {
     id: 'finance-one-time-costs',
     page: '/finances',
-    metricName: 'One-Time Operating Costs',
+    metricName: 'Other One-Time Operating Costs',
     shortDescription: 'Hiring, severance, and repair decisions charged to this month’s P&L.',
     grExplanation: 'These decisions reduce cash when made and are shown as separate operating expenses in the P&L. Equipment purchases are shown as investing cash activity; estimated tax payments, partner distributions, and line-of-credit principal are also tracked in cash activity without being treated as operating expenses.',
     relatedGlossaryTerms: ['working-capital'],
+  },
+  'finance-staff-recovery': {
+    id: 'finance-staff-recovery',
+    page: '/finances',
+    metricName: 'Staff Recovery Program',
+    shortDescription: 'The current and year-to-date cost of funded staff recovery.',
+    grExplanation: 'This one-time operating expense pays for coverage and recovery time. It reduces both cash and profit when funded, and is included in actual Payroll budget spending. The cost is separate from recurring salary, benefits, and payroll tax.',
+    relatedGlossaryTerms: ['burnout', 'working-capital'],
   },
   'finance-partner-draw': {
     id: 'finance-partner-draw',
