@@ -2,7 +2,7 @@
 
 ## Current State
 
-Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. PR #7 (`e8201d0`) merged targeted recovery and credit guidance. The current working pass connects staffing to client service and retention, constrains direct client and collections actions, and improves mobile decision and finance views. There is no account, backend, or cross-device sync.
+Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. PR #8 delivers staffing effects on client service and retention, constrained client and collections actions, and improved mobile decision and finance views. There is no account, backend, or cross-device sync.
 
 The earlier 15–20% completion estimate and checklist described work that has since been built. Progress toward a finished game cannot be stated as a precise percentage without defining the intended feature set.
 

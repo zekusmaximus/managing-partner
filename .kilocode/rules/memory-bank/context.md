@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype based on `main` at `e8201d0` (PR #7 merged), with a working-tree client-service and mobile usability pass. Staffing now influences service, satisfaction, and renewals; repeatable free client controls are removed and manual collections are limited to once per game month. The mobile dashboard and finance navigation are more compact. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid. Human playtesting remains outstanding; the user will run sessions and share notes.
+**Project Status**: Playable single-browser prototype. PR #8 delivers the client-service and mobile usability pass: staffing influences service, satisfaction, and renewals; repeatable free client controls are removed and manual collections are limited to once per game month. The mobile dashboard and finance navigation are more compact. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid. Human playtesting remains outstanding; the user will run sessions and share notes.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -137,3 +137,4 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-27 | Merged the gameplay balance pass as PR #6 (`fa3b6a1`); started the cash-constrained recovery and credit-visibility pass on `codex/cash-pressure-recovery` |
 | 2026-09-27 | Reviewed merged PR #7 on `main`, verified 71 Bun tests and production quality gates, and recorded gameplay and status findings |
 | 2026-09-27 | Implemented service/retention and collections constraints, mobile dashboard/finance improvements, a seeded balance report, and a new-player session plan; human notes pending |
+| 2026-09-27 | Opened PR #8 for the client-service and mobile usability pass; user will run new-player sessions after merging and share notes |
