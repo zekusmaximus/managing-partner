@@ -181,15 +181,37 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         return { ...emp, burnout: newBurnout, efficacy: newEfficacy };
       });
 
-      // 2. Update clients (satisfaction/contracts)
-      let updatedClients = prevState.clients.map(client => ({
-        ...client,
-        satisfaction: Math.max(0, Math.min(100, client.satisfaction + (Math.floor(deps.random() * 11) - 5))),
-        contractMonthsRemaining: Math.max(0, client.contractMonthsRemaining - 1),
-      }));
-      updatedClients = updatedClients.filter(client => {
-        if (client.contractMonthsRemaining === 0) return deps.random() > 0.3;
-        return true;
+      // 2. Resolve contracts when their final month ends. Satisfaction drives
+      // renewal odds; a renewal starts a fresh term and churn ends billing.
+      const renewedNames: string[] = [];
+      const churnedNames: string[] = [];
+      const updatedClients = prevState.clients.flatMap(client => {
+        const satisfaction = Math.max(0, Math.min(100,
+          client.satisfaction + Math.floor(deps.random() * 11) - 5));
+        const remaining = Math.max(0, client.contractMonthsRemaining - 1);
+        if (remaining > 0) return [{ ...client, satisfaction, contractMonthsRemaining: remaining }];
+
+        const renewalChance = Math.min(0.95, Math.max(0.15, 0.15 + satisfaction * 0.008));
+        if (deps.random() < renewalChance) {
+          renewedNames.push(client.name);
+          return [{ ...client, satisfaction, contractMonthsRemaining: 12 }];
+        }
+        churnedNames.push(client.name);
+        return [];
+      });
+      const contractAlerts: Alert[] = [];
+      const contractTimestamp = new Date(Date.UTC(newYear, newMonth - 1, 1));
+      if (renewedNames.length > 0) contractAlerts.push({
+        id: `contract-renewed-${newYear}-${newMonth}`,
+        type: 'success',
+        message: `${renewedNames.join(', ')} renewed for a new 12-month term.`,
+        timestamp: contractTimestamp,
+      });
+      if (churnedNames.length > 0) contractAlerts.push({
+        id: `contract-churned-${newYear}-${newMonth}`,
+        type: 'warning',
+        message: `${churnedNames.join(', ')} did not renew and left the client roster. Existing receivables remain collectible in Accounts Receivable.`,
+        timestamp: contractTimestamp,
       });
 
       // 3. Revenue recognition — new invoices go to AR current bucket
@@ -387,7 +409,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
 
       return {
         ...nextState,
-        alerts: [...newAlerts, ...prevState.alerts].slice(0, 10),
+        alerts: [...contractAlerts, ...newAlerts, ...prevState.alerts].slice(0, 10),
         inbox: retainInboxMessages([...newInboxMessages, ...nextState.inbox]),
       };
 };

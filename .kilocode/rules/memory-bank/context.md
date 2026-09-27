@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype. The stabilization and client-receivables passes are merged into `main`. The current branch adds categorized cash movements, a fictional estimated tax balance and late charge, reliable inbox generation, and tutorial usability fixes. Valid version 1–3 saves migrate to version 4. Broader gameplay balance still needs playtesting. No PR has been opened for this branch yet.
+**Project Status**: Playable single-browser prototype. The stabilization, client-receivables, cash-flow, estimated-tax, inbox-reliability, and responsive-tutorial work are merged into `main` through PR #5 (`0e4914f`). The `codex/gameplay-balance-pass` branch adds seeded balance simulation, staff recovery, contract renewal/churn resolution, and discretionary inbox tuning. Valid version 1–3 saves still migrate to version 4; existing version 4 saves remain valid. Human playtesting remains outstanding. No PR has been opened for the balance branch.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -45,7 +45,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Keep the simplified game model internally consistent and make decision consequences clear. The tax balance now has a deliberately simple payable schedule; playtesting should guide scenario balance, staff burnout, and tutorial length.
+Keep the simplified game model internally consistent and make decision consequences clear. The current balance pass uses reproducible scripted decisions to test 24-month behavior and prices a staff burnout intervention. Human play sessions should later test whether these scripted policies reflect actual choices. The tax balance remains deliberately simple.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -82,6 +82,16 @@ Keep the simplified game model internally consistent and make decision consequen
 - Tutorial month checkpoints remember the starting year and avoid a second advance if the game has moved past a checkpoint. Spotlight keyboard focus is confined to the tutorial controls and highlighted target, including mobile navigation. The finance copy and runway example now match the displayed model.
 - Verification: 51 Bun tests, typecheck, lint, and production build pass. All five routes have no horizontal overflow at 390, 768, 1280, and 1440px. The 34-step tutorial completed across those widths; mobile menu navigation and Tab focus, AR tab targeting, stale month checkpoints, the quarter-end tax prompt, and the quarter-opening penalty were checked in the browser with no console errors.
 
+## Gameplay Balance Pass Snapshot (2026-09-27)
+
+- The tax, scenario, and tutorial work was merged into `main` as `0e4914f` (PR #5). This balance pass starts on a fresh `codex/gameplay-balance-pass` branch from that commit.
+- A seeded harness advances 24 months from the January 2026 opening snapshot across seeds 7, 23, 41, 89, and 127 under stewardship and cash-guard scripted policies. The checked-in `docs/balance-simulation.md` records the policies, baseline and final means, credit/cash/profit, churn/renewals, staff, reputation, and inbox measurements. These are model results, not human playtest findings.
+- In the stewardship simulations, mean ending cash changes from -$112,612 to $640,629; cumulative profit from -$384,129 to $568,186; churn from 9.6 to 3.2; ending burnout from 99.4 to 13.4; and discretionary prompts from 42.0 to 35.4 per run. Contract expiry correction drives much of the financial difference, so the before/after change is not attributable to one feature.
+- The staff recovery action funds up to 12 employees with burnout of at least 20 for $1,500 each, once per month if cash covers it. It reduces each participant's burnout by up to 25, restores up to 5 efficacy, and books a current-month cash movement, P&L one-time cost, and Payroll budget actual. The existing version 4 save format accepts the additive movement and preserves the cooldown through reload; version 1–3 migrations remain valid.
+- Expiring contracts now resolve into a new 12-month term or churn, with named outcome alerts. Churn ends new billing, while former-client receivables continue aging and collecting. Discretionary inbox probabilities were reduced while unresolved decisions remain available and quarter-end tax prompts still appear whenever tax is due.
+- Scripted cash-guard behavior still allows severe burnout and can exhaust the credit line; one final seed ended with negative cash. Human playtesting and any deeper tax model remain later decisions.
+- Verification: 65 Bun tests, typecheck, lint, and production build pass. Browser checks cover all five routes without horizontal overflow at 390, 768, 1280, and 1440px. Keyboard activation and reload were checked for staff recovery and finance tabs, renewal/churn and former-client AR, and quarter-end tax and retained inbox decisions at all four widths; there were no browser console errors.
+
 ## Session History
 
 | Date | Changes |
@@ -98,3 +108,4 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-26 | Merged first stabilization pass; implemented client-attributed AR, version 1 to 2 save migration, and inbox outcome feedback |
 | 2026-09-26 | Merged client-receivables pass as PR #4; implemented categorized cash movements, P&L one-time costs, version 3 save migration, and reconciled cash view on a new branch |
 | 2026-09-26 | Added estimated tax payable and late charges, version 4 save migration, deterministic scenario generation, pending-decision retention, and tutorial accessibility fixes on the cash-flow branch; PR deferred pending this phase |
+| 2026-09-27 | Merged the tax, scenario, and tutorial pass as PR #5 (`0e4914f`); completed a seeded gameplay balance pass with staff recovery, contract expiry resolution, and inbox pacing on a new `codex/` branch |

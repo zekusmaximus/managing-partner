@@ -7,6 +7,7 @@ export interface ProfitAndLoss {
   operatingCosts: OperatingCosts;
   vendorCosts: number;
   oneTimeOperatingExpenses: number;
+  staffRecoveryExpenses: number;
   arWriteOff: number;
   totalOperatingExpenses: number;
   operatingIncome: number;
@@ -32,6 +33,9 @@ export const calculateProfitAndLoss = (entries: FinancialHistoryEntry[]): Profit
   const payroll = entries.reduce((sum, entry) => sum + entry.payroll, 0);
   const vendorCosts = entries.reduce((sum, entry) => sum + entry.vendorCosts, 0);
   const oneTimeOperatingExpenses = entries.reduce((sum, entry) => sum + entry.oneTimeOperatingExpenses, 0);
+  const staffRecoveryExpenses = entries.reduce((sum, entry) => sum + entry.cashMovements
+    .filter(movement => movement.kind === 'staff-recovery')
+    .reduce((movementTotal, movement) => movementTotal - movement.amount, 0), 0);
   const arWriteOff = entries.reduce((sum, entry) => sum + entry.arWriteOff, 0);
   const partnerDraw = entries.reduce((sum, entry) => sum + entry.partnerDraw, 0);
   const locInterest = entries.reduce((sum, entry) => sum + entry.locInterest, 0);
@@ -42,7 +46,7 @@ export const calculateProfitAndLoss = (entries: FinancialHistoryEntry[]): Profit
   const operatingIncome = grossMargin - totalOperatingExpenses;
   const netIncome = operatingIncome - partnerDraw - locInterest - taxExpense - taxPenalty;
   return {
-    revenue, payroll, grossMargin, operatingCosts, vendorCosts, oneTimeOperatingExpenses, arWriteOff,
+    revenue, payroll, grossMargin, operatingCosts, vendorCosts, oneTimeOperatingExpenses, staffRecoveryExpenses, arWriteOff,
     totalOperatingExpenses, operatingIncome,
     operatingMarginPercent: revenue > 0 ? operatingIncome / revenue * 100 : 0,
     partnerDraw, locInterest, taxExpense, taxPenalty, netIncome,

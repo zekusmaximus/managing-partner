@@ -71,7 +71,7 @@ const financialHistoryEntry: Check = (value) => fields(value, {
 const cashMovement: Check = (value) => {
   if (!fields(value, {
     kind: oneOf('loc-draw', 'loc-repayment', 'partner-distribution', 'tax-payment',
-      'equipment-purchase', 'hiring', 'severance', 'repair', 'unclassified'),
+      'equipment-purchase', 'hiring', 'severance', 'staff-recovery', 'repair', 'unclassified'),
     amount: finite,
   })) return false;
   const movement = value as { kind: string; amount: number };
