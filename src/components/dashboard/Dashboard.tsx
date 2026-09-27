@@ -1,8 +1,9 @@
 "use client";
 
 import React from 'react';
-import { Box, Grid, Typography, Card, CardContent, CardHeader, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, LinearProgress } from '@mui/material';
+import { Alert, AlertTitle, Box, Button, Grid, Typography, Card, CardContent, CardHeader, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, LinearProgress } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import Link from 'next/link';
 import { useSimulation } from '@/context/SimulationContext';
 import { getEmployeeTotalCost, getARTotal, getLOCAvailable } from '@/types/simulation';
 import HelpTooltip from '@/components/help/HelpTooltip';
@@ -35,6 +36,8 @@ export const Dashboard = () => {
   // Enhanced KPIs
   const totalAR = getARTotal(state.arAging);
   const locAvailable = getLOCAvailable(state.lineOfCredit);
+  const creditNearlyExhausted = state.lineOfCredit.limit > 0 && state.lineOfCredit.drawn > 0 &&
+    locAvailable <= state.lineOfCredit.limit * 0.2;
   const operatingMargin = calculateProfitAndLoss(state.financialHistory.slice(-1)).operatingMarginPercent;
 
   // DSO
@@ -44,8 +47,25 @@ export const Dashboard = () => {
   const dso = avgMonthlyRevenue > 0 ? Math.round(totalAR / (avgMonthlyRevenue / 30)) : 0;
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
       <Grid container spacing={3}>
+        {creditNearlyExhausted && (
+          <Grid size={{ xs: 12 }}>
+            <Alert
+              severity={locAvailable === 0 ? 'error' : 'warning'}
+              sx={{ alignItems: 'flex-start', '& .MuiAlert-message': { minWidth: 0, width: '100%' } }}
+            >
+              <AlertTitle>{locAvailable === 0 ? 'Line of credit exhausted' : 'Line of credit nearly exhausted'}</AlertTitle>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                ${locAvailable.toLocaleString()} remains available of the ${state.lineOfCredit.limit.toLocaleString()} limit.
+                Review cash flow and credit before advancing the month.
+              </Typography>
+              <Button component={Link} href="/finances#credit-controls" size="small" variant="outlined" color="inherit">
+                Review cash flow and credit controls
+              </Button>
+            </Alert>
+          </Grid>
+        )}
         {/* Quick Stats Row */}
         <Grid size={{ xs: 12 }} data-tutorial-target="stats-row">
           <Grid container spacing={3}>

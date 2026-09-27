@@ -3,7 +3,8 @@ import { applyInboxChoice, advanceSimulationMonth } from './engine';
 import { createInitialSimulationState } from './initialState';
 import { generateInboxMessages } from './scenarios';
 
-export type BalancePolicy = 'stewardship' | 'cash-guard';
+export type BalancePolicy = 'stewardship' | 'cash-guard' | 'cash-pressure';
+export type BalanceRecoveryPlan = 'full' | 'targeted';
 
 export interface BalanceMonth {
   month: number;
@@ -11,6 +12,10 @@ export interface BalanceMonth {
   cash: number;
   creditDrawn: number;
   creditDrawnThisMonth: number;
+  revenue: number;
+  recurringCashPaid: number;
+  partnerDraw: number;
+  taxPayable: number;
   profit: number;
   clients: number;
   churn: number;
@@ -24,6 +29,7 @@ export interface BalanceMonth {
   pendingBeforeDecisions: number;
   pendingAfterDecisions: number;
   recoverySpend: number;
+  recoveryPlan: BalanceRecoveryPlan | null;
 }
 
 export interface BalanceRun {
@@ -50,6 +56,8 @@ export interface BalanceRun {
   peakPending: number;
   endingPending: number;
   recoverySpend: number;
+  fullRecoveryActions: number;
+  targetedRecoveryActions: number;
   monthly: BalanceMonth[];
 }
 
@@ -59,7 +67,11 @@ export interface BalanceOptions {
   policy: BalancePolicy;
   // The baseline commit has no staff recovery action. The final report passes
   // the game's pure action here, so both runs share this exact harness.
-  fundRecovery?: (state: SimulationState) => SimulationState;
+  fundRecovery?: (state: SimulationState, plan?: BalanceRecoveryPlan) => SimulationState;
+  getRecoveryQuote?: (state: SimulationState, plan: BalanceRecoveryPlan) => {
+    cost: number;
+    canFund: boolean;
+  };
 }
 
 // A small seeded generator is enough for reproducible simulation comparisons.
@@ -114,9 +126,14 @@ const choiceFor = (message: InboxMessage, policy: BalancePolicy): string | null 
   }
 };
 
-export const runBalanceSimulation = ({ seed, months, policy, fundRecovery }: BalanceOptions): BalanceRun => {
+export const runBalanceSimulation = ({
+  seed, months, policy, fundRecovery, getRecoveryQuote,
+}: BalanceOptions): BalanceRun => {
   if (!Number.isInteger(seed) || !Number.isInteger(months) || months < 12 || months > 24) {
     throw new Error('Use an integer seed and a 12–24 month horizon.');
+  }
+  if (policy === 'cash-pressure' && (!fundRecovery || !getRecoveryQuote)) {
+    throw new Error('Cash-pressure policy requires recovery action and quote functions.');
   }
   const random = createSeededRandom(seed);
   let id = 0;
@@ -154,7 +171,7 @@ export const runBalanceSimulation = ({ seed, months, policy, fundRecovery }: Bal
     const pendingBeforeDecisions = countPending(state);
 
     // Work through only the decisions available at the start of this step.
-    // Cash-guard intentionally leaves vendor, partner, and budget decisions
+    // Cash-guard and cash-pressure intentionally leave vendor, partner, and budget decisions
     // open to exercise the product's pending-message retention rules.
     for (const message of state.inbox.filter(item => item.requiresAction)) {
       const choice = choiceFor(message, policy);
@@ -165,12 +182,36 @@ export const runBalanceSimulation = ({ seed, months, policy, fundRecovery }: Bal
     }
 
     let recoverySpend = 0;
+    let recoveryPlan: BalanceRecoveryPlan | null = null;
     if (policy === 'stewardship' && fundRecovery &&
       average(state.employees.map(employee => employee.burnout)) >= 35) {
       const before = state.financials.cashOnHand;
       state = fundRecovery(state);
       recoverySpend = Math.max(0, before - state.financials.cashOnHand);
+      if (recoverySpend > 0) recoveryPlan = 'full';
       observeFinancialBounds();
+    }
+    if (policy === 'cash-pressure' && fundRecovery && getRecoveryQuote &&
+      average(state.employees.map(employee => employee.burnout)) >= 35) {
+      const full = getRecoveryQuote(state, 'full');
+      const targeted = getRecoveryQuote(state, 'targeted');
+      const monthlyOutflow = state.financialHistory.at(-1)?.recurringCashExpensesPaid ?? 0;
+      // The latest recurring outflow is a short reserve signal, not a forecast.
+      // Stop discretionary recovery once the credit line has been drawn.
+      const plan: BalanceRecoveryPlan | null = state.lineOfCredit.drawn > 0
+        ? null
+        : full.canFund && state.financials.cashOnHand - full.cost >= 3 * monthlyOutflow
+          ? 'full'
+          : targeted.canFund && state.financials.cashOnHand - targeted.cost >= monthlyOutflow
+            ? 'targeted'
+            : null;
+      if (plan) {
+        const before = state.financials.cashOnHand;
+        state = fundRecovery(state, plan);
+        recoverySpend = Math.max(0, before - state.financials.cashOnHand);
+        if (recoverySpend > 0) recoveryPlan = plan;
+        observeFinancialBounds();
+      }
     }
 
     const creditDrawnThisMonth = state.financialHistory.at(-1)?.cashMovements
@@ -182,6 +223,10 @@ export const runBalanceSimulation = ({ seed, months, policy, fundRecovery }: Bal
       cash: state.financials.cashOnHand,
       creditDrawn: state.lineOfCredit.drawn,
       creditDrawnThisMonth,
+      revenue: state.financials.grossRevenue,
+      recurringCashPaid: state.financialHistory.at(-1)?.recurringCashExpensesPaid ?? 0,
+      partnerDraw: state.financials.partnerDrawThisMonth,
+      taxPayable: state.taxPosition.principalDue + state.taxPosition.penaltiesDue,
       profit: state.financials.netProfit,
       clients: state.clients.length,
       churn,
@@ -196,6 +241,7 @@ export const runBalanceSimulation = ({ seed, months, policy, fundRecovery }: Bal
       pendingBeforeDecisions,
       pendingAfterDecisions: countPending(state),
       recoverySpend,
+      recoveryPlan,
     });
   }
 
@@ -224,6 +270,8 @@ export const runBalanceSimulation = ({ seed, months, policy, fundRecovery }: Bal
     peakPending: Math.max(...monthly.map(item => item.pendingBeforeDecisions)),
     endingPending: last.pendingAfterDecisions,
     recoverySpend: sum('recoverySpend'),
+    fullRecoveryActions: monthly.filter(item => item.recoveryPlan === 'full').length,
+    targetedRecoveryActions: monthly.filter(item => item.recoveryPlan === 'targeted').length,
     monthly,
   };
 };

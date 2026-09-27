@@ -10,9 +10,9 @@ This is a playable prototype with a simplified financial model. Progress is save
 
 ## Features
 
-- **Dashboard Overview**: Real-time KPIs including cash position, collections, operating margin, DSO, and reputation
+- **Dashboard Overview**: Real-time KPIs including cash position, collections, operating margin, DSO, and reputation, plus a link to credit controls when available borrowing capacity runs low
 - **Financial Management**: 5-tab interface with P&L statements, budget tracking, client-attributed AR aging, a reconciled cash waterfall, tax balance, and partner economics
-- **HR Management**: Manage lobbyists, attorneys, and support staff; fund a priced staff recovery program to reduce burnout and restore efficacy
+- **HR Management**: Manage lobbyists, attorneys, and support staff; choose a full or lower-cost targeted recovery program to reduce burnout and restore efficacy
 - **Client Relations**: Monitor satisfaction, contract timelines, renewals, churn, and revenue across corporations, trade associations, and non-profits
 - **Inbox System**: Handle scenario-based decisions including compensation requests, vendor contracts, budget overruns, tax payments, and new business opportunities; pending decisions remain available and completed messages show the actual outcome
 - **Interactive Tutorial**: 34-step guided tutorial across 4 phases teaching GR industry fundamentals and firm management
@@ -130,7 +130,9 @@ The game tracks the following:
 - Contracts resolve when their remaining term reaches zero. Retained clients start a new 12-month term; clients who leave stop generating invoices, while their existing receivables continue to age and be collected. Dashboard alerts name the outcome.
 - Payroll: salary + 25% benefits + 7.65% FICA
 - Staff recovery costs $1,500 per eligible employee (20+ burnout), covers up to 12 staff once per month, reduces burnout by up to 25 points and restores up to 5 efficacy points per person. It requires enough cash and appears in the current-month P&L, Payroll budget actuals, and cash waterfall.
+- Targeted recovery covers up to two highest-burnout eligible staff for $500 each, reducing burnout by up to 15 points and restoring up to 3 efficacy points per person. When cash covers only one place, the quote scales down to $500. The full and targeted choices share one use per month; both require cash and use the same accounting entries.
 - Line of credit with 8% annual interest (auto-draw/repay)
+- When remaining credit is 20% or less of the limit, the dashboard shows the remaining amount and links directly to the Cash Flow tab's borrowing and repayment controls.
 - A monthly cash waterfall separates collections, recurring costs, one-time decisions, partner distributions, and credit-line draws/repayments. Older saves retain unexplained prior movements as unclassified rather than assigning them a fictional cause.
 - The game books a fictional 25% estimated tax expense on positive pretax profit when each month opens. It records the unpaid amount separately from cash. A fictional 2% late charge applies to unpaid tax principal at the start of each quarter; existing penalties do not compound. Quarter-end inbox decisions can pay all, pay 60%, or defer, with payments clearing penalties first. The estimate stays fixed if later decisions change that month’s profit.
 - Quarterly budget tracking with variance analysis
@@ -138,7 +140,7 @@ The game tracks the following:
 
 ### Reproducible balance simulation
 
-Run `bun run scripts/balance-report.ts` for a seeded 24-month simulation across five seeds and two scripted decision policies. The JSON report includes cash and credit use, profit, client churn and renewals, staff burnout and efficacy, reputation, and inbox volume. Use `--months=12` to shorten the run. The [balance report](docs/balance-simulation.md) gives the exact policies, baseline and final measurements, reproduction steps, and limitations. These are **simulation outcomes**, not observations from human play sessions.
+Run `bun run scripts/balance-report.ts` for a seeded 24-month simulation across five seeds and scripted decision policies, including a cash-pressure policy that uses staff recovery. The JSON report includes cash and credit use, profit, client churn and renewals, staff burnout and efficacy, reputation, and pending inbox volume. Use `--months=12` to shorten the run. The [balance report](docs/balance-simulation.md) gives the exact policies, before/after measurements, reproduction steps, and limitations. These are **simulation outcomes**, not observations from human play sessions.
 
 This is an educational game model, not a full accounting ledger or a model of real tax obligations. The cash projection is a simple run-rate estimate rather than a forecast of future decisions or collections.
 

@@ -31,6 +31,8 @@ export default function HR() {
     : 0;
   const highBurnoutCount = state.employees.filter(e => e.burnout >= 60).length;
   const recoveryQuote = getStaffRecoveryQuote(state);
+  const targetedRecoveryQuote = getStaffRecoveryQuote(state, 'targeted');
+  const availableCash = Math.max(0, state.financials.cashOnHand);
 
   // Role distribution data
   const roleDistribution = [
@@ -151,36 +153,81 @@ export default function HR() {
 
             <Grid size={{ xs: 12 }}>
               <Card>
-                <CardHeader title={<>Staff Recovery Program <HelpTooltip helpId="hr-recovery" /></>} />
+                <CardHeader title={<>Staff Recovery <HelpTooltip helpId="hr-recovery" /></>} />
                 <CardContent>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Paid coverage and recovery time for up to 12 staff with the highest burnout (20% or more).
-                    Each participant costs $1,500, loses up to 25 burnout points, and regains up to 5 efficacy points.
-                    Available once per month with cash on hand.
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    {recoveryQuote.participantIds.length} eligible · ${recoveryQuote.cost.toLocaleString()} now ·
-                    {' '}{recoveryQuote.totalBurnoutReduction} total burnout points reduced ·
-                    {' '}{recoveryQuote.totalEfficacyGain} total efficacy points restored
-                  </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    The cost reduces cash and current-month profit and is included in the Payroll budget.
+                    Choose one paid recovery option per month for staff at 20% burnout or higher.
+                    Payment comes from cash on hand, reduces current-month profit, and counts toward the Payroll budget.
+                    Available cash: ${availableCash.toLocaleString()}.
                   </Typography>
-                  <Button
-                    variant="contained"
-                    onClick={fundStaffRecovery}
-                    disabled={!recoveryQuote.canFund}
-                    aria-label={`Fund staff recovery program for $${recoveryQuote.cost.toLocaleString()}`}
-                  >
-                    Fund Staff Recovery
-                  </Button>
-                  {!recoveryQuote.canFund && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      {recoveryQuote.alreadyFunded
-                        ? 'Program already funded this month.'
-                        : recoveryQuote.participantIds.length === 0
-                          ? 'No staff currently meets the 20% burnout threshold.'
-                          : `Requires $${recoveryQuote.cost.toLocaleString()} cash; available $${Math.max(0, state.financials.cashOnHand).toLocaleString()}.`}
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2, height: '100%' }}>
+                        <Typography variant="h6" component="h3" gutterBottom>Full team program</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          Up to 12 highest-burnout staff. $1,500 each; each loses up to 25 burnout points
+                          and regains up to 5 efficacy points.
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                          {recoveryQuote.participantIds.length === 0 ? 'No eligible staff.' : <>
+                            {recoveryQuote.participantIds.length} staff · ${recoveryQuote.cost.toLocaleString()} now ·
+                            {' '}{recoveryQuote.totalBurnoutReduction} total burnout points reduced ·
+                            {' '}{recoveryQuote.totalEfficacyGain} total efficacy points restored
+                          </>}
+                        </Typography>
+                        <Button
+                          variant="contained"
+                          onClick={() => fundStaffRecovery('full')}
+                          disabled={!recoveryQuote.canFund}
+                          sx={{ maxWidth: '100%' }}
+                        >
+                          Fund full program{recoveryQuote.cost > 0 && ` · $${recoveryQuote.cost.toLocaleString()}`}
+                        </Button>
+                        {!recoveryQuote.canFund && !recoveryQuote.alreadyFunded && recoveryQuote.participantIds.length > 0 && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            Needs ${recoveryQuote.cost.toLocaleString()} cash. The targeted option may be affordable.
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Box sx={{ border: 1, borderColor: !recoveryQuote.canFund && targetedRecoveryQuote.canFund ? 'warning.main' : 'divider', borderRadius: 1, p: 2, height: '100%' }}>
+                        <Typography variant="h6" component="h3" gutterBottom>Targeted recovery</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          Up to 2 highest-burnout staff. $500 each; each loses up to 15 burnout points
+                          and regains up to 3 efficacy points. If cash covers only one, fund one for $500.
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                          {targetedRecoveryQuote.participantIds.length === 0 ? 'No eligible staff.' : <>
+                            {targetedRecoveryQuote.participantIds.length} staff · ${targetedRecoveryQuote.cost.toLocaleString()} now ·
+                            {' '}{targetedRecoveryQuote.totalBurnoutReduction} total burnout points reduced ·
+                            {' '}{targetedRecoveryQuote.totalEfficacyGain} total efficacy points restored
+                          </>}
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          onClick={() => fundStaffRecovery('targeted')}
+                          disabled={!targetedRecoveryQuote.canFund}
+                          sx={{ maxWidth: '100%' }}
+                        >
+                          Fund targeted recovery{targetedRecoveryQuote.cost > 0 && ` · $${targetedRecoveryQuote.cost.toLocaleString()}`}
+                        </Button>
+                        {!targetedRecoveryQuote.canFund && !targetedRecoveryQuote.alreadyFunded && targetedRecoveryQuote.participantIds.length > 0 && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            Needs ${targetedRecoveryQuote.cost.toLocaleString()} cash.
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                  {recoveryQuote.alreadyFunded && (
+                    <Typography variant="body2" role="status" sx={{ mt: 2 }}>
+                      Staff recovery already funded this month. Both options reopen next month.
+                    </Typography>
+                  )}
+                  {recoveryQuote.participantIds.length === 0 && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                      No staff currently meets the 20% burnout threshold.
                     </Typography>
                   )}
                 </CardContent>

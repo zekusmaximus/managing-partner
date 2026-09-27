@@ -4,18 +4,23 @@ const seeds = [7, 23, 41, 89, 127];
 const monthsArgument = process.argv.find(argument => argument.startsWith('--months='));
 const months = monthsArgument ? Number(monthsArgument.split('=')[1]) : 24;
 const baseline = process.argv.includes('--baseline');
-const fundRecovery = baseline
-  ? undefined
-  : (await import('../src/lib/simulation/burnout')).fundStaffRecovery;
+const recovery = baseline ? undefined : await import('../src/lib/simulation/burnout');
 
-const runs = (['stewardship', 'cash-guard'] as const).flatMap(policy =>
-  seeds.map(seed => runBalanceSimulation({ seed, months, policy, fundRecovery })));
+const policies = baseline
+  ? (['stewardship', 'cash-guard'] as const)
+  : (['stewardship', 'cash-guard', 'cash-pressure'] as const);
+const runs = policies.flatMap(policy =>
+  seeds.map(seed => runBalanceSimulation({
+    seed, months, policy,
+    fundRecovery: recovery?.fundStaffRecovery,
+    getRecoveryQuote: recovery?.getStaffRecoveryQuote,
+  })));
 
 const round = (value: number) => Math.round(value * 10) / 10;
 const mean = (runs: BalanceRun[], key: keyof BalanceRun) =>
   round(runs.reduce((sum, run) => sum + Number(run[key]), 0) / runs.length);
 
-const rows = (['stewardship', 'cash-guard'] as const).map(policy => {
+const rows = policies.map(policy => {
   const selected = runs.filter(run => run.policy === policy);
   return {
     policy,
@@ -39,6 +44,8 @@ const rows = (['stewardship', 'cash-guard'] as const).map(policy => {
     pendingPeak: mean(selected, 'peakPending'),
     pendingEnd: mean(selected, 'endingPending'),
     recoverySpend: mean(selected, 'recoverySpend'),
+    fullRecoveryActions: mean(selected, 'fullRecoveryActions'),
+    targetedRecoveryActions: mean(selected, 'targetedRecoveryActions'),
   };
 });
 

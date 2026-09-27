@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { fundStaffRecovery } from './burnout';
+import { fundStaffRecovery, getStaffRecoveryQuote } from './burnout';
 import { runBalanceSimulation, createSeededRandom } from './balanceHarness';
 import { advanceSimulationMonth, sumReceivables } from './engine';
 import { createInitialSimulationState } from './initialState';
@@ -8,6 +8,7 @@ import { generateInboxMessages } from './scenarios';
 const seeds = [7, 23, 41, 89, 127];
 const run = (seed, months, policy) => runBalanceSimulation({
   seed, months, policy, fundRecovery: fundStaffRecovery,
+  getRecoveryQuote: getStaffRecoveryQuote,
 });
 
 describe('seeded balance simulation', () => {
@@ -24,7 +25,7 @@ describe('seeded balance simulation', () => {
   });
 
   test('keeps staff, reputation, and credit bounded in long runs', () => {
-    for (const policy of ['stewardship', 'cash-guard']) {
+    for (const policy of ['stewardship', 'cash-guard', 'cash-pressure']) {
       for (const seed of seeds) {
         const result = run(seed, 24, policy);
         for (const month of result.monthly) {
@@ -41,6 +42,15 @@ describe('seeded balance simulation', () => {
           expect(month.creditDrawn).toBeLessThanOrEqual(100000);
           expect(month.creditDrawnThisMonth).toBeGreaterThanOrEqual(0);
           expect(month.pendingBeforeDecisions).toBeGreaterThanOrEqual(month.pendingAfterDecisions);
+          if (month.recoveryPlan === 'targeted') {
+            expect(month.recoverySpend).toBeGreaterThanOrEqual(500);
+            expect(month.recoverySpend).toBeLessThanOrEqual(1000);
+          }
+          if (policy === 'cash-pressure' && month.recoveryPlan) {
+            expect(month.creditDrawn).toBe(0);
+            expect(month.cash).toBeGreaterThanOrEqual(month.recurringCashPaid *
+              (month.recoveryPlan === 'full' ? 3 : 1));
+          }
         }
         expect(result.creditDrawnTotal).toBe(result.monthly.reduce((sum, month) =>
           sum + month.creditDrawnThisMonth, 0));
@@ -49,6 +59,12 @@ describe('seeded balance simulation', () => {
     }
     expect(run(7, 24, 'stewardship').recoverySpend).toBeGreaterThan(0);
     expect(run(7, 24, 'cash-guard').recoverySpend).toBe(0);
+    const pressure = run(23, 24, 'cash-pressure');
+    expect(pressure.targetedRecoveryActions).toBeGreaterThan(0);
+    expect(pressure.fullRecoveryActions + pressure.targetedRecoveryActions)
+      .toBe(pressure.monthly.filter(month => month.recoverySpend > 0).length);
+    expect(() => runBalanceSimulation({ seed: 23, months: 24, policy: 'cash-pressure' }))
+      .toThrow('requires recovery action and quote functions');
   });
 
   test('individual staff, live contracts, AR, and cash reconcile through long runs', () => {
