@@ -156,7 +156,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Contract Duration',
     shortDescription: 'Months remaining on each client\'s engagement.',
-    grExplanation: 'When a contract expires, renewal odds depend on both client satisfaction and current service coverage. An overloaded team has weaker renewal odds even with a happy client; with no billable staff, a contract cannot renew. Within three months of expiry, you may spend $1,000 on a client meeting to raise satisfaction, using the firm’s one meeting slot that month. This helps but does not guarantee renewal.',
+    grExplanation: 'When a contract expires, renewal odds depend on both client satisfaction and current service coverage. The expiry warning shows the monthly fee at risk and its share of current contracted monthly revenue: that fee divided by all active clients’ monthly fees. An overloaded team has weaker renewal odds even with a happy client; with no billable staff, a contract cannot renew. Within three months of expiry, you may spend $1,000 on a client meeting to raise satisfaction, using the firm’s one meeting slot that month. This helps but does not guarantee renewal.',
     relatedGlossaryTerms: ['retainer', 'book-of-business'],
   },
   'clients-type': {

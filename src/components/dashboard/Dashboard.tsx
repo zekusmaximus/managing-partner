@@ -12,7 +12,7 @@ import { calculateProfitAndLoss } from '@/lib/simulation/metrics';
 import { getClientServiceCoverage } from '@/lib/simulation/clientService';
 
 type AlertAction = { label: string; href: string };
-type AlertGuidance = { consequence: string; actions: AlertAction[] };
+type AlertGuidance = { impact?: string; consequence: string; actions: AlertAction[] };
 
 const getAlertGuidance = (alert: SimulationAlert, state: SimulationState): AlertGuidance | null => {
   const message = alert.message;
@@ -25,10 +25,22 @@ const getAlertGuidance = (alert: SimulationAlert, state: SimulationState): Alert
       message.startsWith(`${candidate.name} satisfaction is critically low at `));
   const clientHref = client ? `/clients?clientId=${encodeURIComponent(client.id)}` : '/clients';
 
-  if (message.includes('contract expires in ')) return {
-    consequence: 'Renewal is decided when the term ends. Satisfaction and service coverage affect the chance of keeping this client.',
-    actions: [{ label: client ? 'Discuss renewal' : 'Review client roster', href: clientHref }],
-  };
+  if (message.includes('contract expires in ')) {
+    const stillExpiring = client && client.contractMonthsRemaining > 0 && client.contractMonthsRemaining <= 3;
+    const contractedRevenue = state.clients.reduce((sum, activeClient) => sum + activeClient.monthlyFee, 0);
+    const revenueShare = stillExpiring && contractedRevenue > 0
+      ? `${(client.monthlyFee / contractedRevenue * 100).toFixed(1)}% of current contracted monthly revenue`
+      : null;
+    return {
+      impact: stillExpiring
+        ? `Monthly fee at risk: $${client.monthlyFee.toLocaleString()}/mo${revenueShare ? ` (${revenueShare})` : ''}.`
+        : 'This warning reflects an earlier contract term. Check the current client roster.',
+      consequence: stillExpiring
+        ? 'If this client leaves, monthly billing falls by this fee. Satisfaction and service coverage affect renewal odds.'
+        : 'Review the current contract before deciding whether to act.',
+      actions: [{ label: stillExpiring ? 'Discuss renewal' : client ? 'Review client' : 'Review client roster', href: clientHref }],
+    };
+  }
   if (message.includes('satisfaction dropped to ') || message.includes('satisfaction is critically low at ')) return {
     consequence: 'Low satisfaction makes a future renewal less likely.',
     actions: [{ label: client ? 'Meet with client' : 'Review client roster', href: clientHref }],
@@ -308,6 +320,7 @@ export const Dashboard = () => {
                       sx={{ width: '100%', height: 'auto', justifyContent: 'space-between', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.75 } }}
                     />
                     {guidance && <>
+                      {guidance.impact && <Typography variant="body2" fontWeight="medium" sx={{ mt: 1 }}>{guidance.impact}</Typography>}
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{guidance.consequence}</Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                         {guidance.actions.map(action => <Button key={action.href} component={Link} href={action.href} size="small" variant="outlined">{action.label}</Button>)}

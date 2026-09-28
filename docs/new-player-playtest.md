@@ -2,7 +2,7 @@
 
 ## Interim feedback (2026-09-28)
 
-The user shared early notes without a participant count: overdue-collection and approaching-renewal warnings did not seem to lead to a useful action, and the benefits and costs of choices were unclear, especially bad-debt write-offs. This is qualitative feedback, not evidence of how often those problems occur. The next sessions should check whether players can follow warnings to collections or a client meeting, predict the modeled cash/AR/profit effects, and find the actual outcome afterward.
+The user shared early notes without a participant count: overdue-collection and approaching-renewal warnings did not seem to lead to a useful action, and the benefits and costs of choices were unclear, especially bad-debt write-offs. A follow-up note asked for the expiring contract's value and revenue share at the warning itself, without searching the roster. These are qualitative findings, not evidence of how often the problems occur. The next sessions should check whether players can read the monthly fee and current contracted-revenue share, follow warnings to collections or a client meeting, predict the modeled cash/AR/profit effects, and find the actual outcome afterward.
 
 ## Goal and participants
 
@@ -13,7 +13,7 @@ Use the same build for every participant. Before each session, choose **New Game
 ## Facilitator script
 
 1. **First impression (3 minutes).** Ask: “What is your role, what is the firm’s current position, and what would you inspect before advancing?” Note which dashboard metrics and alerts they notice first.
-2. **Service and retention (8 minutes).** Ask them to inspect HR and Clients, describe how staffing might affect service and renewals, make one staffing choice, then advance several months. When a contract or satisfaction warning appears, ask what they would do and let them find the client meeting without pointing it out. Before each advance ask what they expect to happen. Record whether they understand that a meeting helps but cannot guarantee renewal.
+2. **Service and retention (8 minutes).** Ask them to inspect HR and Clients, describe how staffing might affect service and renewals, make one staffing choice, then advance several months. When a contract or satisfaction warning appears, ask what they would do and let them find the client meeting without pointing it out. For an expiry warning, ask how much monthly revenue would be lost if that client left and how they found the answer. Before each advance ask what they expect to happen. Record whether they understand that a meeting helps but cannot guarantee renewal.
 3. **Cash decisions (5 minutes).** Ask them to find overdue receivables and use the manual collections action. When an overdue warning appears, ask them to find a response and compare the collection attempt, a client meeting, and a write-off. Before a write-off, ask what would happen to AR, cash, and profit. Ask whether they can repeat either monthly action and where they learned the limits.
 4. **Inbox decision (5 minutes).** Ask them to handle a pending client or business opportunity if one appears, then find the recorded outcome. If none appears, record that and continue rather than manufacturing one.
 5. **Phone finances (4 minutes, phone sessions).** Ask them to find Accounts Receivable and the P&L year-to-date profit without pointing to the tabs or table scroll area.
@@ -30,6 +30,7 @@ The facilitator may pause or stop if the participant is stuck, but should record
 | Staffing choice, including billable/support mix; predicted and observed service/retention result | |
 | Could explain manual collections limit? How discovered? | |
 | Followed a warning to the relevant action? Meeting purpose and cost understood? | |
+| Read the expiring client's monthly fee and revenue share without opening the roster? Interpreted the share correctly? | |
 | Predicted write-off effect on AR, cash, profit, and future collection? | |
 | Found AR and year-to-date P&L on phone? Where stuck? | |
 | Inbox choice and whether actual outcome was understood | |

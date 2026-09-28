@@ -258,7 +258,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/clients',
     title: 'Contract Management',
     content:
-      'Every client engagement has a contract term. When it expires, the client decides whether to renew based on satisfaction and current service coverage.\n\nWatch contracts that expire in the next three months. You can hold a paid client meeting to improve satisfaction, but it cannot guarantee renewal or repair a staffing shortfall. Losing a client means losing its monthly retainer, which affects cash flow and profit.',
+      'Every client engagement has a contract term. When it expires, the client decides whether to renew based on satisfaction and current service coverage.\n\nThe dashboard expiry warning shows the monthly fee and its share of current contracted monthly revenue, so you can judge the amount at risk without searching the roster. You can hold a paid client meeting to improve satisfaction, but it cannot guarantee renewal or repair a staffing shortfall. Losing a client means losing its monthly fee, which affects cash flow and profit.',
     targetSelector: '[data-tutorial-target="contract-chart"]',
     position: 'left',
     learningObjectiveIds: ['lo-m2-satisfaction'],

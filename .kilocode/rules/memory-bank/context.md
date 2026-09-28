@@ -124,6 +124,12 @@ Keep the simplified game model internally consistent and make decision consequen
 - Dashboard warnings describe the consequence and link to the relevant client, AR, HR, cash, or budget view. Current client/AR/service warnings carry optional structured targets; old saves remain valid. AR write-offs and other finance actions now preview modeled gains, losses, and unchanged measures. Inbox choice copy was aligned with modeled effects.
 - Verification: 85 Bun tests, typecheck, lint, and production build pass. The seeded 24-month policies do not use meetings and their results remain unchanged. Read-only browser checks confirmed the targeted client link and AR report hash, the meeting and AR copy, no page overflow at 390px, and no console errors. Further player sessions are needed to test comprehension of the revised loop.
 
+## Renewal Warning Revenue Context (2026-09-28)
+
+- Follow-up playtest feedback asked for an expiring contract's amount and share of revenue where the warning appears. The dashboard now shows the active client's monthly fee at risk and its percentage of all active clients' monthly fees directly beneath the expiry warning; this uses the contracted run rate rather than last month's billed revenue, which can lag a newly won client. The warning remains linked to the client.
+- Old expiry alerts may remain after a renewal or departure, so the dashboard labels those as historical instead of presenting a stale amount as current exposure. Help and tutorial copy explain the denominator, and the next playtest script asks players to read and interpret the figure without opening the roster.
+- Verification: 85 Bun tests, typecheck, lint, and the production build pass.
+
 ## Session History
 
 | Date | Changes |
