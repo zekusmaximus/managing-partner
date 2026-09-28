@@ -146,6 +146,9 @@ export default function BudgetTracker() {
       <Dialog open={editOpen} onClose={() => setEditOpen(false)}>
         <DialogTitle>Edit Budget: {editCategory}</DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            This changes the plan for the current quarter. It changes the reported variance, but does not change cash, spending already recorded, or future operating costs.
+          </Typography>
           <TextField
             label="Quarterly Budget Amount"
             type="number"
@@ -156,6 +159,9 @@ export default function BudgetTracker() {
             slotProps={{ htmlInput: { min: 0, step: 1 } }}
             sx={{ mt: 1 }}
           />
+          {isValidAmount(editAmount, true) && <Typography variant="body2" sx={{ mt: 1.5 }}>
+            Planned amount: ${quarterBudget.find(item => item.category === editCategory)?.plannedQuarterly.toLocaleString() ?? '0'} → ${editAmount.toLocaleString()}.
+          </Typography>}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>Cancel</Button>

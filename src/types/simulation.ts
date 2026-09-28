@@ -23,6 +23,10 @@ export const STAFF_RECOVERY_BURNOUT_REDUCTION = 25;
 export const TARGETED_RECOVERY_COST_PER_EMPLOYEE = 500;
 export const TARGETED_RECOVERY_MAX_PARTICIPANTS = 2;
 export const TARGETED_RECOVERY_BURNOUT_REDUCTION = 15;
+export const CLIENT_MEETING_COST = 1000;
+export const CLIENT_MEETING_SATISFACTION_GAIN = 6;
+export const CLIENT_MEETING_COLLECTION_RATE = 0.15;
+export const CLIENT_MEETING_COLLECTION_CAP = 3000;
 export const ESTIMATED_TAX_RATE = 0.25;
 export const QUARTERLY_TAX_LATE_RATE = 0.02;
 
@@ -174,6 +178,7 @@ export type CashMovementKind =
   | 'hiring'
   | 'severance'
   | 'staff-recovery'
+  | 'client-meeting'
   | 'repair'
   | 'unclassified';
 
@@ -194,6 +199,7 @@ export interface Alert {
   type: 'warning' | 'info' | 'error' | 'success';
   message: string;
   timestamp: Date;
+  actionTarget?: { kind: 'client'; clientId: string } | { kind: 'clients' } | { kind: 'ar' };
 }
 
 export interface MessageChoice {
@@ -240,6 +246,9 @@ export interface SimulationState {
   // A manual AR collection push is allowed once per game month. Null also
   // represents pre-feature saves that have not used the action yet.
   lastManualCollection: { month: number; year: number } | null;
+  // One firmwide client meeting can be held per game month. Older V4 saves
+  // without this marker load as eligible for their current month.
+  lastClientMeeting: { month: number; year: number; clientId: string } | null;
   financials: Financials;
   financialHistory: FinancialHistoryEntry[];
   employees: Employee[];

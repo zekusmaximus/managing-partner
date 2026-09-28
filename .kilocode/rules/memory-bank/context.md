@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype. PR #8 delivers the client-service and mobile usability pass: staffing influences service, satisfaction, and renewals; repeatable free client controls are removed and manual collections are limited to once per game month. The mobile dashboard and finance navigation are more compact. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid. Human playtesting remains outstanding; the user will run sessions and share notes.
+**Project Status**: Playable single-browser prototype on `main` after merged PR #8, with an interim playtest feedback pass in progress. Staffing influences service, satisfaction, and renewals; repeatable free client controls are removed and manual collections are limited to once per game month. Early notes identified warnings without clear responses and unclear action tradeoffs. The follow-up adds a paid client meeting, warning links, and explicit finance consequences. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid. Further new-player observations remain pending.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -117,6 +117,19 @@ Keep the simplified game model internally consistent and make decision consequen
 - `docs/service-balance-simulation.md` records five seeded 24-month policy runs under the revised rule. The no-recovery policy still ends at mean -$117,238 cash with 0.4 clients. These results show scripted model behavior, not new-player outcomes. `docs/new-player-playtest.md` gives the user a 3–5 participant session plan; notes are pending before any deeper tax or persistence work.
 - Verification: 78 Bun tests, typecheck, lint, and production build pass. Read-only browser checks at 390px and 1280px found no dashboard/finance page overflow or console errors; the phone report selector and YTD toggle worked. A live employee dismissal check was rejected by automatic approval review as an unauthorized destructive test mutation, so the staffing transition was verified by pure tests instead.
 
+## Interim Playtest Feedback Pass (2026-09-28)
+
+- The user shared early notes without a participant count: warnings for overdue collections and approaching renewals did not lead clearly to an action, and decision upsides and downsides were unclear, especially bad-debt write-offs. Treat these as qualitative findings rather than a completed playtest.
+- A client meeting is available when an active client has a contract within three months of expiry, satisfaction below 70%, firm coverage below 90%, or 31+ day receivables. The firm can hold one meeting per game month for $1,000 cash and current-month expense. It raises that client’s satisfaction by up to 6 and collects 15% of that client’s overdue AR, capped at $3,000. The quote and outcome show the exact effects; meeting cash/AR/P&L/budget entries reconcile, and an additive marker survives version 4 save reloads.
+- Dashboard warnings describe the consequence and link to the relevant client, AR, HR, cash, or budget view. Current client/AR/service warnings carry optional structured targets; old saves remain valid. AR write-offs and other finance actions now preview modeled gains, losses, and unchanged measures. Inbox choice copy was aligned with modeled effects.
+- Verification: 85 Bun tests, typecheck, lint, and production build pass. The seeded 24-month policies do not use meetings and their results remain unchanged. Read-only browser checks confirmed the targeted client link and AR report hash, the meeting and AR copy, no page overflow at 390px, and no console errors. Further player sessions are needed to test comprehension of the revised loop.
+
+## Renewal Warning Revenue Context (2026-09-28)
+
+- Follow-up playtest feedback asked for an expiring contract's amount and share of revenue where the warning appears. The dashboard now shows the active client's monthly fee at risk and its percentage of all active clients' monthly fees directly beneath the expiry warning; this uses the contracted run rate rather than last month's billed revenue, which can lag a newly won client. The warning remains linked to the client.
+- Old expiry alerts may remain after a renewal or departure, so the dashboard labels those as historical instead of presenting a stale amount as current exposure. Help and tutorial copy explain the denominator, and the next playtest script asks players to read and interpret the figure without opening the roster.
+- Verification: 85 Bun tests, typecheck, lint, and the production build pass.
+
 ## Session History
 
 | Date | Changes |
@@ -138,3 +151,4 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-27 | Reviewed merged PR #7 on `main`, verified 71 Bun tests and production quality gates, and recorded gameplay and status findings |
 | 2026-09-27 | Implemented service/retention and collections constraints, mobile dashboard/finance improvements, a seeded balance report, and a new-player session plan; human notes pending |
 | 2026-09-27 | Opened PR #8 for the client-service and mobile usability pass; user will run new-player sessions after merging and share notes |
+| 2026-09-28 | Recorded early playtest feedback; implemented client meetings, warning actions, and finance consequence previews; full quality gate passes and further sessions remain pending |

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { SessionStore } from '@/context/SessionContext';
 import { fundStaffRecovery, getStaffRecoveryQuote } from '@/lib/simulation/burnout';
+import { scheduleClientMeeting, sumReceivables } from '@/lib/simulation/engine';
 import {
   createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession, parseSession,
   serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
@@ -75,6 +76,35 @@ describe('versioned game save', () => {
       kind: 'raise-request', employeeId: 'emp1',
     });
     expect(restored?.simulation.inbox[0].resolution?.summary).toContain('Salary increased');
+  });
+
+  test('persists the client meeting cooldown, expense, collection, and action target', () => {
+    const snapshot = createFreshSession();
+    snapshot.simulation.clients[0].contractMonthsRemaining = 2;
+    snapshot.simulation.receivables.push({
+      clientId: 'client1', clientName: snapshot.simulation.clients[0].name,
+      paymentProfile: 'normal',
+      aging: { current: 0, thirtyDay: 10000, sixtyDay: 0, ninetyPlus: 0 },
+    });
+    snapshot.simulation.arAging = sumReceivables(snapshot.simulation.receivables);
+    snapshot.simulation = scheduleClientMeeting(snapshot.simulation, snapshot.simulation.clients[0].id);
+    const reloaded = parseSession(serializeSession(snapshot));
+    expect(reloaded?.simulation.lastClientMeeting)
+      .toEqual({ month: 1, year: 2026, clientId: 'client1' });
+    expect(reloaded?.simulation.financialHistory[0].cashMovements)
+      .toContainEqual({ kind: 'client-meeting', amount: -1000 });
+    expect(reloaded?.simulation.financialHistory[0].collections).toBe(1500);
+    expect(reloaded?.simulation.receivables.find(account => account.clientId === 'client1').aging.thirtyDay)
+      .toBe(8500);
+    expect(reloaded?.simulation.alerts[0].actionTarget)
+      .toEqual({ kind: 'client', clientId: 'client1' });
+    expect(reloaded?.simulation.alerts[0].timestamp).toBeInstanceOf(Date);
+
+    const priorV4 = JSON.parse(serializeSession(createFreshSession()));
+    delete priorV4.simulation.lastClientMeeting;
+    expect(parseSession(JSON.stringify(priorV4))?.simulation.lastClientMeeting).toBeNull();
+    priorV4.simulation.lastClientMeeting = { month: 13, year: 2026, clientId: 'client1' };
+    expect(parseSession(JSON.stringify(priorV4))).toBeNull();
   });
 
   test('rejects wrong versions and malformed nested data', () => {

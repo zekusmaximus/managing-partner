@@ -247,7 +247,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/clients',
     title: 'Client Satisfaction',
     content:
-      'Client satisfaction measures how well your firm is serving each organization. Your team\'s capacity and performance affect service each month, and your responses to client requests in the Inbox can change satisfaction.\n\nIn real GR, satisfaction depends on policy outcomes, responsiveness, advice, and relationships. Below 60%, clients are at risk; below 40%, losing them becomes likely. Keep enough capable staff to serve the roster and respond thoughtfully when clients raise concerns.',
+      'Client satisfaction measures how well your firm is serving each organization. Your team\'s capacity and performance affect service each month. Inbox responses and a paid client meeting can raise satisfaction.\n\nIn real GR, satisfaction depends on policy outcomes, responsiveness, advice, and relationships. Below 60%, clients are at risk; below 40%, losing them becomes likely. Keep enough capable staff to serve the roster and respond when clients raise concerns.',
     targetSelector: '[data-tutorial-target="client-table"]',
     position: 'top',
     learningObjectiveIds: ['lo-m2-satisfaction'],
@@ -258,7 +258,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/clients',
     title: 'Contract Management',
     content:
-      'Every client engagement has a contract term. When it expires, the client decides whether to renew based on satisfaction and the service your team has delivered.\n\nWatch contracts that expire in the next 3-4 months. Staffing and client decisions you make now affect whether those clients stay. Losing a client means losing their monthly retainer, which directly impacts cash flow and profit.',
+      'Every client engagement has a contract term. When it expires, the client decides whether to renew based on satisfaction and current service coverage.\n\nThe dashboard expiry warning shows the monthly fee and its share of current contracted monthly revenue, so you can judge the amount at risk without searching the roster. You can hold a paid client meeting to improve satisfaction, but it cannot guarantee renewal or repair a staffing shortfall. Losing a client means losing its monthly fee, which affects cash flow and profit.',
     targetSelector: '[data-tutorial-target="contract-chart"]',
     position: 'left',
     learningObjectiveIds: ['lo-m2-satisfaction'],
@@ -293,7 +293,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/inbox',
     title: 'Making Decisions',
     content:
-      'Each decision changes specific measures in your firm. Consider the trade-offs:\n\n\u2022 Approving a raise increases monthly payroll and employee efficacy\n\u2022 Scheduling a client meeting improves satisfaction\n\u2022 Pursuing new business gives you a chance to add monthly revenue\n\nClick a message in the highlighted list to see its details and available choices. After a choice, the inbox shows what actually happened.',
+      'Each decision changes specific measures in your firm. Consider the trade-offs:\n\n\u2022 Approving a raise increases monthly payroll and employee efficacy\n\u2022 Responding personally to client feedback improves satisfaction\n\u2022 Pursuing new business may add monthly revenue and client service workload\n\nA separate paid client meeting is available on the Clients page when a relationship, renewal, service, or payment risk arises. Click a message in the highlighted list to see its choices; afterward, the inbox shows what happened.',
     targetSelector: '[data-tutorial-target="inbox-message-list"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m2-decisions', 'lo-m2-tradeoffs'],

@@ -1,14 +1,36 @@
 "use client";
 
-import { Box, Typography, Grid, Card, CardContent, CardHeader, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress } from '@mui/material';
+import { Suspense, useEffect, useState } from 'react';
+import { Alert, Box, Button, Typography, Grid, Card, CardContent, CardHeader, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, LinearProgress, MenuItem, TextField } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
+import { useSearchParams } from 'next/navigation';
 import { useSimulation } from '@/context/SimulationContext';
 import HelpTooltip from '@/components/help/HelpTooltip';
+import { getClientMeetingQuote } from '@/lib/simulation/engine';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 export default function Clients() {
-  const { state } = useSimulation();
+  return <Suspense fallback={<Box sx={{ p: 2 }}>Loading clients…</Box>}><ClientsContent /></Suspense>;
+}
+
+function ClientsContent() {
+  const { state, meetClient } = useSimulation();
+  const searchParams = useSearchParams();
+  const linkedClientId = searchParams.get('clientId') ?? '';
+  const [selectedClientId, setSelectedClientId] = useState('');
+  const selectedClient = state.clients.find(client => client.id === (selectedClientId || linkedClientId)) ??
+    state.clients.find(client => getClientMeetingQuote(state, client.id).eligibleReasons.length > 0) ??
+    state.clients[0] ?? null;
+  const meetingQuote = selectedClient ? getClientMeetingQuote(state, selectedClient.id) : null;
+  const meetingCompleted = selectedClient && state.lastClientMeeting?.clientId === selectedClient.id &&
+    state.lastClientMeeting.month === state.month && state.lastClientMeeting.year === state.year;
+
+  useEffect(() => {
+    if (!linkedClientId) return;
+    const scrollTimer = window.setTimeout(() => document.getElementById('client-meeting')?.scrollIntoView({ block: 'start' }), 0);
+    return () => window.clearTimeout(scrollTimer);
+  }, [linkedClientId]);
 
   // Calculate stats
   const totalMonthlyRevenue = state.clients.reduce((sum, c) => sum + c.monthlyFee, 0);
@@ -106,6 +128,69 @@ export default function Clients() {
                   <Typography variant="h5" color={expiringContracts > 0 ? 'error.main' : 'success.main'}>
                     {expiringContracts}
                   </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Card id="client-meeting" sx={{ scrollMarginTop: 80 }}>
+                <CardHeader
+                  title="Meet with a client"
+                  subheader="Use one firmwide meeting this month to respond to renewal, service, satisfaction, or overdue-payment risk."
+                />
+                <CardContent>
+                  {selectedClient && meetingQuote ? (
+                    <Box sx={{ display: 'grid', gap: 1.5 }}>
+                      <TextField
+                        select
+                        label="Client"
+                        value={selectedClient.id}
+                        onChange={(event) => setSelectedClientId(event.target.value)}
+                        sx={{ maxWidth: 420 }}
+                      >
+                        {state.clients.map(client => (
+                          <MenuItem key={client.id} value={client.id}>
+                            {client.name}{getClientMeetingQuote(state, client.id).eligibleReasons.length > 0 ? ' · needs attention' : ''}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      {meetingCompleted && (
+                        <Alert severity="success">
+                          Meeting completed this month. The client’s satisfaction and overdue balance have been updated.
+                        </Alert>
+                      )}
+                      {!meetingCompleted && <>
+                      {meetingQuote.eligibleReasons.length > 0 && <>
+                      <Typography variant="body2" color="text.secondary">
+                        Why meet: {meetingQuote.eligibleReasons.join('; ')}.
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                        <Typography variant="body2" color="success.main">
+                          Benefit: satisfaction +{meetingQuote.satisfactionGain} to {meetingQuote.nextSatisfaction}%; {meetingQuote.collectionEstimate > 0
+                            ? `collect $${meetingQuote.collectionEstimate.toLocaleString()} of this client's overdue invoices now`
+                            : 'no immediate collection'}.
+                        </Typography>
+                        <Typography variant="body2" color="error.main">
+                          Cost: ${meetingQuote.cost.toLocaleString()} cash and current-month profit; only one client meeting per firm per month.
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Estimated net cash change: {meetingQuote.netCashEstimate < 0 ? '-' : '+'}${Math.abs(meetingQuote.netCashEstimate).toLocaleString()}. A meeting helps renewal odds through satisfaction, but cannot guarantee renewal or fix a firmwide staffing shortfall.
+                      </Typography>
+                      </>}
+                      {meetingQuote.disabledReason && (
+                        <Typography variant="body2" color="text.secondary">{meetingQuote.disabledReason}</Typography>
+                      )}
+                      <Box>
+                        <Button variant="contained" disabled={!meetingQuote.available} onClick={() => meetClient(selectedClient.id)}>
+                          Meet with {selectedClient.name} (${meetingQuote.cost.toLocaleString()})
+                        </Button>
+                      </Box>
+                      </>}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">No active clients are available for a meeting.</Typography>
+                  )}
                 </CardContent>
               </Card>
             </Grid>

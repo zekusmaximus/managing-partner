@@ -64,7 +64,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/finances',
     metricName: 'Accounts Receivable',
     shortDescription: 'Money clients owe you for services already rendered.',
-    grExplanation: 'Industry standard is net-30 payment terms. AR aging beyond 60 days signals collection problems and threatens your cash position. Some government-adjacent clients (especially non-profits and associations) are chronically slow payers. Proactive collections management is essential for firm health.',
+    grExplanation: 'AR aging beyond 60 days signals collection problems and threatens cash. In this simulation, you can run one manual collection attempt each month or pay for a targeted client meeting. A write-off clears old AR but brings in no cash and records a bad-debt expense that lowers profit.',
     relatedGlossaryTerms: ['accounts-receivable', 'retainer'],
   },
   'finance-avg-profit': {
@@ -148,7 +148,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Client Satisfaction',
     shortDescription: 'How well your firm is meeting each client\'s GR needs.',
-    grExplanation: 'Each billable Lobbyist or Attorney can cover about two clients at 80% combined efficacy and affinity. Effective support staff help the whole team; without any support, billable capacity falls by about 15%. Burnout above 60% reduces staff effectiveness. When the team cannot cover the client roster, satisfaction tends to fall each month; spare capacity gives it a modest lift. Satisfaction also changes through inbox decisions.',
+    grExplanation: 'Each billable Lobbyist or Attorney can cover about two clients at 80% combined efficacy and affinity. Effective support staff help the whole team; without any support, billable capacity falls by about 15%. Burnout above 60% reduces staff effectiveness. When the team cannot cover the client roster, satisfaction tends to fall each month; spare capacity gives it a modest lift. Inbox responses and a paid client meeting can also change satisfaction.',
     relatedGlossaryTerms: ['client-affinity', 'direct-lobbying'],
   },
   'clients-contract': {
@@ -156,7 +156,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Contract Duration',
     shortDescription: 'Months remaining on each client\'s engagement.',
-    grExplanation: 'When a contract expires, renewal odds depend on both client satisfaction and current service coverage. An overloaded team has weaker renewal odds even with a happy client; with no billable staff, a contract cannot renew. Check capacity before taking on more clients or letting a contract reach its final month.',
+    grExplanation: 'When a contract expires, renewal odds depend on both client satisfaction and current service coverage. The expiry warning shows the monthly fee at risk and its share of current contracted monthly revenue: that fee divided by all active clients’ monthly fees. An overloaded team has weaker renewal odds even with a happy client; with no billable staff, a contract cannot renew. Within three months of expiry, you may spend $1,000 on a client meeting to raise satisfaction, using the firm’s one meeting slot that month. This helps but does not guarantee renewal.',
     relatedGlossaryTerms: ['retainer', 'book-of-business'],
   },
   'clients-type': {
@@ -198,7 +198,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/inbox',
     metricName: 'Decision Choices',
     shortDescription: 'The realistic options a managing partner would face.',
-    grExplanation: 'Each choice represents a real trade-off. Approving a raise costs money but retains talent. Scheduling a client meeting takes time but may save the relationship. Pursuing new business aggressively uses resources but grows revenue. There are rarely perfect answers — experienced GR leaders weigh costs, relationships, and long-term consequences.',
+    grExplanation: 'Each choice shows its modeled effects or chance of success. Approving a raise increases pay and efficacy. Responding personally to client feedback improves satisfaction without a separate cash charge; the paid monthly client meeting is an action on the Clients page. New business can add revenue and service workload. Compare the stated effects before deciding, then read the recorded outcome.',
     relatedGlossaryTerms: ['managing-partner', 'book-of-business'],
   },
 

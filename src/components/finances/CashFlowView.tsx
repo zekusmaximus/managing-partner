@@ -16,6 +16,7 @@ const movementLabels: Record<CashMovement['kind'], string> = {
   hiring: 'Hiring cost',
   severance: 'Severance',
   'staff-recovery': 'Staff recovery program',
+  'client-meeting': 'Client meeting',
   'loc-draw': 'Line of credit draw',
   'loc-repayment': 'Line of credit repayment',
   unclassified: 'Unclassified prior activity',
@@ -23,7 +24,7 @@ const movementLabels: Record<CashMovement['kind'], string> = {
 
 const movementOrder: CashMovement['kind'][] = [
   'partner-distribution', 'tax-payment', 'equipment-purchase', 'repair',
-  'hiring', 'severance', 'staff-recovery', 'loc-draw', 'loc-repayment', 'unclassified',
+  'hiring', 'severance', 'staff-recovery', 'client-meeting', 'loc-draw', 'loc-repayment', 'unclassified',
 ];
 
 interface WaterfallItem {
@@ -55,6 +56,9 @@ export default function CashFlowView() {
   const repayMaximum = Math.min(lineOfCredit.drawn, Math.max(0, financials.cashOnHand));
   const locMaximum = locAction === 'draw' ? locAvailable : repayMaximum;
   const validLOCAmount = isValidAmount(locAmount) && locAmount <= locMaximum;
+  const projectedLOCInterest = validLOCAmount
+    ? getLOCMonthlyInterest({ ...lineOfCredit, drawn: lineOfCredit.drawn + (locAction === 'draw' ? locAmount : -locAmount) })
+    : locInterest;
 
   const currentEntry = financialHistory.at(-1);
   const openingCash = currentEntry?.openingCash ?? null;
@@ -339,6 +343,22 @@ export default function CashFlowView() {
               ? `Available to draw: $${locAvailable.toLocaleString()}`
               : `Maximum repayable now: $${repayMaximum.toLocaleString()} (balance: $${lineOfCredit.drawn.toLocaleString()})`}
           />
+          {validLOCAmount && <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5, mt: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>Effect of this {locAction === 'draw' ? 'draw' : 'repayment'}</Typography>
+            <Typography variant="body2" color="success.main">
+              {locAction === 'draw'
+                ? `+${formatCash(locAmount).slice(1)} cash now.`
+                : `−${formatCash(locAmount).slice(1)} debt outstanding.`}
+            </Typography>
+            <Typography variant="body2" color="error.main">
+              {locAction === 'draw'
+                ? `+${formatCash(locAmount).slice(1)} debt outstanding.`
+                : `−${formatCash(locAmount).slice(1)} cash now.`}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Estimated monthly interest: ${locInterest.toLocaleString()} → ${projectedLOCInterest.toLocaleString()}. Credit principal is not revenue or an expense.
+            </Typography>
+          </Box>}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setLocDialogOpen(false)}>Cancel</Button>

@@ -1,5 +1,5 @@
 import type { Client, InboxMessage, InboxScenario, SimulationState } from '@/types/simulation';
-import { BENEFITS_RATE } from '@/types/simulation';
+import { BENEFITS_RATE, QUARTERLY_TAX_LATE_RATE } from '@/types/simulation';
 import { getOverdueClientAccount } from './engine';
 
 export interface ScenarioDeps {
@@ -32,9 +32,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       description: `${emp.name} is requesting a salary increase. They cite market conditions and their contributions to recent client wins. Current salary: $${emp.salary.toLocaleString()}/mo.`,
       urgency: 'medium', requiresAction: true, read: false,
       choices: [
-        { id: 'approve', label: 'Approve (+15%)', effect: 'Salary +15%; efficacy +5' },
+        { id: 'approve', label: 'Approve (+15%)', effect: 'Efficacy +5; monthly salary +15%, with higher payroll costs' },
         { id: 'deny', label: 'Deny Request', effect: 'Efficacy -10; burnout +15' },
-        { id: 'counter', label: 'Counter Offer (+8%)', effect: 'Salary +8%; efficacy +2' },
+        { id: 'counter', label: 'Counter Offer (+8%)', effect: 'Efficacy +2; monthly salary +8%, with higher payroll costs' },
       ],
       scenario: { kind: 'raise-request', employeeId: emp.id },
       timestamp: deps.now(),
@@ -51,8 +51,8 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       description: `${client.name} has submitted negative feedback about our services. They mention slow response times and lack of visibility on legislative updates.`,
       urgency: 'high', requiresAction: true, read: false,
       choices: [
-        { id: 'address', label: 'Schedule Meeting', effect: 'Client satisfaction +15' },
-        { id: 'assign', label: 'Add Service Check-ins', effect: 'Client satisfaction +8' },
+        { id: 'address', label: 'Respond Personally', effect: 'Client satisfaction +15; no additional cash cost' },
+        { id: 'assign', label: 'Add Service Check-ins', effect: 'Client satisfaction +8; no added monthly expense' },
         { id: 'ignore', label: 'Defer for Now', effect: 'Client satisfaction -10' },
       ],
       scenario: { kind: 'client-feedback', clientId: client.id },
@@ -78,9 +78,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
         description: `${name} (${type}) has expressed interest in our government relations services. They have a monthly budget of $12,000-$18,000.`,
         urgency: 'medium', requiresAction: true, read: false,
         choices: [
-          { id: 'pursue', label: 'Pursue Aggressively', effect: '70% chance of signing the client' },
-          { id: 'initial-contact', label: 'Initial Contact', effect: '50% chance of signing the client' },
-          { id: 'pass', label: 'Pass on Opportunity', effect: 'No effect' },
+          { id: 'pursue', label: 'Pursue Aggressively', effect: '70% chance of a $15,000/mo client; no immediate cost, but service workload rises if signed' },
+          { id: 'initial-contact', label: 'Initial Contact', effect: '50% chance of a $15,000/mo client; no immediate cost, but service workload rises if signed' },
+          { id: 'pass', label: 'Pass on Opportunity', effect: 'No new revenue or service workload' },
         ],
         scenario: { kind: 'new-client', name, clientType: type, monthlyFee: 15000 },
         timestamp: deps.now(),
@@ -99,9 +99,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       description: `Your office lease is up for renewal. The landlord is proposing an 8% increase from $${currentRent.toLocaleString()} to $${(currentRent + increase).toLocaleString()}/month. Current market rates for comparable K Street office space range from $${Math.round(currentRent * 0.85).toLocaleString()} to $${Math.round(currentRent * 1.12).toLocaleString()}.`,
       urgency: 'high', requiresAction: true, read: false,
       choices: [
-        { id: 'accept-rent', label: 'Accept Increase', effect: `Rent increases to $${(currentRent + increase).toLocaleString()}/mo` },
-        { id: 'negotiate-rent', label: 'Negotiate (50% chance of 4%)', effect: 'May reduce increase to 4%' },
-        { id: 'downgrade-rent', label: 'Move to Cheaper Space', effect: 'Save $3,000/mo but lose 5 reputation' },
+        { id: 'accept-rent', label: 'Accept Increase', effect: `Keep the current space; rent rises $${increase.toLocaleString()}/mo to $${(currentRent + increase).toLocaleString()}/mo` },
+        { id: 'negotiate-rent', label: 'Negotiate (50% chance of 4%)', effect: `50% chance rent rises 4% to $${Math.round(currentRent * 1.04).toLocaleString()}/mo; otherwise it rises 8% to $${Math.round(currentRent * 1.08).toLocaleString()}/mo` },
+        { id: 'downgrade-rent', label: 'Move to Cheaper Space', effect: `Save $${Math.min(3000, currentRent).toLocaleString()}/mo; reputation -5` },
       ],
       scenario: { kind: 'lease-renewal', currentRent },
       timestamp: deps.now(),
@@ -120,9 +120,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
         description: `A new IT services provider, TechForward Solutions, is offering managed IT services at $${(itVendor.monthlyCost - savings).toLocaleString()}/mo — 20% less than your current vendor (${itVendor.name}, $${itVendor.monthlyCost.toLocaleString()}/mo). They promise faster response times but are a newer company.`,
         urgency: 'low', requiresAction: true, read: false,
         choices: [
-          { id: 'switch-vendor', label: 'Switch to New Vendor', effect: `Reduce the monthly fee by about $${savings.toLocaleString()}` },
-          { id: 'keep-vendor', label: 'Stay with Current', effect: 'No change, continued reliability' },
-          { id: 'negotiate-vendor', label: 'Negotiate with Current', effect: '50% chance of 10% discount' },
+          { id: 'switch-vendor', label: 'Switch to New Vendor', effect: `Save $${savings.toLocaleString()}/mo; switch providers` },
+          { id: 'keep-vendor', label: 'Stay with Current', effect: 'Keep the current provider and monthly cost' },
+          { id: 'negotiate-vendor', label: 'Negotiate with Current', effect: '50% chance of a 10% monthly discount; otherwise cost stays the same' },
         ],
         scenario: { kind: 'it-vendor', vendorId: itVendor.id, quotedMonthlyCost: itVendor.monthlyCost },
         timestamp: deps.now(),
@@ -139,9 +139,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       description: `Your health insurance broker notified you that premiums are increasing 12% at renewal. This adds approximately $${increase.toLocaleString()}/mo to your benefits costs across all ${currentState.employees.length} employees.`,
       urgency: 'high', requiresAction: true, read: false,
       choices: [
-        { id: 'absorb-benefits', label: 'Absorb the Cost', effect: `Operating costs increase by ~$${increase.toLocaleString()}/mo` },
-        { id: 'pass-benefits', label: 'Pass to Employees', effect: 'No cost increase but burnout +10 across all staff' },
-        { id: 'cheaper-plan', label: 'Switch to Cheaper Plan', effect: 'Costs stay flat; efficacy -3 across staff' },
+        { id: 'absorb-benefits', label: 'Absorb the Cost', effect: `Staff effectiveness and burnout stay steady; monthly operating costs +$${increase.toLocaleString()}` },
+        { id: 'pass-benefits', label: 'Pass to Employees', effect: 'Monthly costs stay flat; burnout +10 across all staff' },
+        { id: 'cheaper-plan', label: 'Switch to Cheaper Plan', effect: 'Monthly costs stay flat; efficacy -3 across all staff' },
       ],
       scenario: { kind: 'benefits-increase', monthlyIncrease: increase },
       timestamp: deps.now(),
@@ -157,9 +157,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       description: `The distribution pool has accumulated $${Math.round(pool).toLocaleString()}. As managing partner, you need to decide on the quarterly distribution. Your current cash position is $${currentState.financials.cashOnHand.toLocaleString()}.`,
       urgency: 'medium', requiresAction: true, read: false,
       choices: [
-        { id: 'full-distribution', label: `Distribute Full ($${Math.round(pool).toLocaleString()})`, effect: 'Reduces cash by the amount paid; reduces the distribution pool' },
-        { id: 'partial-distribution', label: `Distribute Half ($${Math.round(pool / 2).toLocaleString()})`, effect: 'Reduces cash and pool by half the available amount' },
-        { id: 'defer-distribution', label: 'Defer to Next Quarter', effect: 'Cash stays unchanged; pool carries forward' },
+        { id: 'full-distribution', label: `Distribute Full ($${Math.round(pool).toLocaleString()})`, effect: 'Partners receive the full pool; firm cash and distribution pool fall by the amount paid' },
+        { id: 'partial-distribution', label: `Distribute Half ($${Math.round(pool / 2).toLocaleString()})`, effect: 'Partners receive half; firm cash and distribution pool fall by the amount paid' },
+        { id: 'defer-distribution', label: 'Defer to Next Quarter', effect: 'Preserve firm cash now; partners receive nothing and the pool carries forward' },
       ],
       scenario: { kind: 'partner-distribution', availablePool: pool },
       timestamp: deps.now(),
@@ -180,9 +180,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       description: `${overdueClient.clientName} has $${overdueAmount.toLocaleString()} in invoices that are 61–90 days outstanding. Total 61+ day AR across all accounts: $${Math.round(currentState.arAging.sixtyDay + currentState.arAging.ninetyPlus).toLocaleString()}.`,
       urgency: 'high', requiresAction: true, read: false,
       choices: [
-        { id: 'demand-letter', label: 'Send Formal Demand', effect: 'Collect 60% now; client satisfaction -5' },
-        { id: 'personal-call', label: 'Personal Call from Partner', effect: 'Collect 40% now; satisfaction unchanged' },
-        { id: 'write-off-ar', label: 'Write Off Balance', effect: 'Remove this balance from AR as bad debt expense' },
+        { id: 'demand-letter', label: 'Send Formal Demand', effect: 'Collect 60% of the remaining 61–90 day balance now; client satisfaction -5' },
+        { id: 'personal-call', label: 'Personal Call from Partner', effect: 'Collect 40% of the remaining 61–90 day balance now; satisfaction unchanged' },
+        { id: 'write-off-ar', label: 'Write Off Balance', effect: 'Clear the remaining 61–90 day balance; no cash comes in, and bad debt expense rises while profit falls by that amount' },
       ],
       scenario: { kind: 'collections-problem', clientId: overdueClient.clientId ?? undefined, overdueAmount },
       timestamp: deps.now(),
@@ -204,9 +204,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       description: `${item.category} spending has exceeded the quarterly budget by $${overrun.toLocaleString()} (${item.plannedQuarterly > 0 ? `${Math.round(overrun / item.plannedQuarterly * 100)}% over` : 'unbudgeted spend'}). Planned: $${item.plannedQuarterly.toLocaleString()}, Actual: $${Math.round(item.actualQuarterlySpend).toLocaleString()}.`,
       urgency: 'medium', requiresAction: true, read: false,
       choices: [
-        { id: 'cut-elsewhere', label: 'Cut Misc Spending', effect: 'Reduces monthly misc spending by 20% until changed' },
+        { id: 'cut-elsewhere', label: 'Cut Misc Spending', effect: 'Future monthly misc costs fall 20%; the already recorded overrun remains' },
         { id: 'accept-overrun', label: 'Accept Overrun', effect: 'No action, budget stays exceeded' },
-        { id: 'reallocate', label: 'Reallocate Budget', effect: 'Moves funds from underspent categories' },
+        { id: 'reallocate', label: 'Reallocate Budget', effect: 'Moves budget from underspent categories; does not change cash or actual spending' },
       ],
       scenario: { kind: 'budget-overrun', category: item.category, quarter, year: currentState.year },
       timestamp: deps.now(),
@@ -221,9 +221,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       description: `The office ${equipment} has failed and needs replacement. This is affecting daily operations. Choose between immediate cash costs and a monthly lease.`,
       urgency: 'high', requiresAction: true, read: false,
       choices: [
-        { id: 'buy-equipment', label: 'Buy New ($8,000)', effect: 'Cash decreases by $8,000' },
-        { id: 'lease-equipment', label: 'Lease ($300/mo)', effect: 'Adds a $300 monthly vendor cost' },
-        { id: 'temp-fix', label: 'Temporary Fix ($1,000)', effect: 'Cash decreases by $1,000' },
+        { id: 'buy-equipment', label: 'Buy New ($8,000)', effect: 'Cash -$8,000 now; no recurring fee or immediate profit expense' },
+        { id: 'lease-equipment', label: 'Lease ($300/mo)', effect: 'Preserve cash now; add a $300 monthly vendor cost' },
+        { id: 'temp-fix', label: 'Temporary Fix ($1,000)', effect: 'Cash -$1,000 now; profit -$1,000 as a repair expense' },
       ],
       scenario: { kind: 'equipment-failure' },
       timestamp: deps.now(),
@@ -239,9 +239,9 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
         description: `The firm owes $${estimatedTax.toLocaleString()} in estimated taxes and late charges: $${currentState.taxPosition.principalDue.toLocaleString()} in tax and $${currentState.taxPosition.penaltiesDue.toLocaleString()} in penalties. Choose how much to pay now.`,
         urgency: 'medium', requiresAction: true, read: false,
         choices: [
-          { id: 'pay-taxes', label: `Pay Full Balance ($${estimatedTax.toLocaleString()})`, effect: 'Cash decreases by the full outstanding amount' },
-          { id: 'defer-taxes', label: 'Pay Nothing Now', effect: 'Cash stays unchanged; unpaid tax can accrue penalties' },
-          { id: 'accelerate-expenses', label: 'Pay 60% Now', effect: 'Cash decreases by 60% of the outstanding amount' },
+          { id: 'pay-taxes', label: `Pay Full Balance ($${estimatedTax.toLocaleString()})`, effect: 'Clear the quoted balance; cash falls by the amount paid' },
+          { id: 'defer-taxes', label: 'Pay Nothing Now', effect: `Keep cash now; unpaid principal faces a ${(QUARTERLY_TAX_LATE_RATE * 100).toFixed(0)}% charge next quarter` },
+          { id: 'accelerate-expenses', label: 'Pay 60% Now', effect: `Reduce the tax balance and cash by 60% of the quoted total; remaining principal can face a ${(QUARTERLY_TAX_LATE_RATE * 100).toFixed(0)}% charge next quarter` },
         ],
         scenario: { kind: 'tax-planning', estimatedTax },
         timestamp: deps.now(),

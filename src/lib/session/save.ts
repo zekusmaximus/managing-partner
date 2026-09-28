@@ -71,7 +71,7 @@ const financialHistoryEntry: Check = (value) => fields(value, {
 const cashMovement: Check = (value) => {
   if (!fields(value, {
     kind: oneOf('loc-draw', 'loc-repayment', 'partner-distribution', 'tax-payment',
-      'equipment-purchase', 'hiring', 'severance', 'staff-recovery', 'repair', 'unclassified'),
+      'equipment-purchase', 'hiring', 'severance', 'staff-recovery', 'client-meeting', 'repair', 'unclassified'),
     amount: finite,
   })) return false;
   const movement = value as { kind: string; amount: number };
@@ -133,6 +133,9 @@ const inboxMessage: Check = (value) => fields(value, {
   choiceId: text, summary: text,
 }));
 
+const alertActionTarget: Check = (value) => fields(value, { kind: oneOf('clients', 'ar') }) ||
+  fields(value, { kind: oneOf('client'), clientId: text });
+
 const simulationStateBase: Check = (value) => fields(value, {
   month, year,
   financials: (financials) => fields(financials, {
@@ -147,7 +150,7 @@ const simulationStateBase: Check = (value) => fields(value, {
   alerts: arrayOf((alert) => fields(alert, {
     id: text, type: oneOf('warning', 'info', 'error', 'success'),
     message: text, timestamp,
-  })),
+  }) && record(alert) && (alert.actionTarget === undefined || alertActionTarget(alert.actionTarget))),
   inbox: arrayOf(inboxMessage), operatingCosts,
   vendors: arrayOf((vendor) => fields(vendor, {
     id: text, name: text,
@@ -200,6 +203,8 @@ const simulationStateV4: Check = (value) => simulationStateV3(value) && record(v
   fields(value.taxPosition, { principalDue: nonnegative, penaltiesDue: nonnegative }) &&
   (value.lastManualCollection === undefined || value.lastManualCollection === null ||
     fields(value.lastManualCollection, { month, year })) &&
+  (value.lastClientMeeting === undefined || value.lastClientMeeting === null ||
+    fields(value.lastClientMeeting, { month, year, clientId: text })) &&
   Array.isArray(value.financialHistory) && value.financialHistory.every((entry) =>
     fields(entry, { taxExpense: nonnegative, taxPenalty: nonnegative }));
 
@@ -270,6 +275,8 @@ export function parseSession(raw: string): SessionSnapshot | null {
         ...simulation,
         lastManualCollection: parsed.version === SESSION_VERSION
           ? simulation.lastManualCollection ?? null : null,
+        lastClientMeeting: parsed.version === SESSION_VERSION
+          ? simulation.lastClientMeeting ?? null : null,
         receivables,
         financialHistory: (parsed.version >= 3
           ? simulation.financialHistory : migrateLegacyCashHistory(simulation.financialHistory))
