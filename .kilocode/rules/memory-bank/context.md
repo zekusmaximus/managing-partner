@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype on `main` after merged PR #8, with an interim playtest feedback pass in progress. Staffing influences service, satisfaction, and renewals; repeatable free client controls are removed and manual collections are limited to once per game month. Early notes identified warnings without clear responses and unclear action tradeoffs. The follow-up adds a paid client meeting, warning links, and explicit finance consequences. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid. Further new-player observations remain pending.
+**Project Status**: Playable single-browser prototype with a focused decision-loop pass on `codex/service-retention-cash-loop` after merged PR #8. Staffing influences service, satisfaction, and renewals; client meetings and manual collections are each limited to once per game month. The dashboard now distinguishes current warning conditions from dated outcomes and shows an expiring client's monthly fee and share of current contracted revenue. Aggressive new-client pursuit has a $3,000 expense even when unsuccessful. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid, including their pending offer copy. The existing new-player notes are preliminary; more sessions are needed to validate comprehension.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -130,6 +130,16 @@ Keep the simplified game model internally consistent and make decision consequen
 - Old expiry alerts may remain after a renewal or departure, so the dashboard labels those as historical instead of presenting a stale amount as current exposure. Help and tutorial copy explain the denominator, and the next playtest script asks players to read and interpret the figure without opening the roster.
 - Verification: 85 Bun tests, typecheck, lint, and the production build pass.
 
+## Focused Decision Loop Pass (2026-09-28)
+
+- The existing expiry warning displays the active client's monthly fee at risk and its share of all active clients' monthly fees, then links to that client. This is a contracted run-rate measure, not a cash forecast or guarantee of churn.
+- Current warning conditions are projected from saved alerts against present client, AR, cash, credit, budget, and staff state. Duplicate or resolved condition snapshots no longer raise the current alert count; contract and meeting outcomes remain visible as dated events. The 90+ day AR warning directs players to review collection options before choosing a noncash write-off.
+- The firm can still hold one $1,000 client meeting and make one manual collection attempt per game month. Client meeting and finance previews show their distinct cash, AR, and profit effects. The phone finance report selector and month/YTD P&L switch are retained for the next usability sessions.
+- Aggressive pursuit now pays a $3,000 one-time operating expense regardless of signing result, in return for a 70% chance of a new $15,000/month client. Initial contact has a 50% chance and no pursuit expense. The cost enters cash, current-month profit, Misc budget actuals, and the cash waterfall. Older version 4 saves with pending offers get current choice copy before a player decides, without expanding persistence or changing the save version.
+- `docs/new-player-playtest.md` treats the shared notes as preliminary and tests warning status, action paths, meeting limits, collection versus write-off, pursuit tradeoffs, and phone finance discovery. No new human playtest result is claimed. Deeper tax accounting and save portability remain deferred until feedback supports them.
+- Verification: 93 Bun tests, typecheck, lint, and production build pass. All five routes were swept at 390, 768, 1280, and 1440px with no document overflow. At 390px, keyboard checks reached the financial report selector and YTD P&L, followed an expiry warning to the selected client meeting, and completed a meeting with a dated outcome. The old expiry warning left the current count after renewal; the AR link reached the collections quote and monthly cooldown. The new-client pursuit quote and cash/profit outcome were also checked. The browser console error/warn log was empty.
+- The seeded 24-month, five-seed report was rerun after the pursuit cost and refreshed in `docs/service-balance-simulation.md`. Stewardship now ends at mean $547,125 cash and $482,869 cumulative profit; these are scripted model results, not new-player observations.
+
 ## Session History
 
 | Date | Changes |
@@ -152,3 +162,4 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-27 | Implemented service/retention and collections constraints, mobile dashboard/finance improvements, a seeded balance report, and a new-player session plan; human notes pending |
 | 2026-09-27 | Opened PR #8 for the client-service and mobile usability pass; user will run new-player sessions after merging and share notes |
 | 2026-09-28 | Recorded early playtest feedback; implemented client meetings, warning actions, and finance consequence previews; full quality gate passes and further sessions remain pending |
+| 2026-09-28 | Started the focused warning-status and pursuit-cost pass; updated the new-player script while further human observations remain pending |

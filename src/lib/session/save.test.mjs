@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { SessionStore } from '@/context/SessionContext';
 import { fundStaffRecovery, getStaffRecoveryQuote } from '@/lib/simulation/burnout';
-import { scheduleClientMeeting, sumReceivables } from '@/lib/simulation/engine';
+import { applyInboxChoice, scheduleClientMeeting, sumReceivables } from '@/lib/simulation/engine';
 import {
   createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession, parseSession,
   serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
@@ -44,6 +44,34 @@ function removeV4TaxFields(snapshot) {
 }
 
 describe('versioned game save', () => {
+  test('refreshes an old pending pursuit quote and preserves its paid cash movement', () => {
+    const snapshot = createFreshSession();
+    const offer = {
+      id: 'old-offer', type: 'opportunity', title: 'New Client Interest', description: 'Opportunity', urgency: 'medium',
+      requiresAction: true, read: false, timestamp: new Date('2026-01-01T00:00:00.000Z'),
+      choices: [
+        { id: 'pursue', label: 'Pursue Aggressively', effect: '70% chance; no immediate cost' },
+        { id: 'initial-contact', label: 'Initial Contact', effect: '50% chance; no immediate cost' },
+      ],
+      scenario: { kind: 'new-client', name: 'PolicyLabs', clientType: 'Corporation', monthlyFee: 12000 },
+    };
+    snapshot.simulation.inbox = [offer];
+    const loaded = parseSession(serializeSession(snapshot));
+    expect(loaded).not.toBeNull();
+    expect(loaded.simulation.inbox[0].choices[0].effect).toContain('$12,000/mo');
+    expect(loaded.simulation.inbox[0].choices[0].effect).toContain('pay $3,000 now');
+    expect(loaded.simulation.inbox[0].choices[1].effect).toContain('no immediate cost');
+
+    loaded.simulation = applyInboxChoice(loaded.simulation, 'old-offer', 'pursue', {
+      random: () => 0, generateId: () => 'unused',
+    });
+    const reloaded = parseSession(serializeSession(loaded));
+    expect(reloaded).not.toBeNull();
+    expect(reloaded.simulation.financialHistory.at(-1).cashMovements)
+      .toContainEqual({ kind: 'client-pursuit', amount: -3000 });
+    expect(reloaded.simulation.financials.cashOnHand).toBe(snapshot.simulation.financials.cashOnHand - 3000);
+  });
+
   test('restores simulation, tutorial, and alert/message Dates together', () => {
     const snapshot = createFreshSession();
     snapshot.simulation.month = 3;

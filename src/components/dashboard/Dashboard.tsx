@@ -10,9 +10,20 @@ import type { Alert as SimulationAlert, SimulationState } from '@/types/simulati
 import HelpTooltip from '@/components/help/HelpTooltip';
 import { calculateProfitAndLoss } from '@/lib/simulation/metrics';
 import { getClientServiceCoverage } from '@/lib/simulation/clientService';
+import { selectCurrentAlerts, selectOutcomeAlerts } from '@/lib/simulation/alerts';
 
 type AlertAction = { label: string; href: string };
 type AlertGuidance = { impact?: string; consequence: string; actions: AlertAction[] };
+
+const outcomeGamePeriod = (alert: SimulationAlert): string => {
+  const match = alert.id.match(/^(?:contract-renewed|contract-churned|service-shortfall|client-meeting)-(\d{4})-(\d{1,2})(?:-|$)/);
+  if (!match) return 'Earlier result';
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12
+    ? new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : 'Earlier result';
+};
 
 const getAlertGuidance = (alert: SimulationAlert, state: SimulationState): AlertGuidance | null => {
   const message = alert.message;
@@ -56,7 +67,7 @@ const getAlertGuidance = (alert: SimulationAlert, state: SimulationState): Alert
       : '/clients';
     return {
       consequence: isNinetyPlus
-        ? 'This balance is at risk. A write-off clears it from receivables but records a bad-debt expense.'
+        ? 'Try to collect overdue invoices before deciding whether to recognize an uncollectible balance as bad debt. A write-off brings in no cash.'
         : 'Unpaid invoices delay cash and can age into the 90+ day bucket.',
       actions: [
         { label: 'Review collections', href: '/finances#accounts-receivable' },
@@ -88,7 +99,7 @@ const getAlertGuidance = (alert: SimulationAlert, state: SimulationState): Alert
     actions: [{ label: 'Review budget', href: '/finances#budget' }],
   };
   if (alert.id.startsWith('contract-churned-')) return {
-    consequence: 'The client no longer pays a monthly fee. Existing receivables can still be collected.',
+    consequence: 'That contract stopped billing when the client left. Receivables from that contract may still be collectible.',
     actions: [{ label: 'Review receivables', href: '/finances#accounts-receivable' }],
   };
   return null;
@@ -96,6 +107,8 @@ const getAlertGuidance = (alert: SimulationAlert, state: SimulationState): Alert
 
 export const Dashboard = () => {
   const { state, dismissAlert } = useSimulation();
+  const currentAlerts = selectCurrentAlerts(state);
+  const outcomeAlerts = selectOutcomeAlerts(state);
 
   // Format financial history for chart
   const chartData = state.financialHistory.map(entry => ({
@@ -119,8 +132,8 @@ export const Dashboard = () => {
   const totalClientRevenue = state.clients.reduce((sum, c) => sum + c.monthlyFee, 0);
   const serviceCoverage = getClientServiceCoverage(state);
   const unreadMessages = state.inbox.filter(message => !message.read).length;
-  const nextAction = state.alerts.length > 0
-    ? { label: 'Review alerts', href: '#alerts', description: 'Check active alerts before advancing the month.' }
+  const nextAction = currentAlerts.length > 0
+    ? { label: 'Review alerts', href: '#alerts', description: 'Check current conditions before advancing the month.' }
     : unreadMessages > 0
       ? { label: 'Open inbox', href: '/inbox', description: 'Handle unread messages before advancing the month.' }
       : { label: 'Review clients', href: '/clients', description: 'Check client health before advancing the month.' };
@@ -173,8 +186,8 @@ export const Dashboard = () => {
                 </Box>
                 <Chip
                   size="small"
-                  label={`${state.alerts.length} alert${state.alerts.length === 1 ? '' : 's'}`}
-                  color={state.alerts.length > 0 ? 'warning' : 'success'}
+                  label={`${currentAlerts.length} current condition${currentAlerts.length === 1 ? '' : 's'}`}
+                  color={currentAlerts.length > 0 ? 'warning' : 'success'}
                 />
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -298,19 +311,19 @@ export const Dashboard = () => {
           <Card id="alerts">
             <CardHeader
               title="Alerts & Notifications"
-              subheader={`${state.alerts.length} active alert(s)`}
+              subheader={`${currentAlerts.length} current condition${currentAlerts.length === 1 ? '' : 's'} · ${outcomeAlerts.length} recorded outcome${outcomeAlerts.length === 1 ? '' : 's'}`}
               sx={{ pb: { xs: 0, sm: 1 }, '& .MuiCardHeader-title': { fontSize: { xs: '1.25rem', sm: '1.5rem' } } }}
             />
             <CardContent sx={{ pt: { xs: 1, sm: 2 } }}>
               {state.alerts.length > 0 && <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Alerts record conditions when raised and may remain after you act. Check current figures, then dismiss an alert once handled.
+                Current conditions reflect today&apos;s figures. Recorded outcomes describe earlier decisions or month-end results.
               </Typography>}
-              {state.alerts.length === 0 ? (
+              {currentAlerts.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  No alerts at this time.
+                  No current conditions need attention.
                 </Typography>
               ) : (
-                state.alerts.map((alert) => {
+                currentAlerts.map((alert) => {
                   const guidance = getAlertGuidance(alert, state);
                   return <Box key={alert.id} sx={{ mb: 2, p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1 }}>
                     <Chip
@@ -329,6 +342,29 @@ export const Dashboard = () => {
                   </Box>;
                 })
               )}
+              {outcomeAlerts.length > 0 && <>
+                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Recorded outcomes</Typography>
+                {outcomeAlerts.map(alert => {
+                  const guidance = getAlertGuidance(alert, state);
+                  return <Box key={alert.id} sx={{ mb: 2, p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                      {outcomeGamePeriod(alert)} · Recorded outcome
+                    </Typography>
+                    <Chip
+                      label={alert.message}
+                      color={alert.type === 'error' ? 'error' : alert.type === 'warning' ? 'warning' : alert.type === 'success' ? 'success' : 'info'}
+                      onDelete={() => dismissAlert(alert.id)}
+                      sx={{ width: '100%', height: 'auto', justifyContent: 'space-between', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.75 } }}
+                    />
+                    {guidance && <>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{guidance.consequence}</Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                        {guidance.actions.map(action => <Button key={action.href} component={Link} href={action.href} size="small" variant="outlined">{action.label}</Button>)}
+                      </Box>
+                    </>}
+                  </Box>;
+                })}
+              </>}
             </CardContent>
           </Card>
         </Grid>

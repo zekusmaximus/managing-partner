@@ -17,6 +17,7 @@ const movementLabels: Record<CashMovement['kind'], string> = {
   severance: 'Severance',
   'staff-recovery': 'Staff recovery program',
   'client-meeting': 'Client meeting',
+  'client-pursuit': 'New-client pursuit',
   'loc-draw': 'Line of credit draw',
   'loc-repayment': 'Line of credit repayment',
   unclassified: 'Unclassified prior activity',
@@ -24,7 +25,7 @@ const movementLabels: Record<CashMovement['kind'], string> = {
 
 const movementOrder: CashMovement['kind'][] = [
   'partner-distribution', 'tax-payment', 'equipment-purchase', 'repair',
-  'hiring', 'severance', 'staff-recovery', 'client-meeting', 'loc-draw', 'loc-repayment', 'unclassified',
+  'hiring', 'severance', 'staff-recovery', 'client-meeting', 'client-pursuit', 'loc-draw', 'loc-repayment', 'unclassified',
 ];
 
 interface WaterfallItem {

@@ -466,6 +466,55 @@ describe('inbox decisions and amount guards', () => {
     expect(lost.inbox[0].resolution.summary).toContain('did not sign');
   });
 
+  test('aggressive pursuit pays its quoted expense whether the prospect signs or not', () => {
+    const initial = createInitialSimulationState();
+    const message = {
+      id: 'pursuit', type: 'opportunity', title: 'New Client Interest', description: 'Opportunity', urgency: 'medium',
+      requiresAction: true, read: false, timestamp: new Date(),
+      choices: [{ id: 'pursue', label: 'Pursue Aggressively', effect: 'Pay $3,000 now' }],
+      scenario: { kind: 'new-client', name: 'PolicyLabs', clientType: 'Corporation', monthlyFee: 15000 },
+    };
+    const priorMisc = initial.budget.find(item => item.category === 'Misc').actualQuarterlySpend;
+    for (const [random, signed] of [[() => 0.9, true], [() => 0.1, false]]) {
+      const result = applyInboxChoice({ ...initial, inbox: [message] }, 'pursuit', 'pursue', {
+        random, generateId: () => 'new-client-id',
+      });
+      expect(result.clients.length).toBe(initial.clients.length + Number(signed));
+      expect(result.financials.cashOnHand).toBe(initial.financials.cashOnHand - 3000);
+      expect(result.financials.operatingExpenses).toBe(initial.financials.operatingExpenses + 3000);
+      expect(result.financials.netProfit).toBe(initial.financials.netProfit - 3000);
+      expect(result.financialHistory.at(-1).cashMovements).toContainEqual({ kind: 'client-pursuit', amount: -3000 });
+      expect(result.financialHistory.at(-1).oneTimeOperatingExpenses).toBe(3000);
+      expect(result.financialHistory.at(-1).cashOnHand).toBe(result.financials.cashOnHand);
+      expect(result.budget.find(item => item.category === 'Misc').actualQuarterlySpend).toBe(priorMisc + 3000);
+      expect(calculateProfitAndLoss([result.financialHistory.at(-1)]).oneTimeOperatingExpenses).toBe(3000);
+      expect(result.inbox[0].resolution.summary).toContain('$3,000 one-time pursuit expense reduced cash and profit');
+      expect(applyInboxChoice(result, 'pursuit', 'pursue', { random, generateId: () => 'unused' })).toBe(result);
+    }
+  });
+
+  test('initial contact and passing on a prospect do not pay a pursuit expense', () => {
+    const initial = createInitialSimulationState();
+    const message = {
+      id: 'contact', type: 'opportunity', title: 'New Client Interest', description: 'Opportunity', urgency: 'medium',
+      requiresAction: true, read: false, timestamp: new Date(),
+      choices: [
+        { id: 'initial-contact', label: 'Initial Contact', effect: 'Free' },
+        { id: 'pass', label: 'Pass', effect: 'No action' },
+      ],
+      scenario: { kind: 'new-client', name: 'PolicyLabs', clientType: 'Corporation', monthlyFee: 15000 },
+    };
+    for (const choice of ['initial-contact', 'pass']) {
+      const result = applyInboxChoice({ ...initial, inbox: [message] }, 'contact', choice, {
+        random: () => 0.9, generateId: () => 'new-client-id',
+      });
+      expect(result.financials.cashOnHand).toBe(initial.financials.cashOnHand);
+      expect(result.financials.netProfit).toBe(initial.financials.netProfit);
+      expect(result.financialHistory.at(-1).cashMovements).toEqual([]);
+      expect(result.budget).toBe(initial.budget);
+    }
+  });
+
   test('stale rent and vendor quotes close without changing costs', () => {
     const state = createInitialSimulationState();
     const base = {

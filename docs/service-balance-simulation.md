@@ -2,7 +2,7 @@
 
 These are **deterministic scripted simulations, not new-player playtest results or forecasts**. The harness starts from the January 2026 opening state and advances 24 months across seeds `7, 23, 41, 89, 127`. Each value below is the mean of five runs, rounded as shown. The opening January snapshot is excluded from cumulative profit and event counts.
 
-Run `bun run scripts/balance-report.ts` to reproduce the full JSON report, including each seed. The policy choices are described in the [earlier cash-pressure report](balance-simulation.md#scripted-decisions). The policies do not use the manual **Run Collections** button or the later client meeting action, so this report isolates the staffing and retention loop; those actions' monthly limits are covered by focused tests and the [new-player test script](new-player-playtest.md).
+Run `bun run scripts/balance-report.ts` to reproduce the full JSON report, including each seed. The policy choices are described in the [earlier cash-pressure report](balance-simulation.md#scripted-decisions). This table was refreshed after aggressive new-client pursuit gained a $3,000 one-time cost. Stewardship chooses that option; cash guard and cash pressure pass on prospects. The policies do not use the manual **Run Collections** button or the later client meeting action, so those actions' monthly limits are covered by focused tests and the [new-player test script](new-player-playtest.md).
 
 ## Revised service rule
 
@@ -12,16 +12,16 @@ Lobbyists and attorneys provide two client slots each at 80% combined quality (7
 
 | Metric | Stewardship | Cash pressure | Cash guard (no recovery) |
 | --- | ---: | ---: | ---: |
-| Ending cash | $457,162 | $192,823 | -$117,238 |
+| Ending cash | $547,125 | $192,823 | -$117,238 |
 | Minimum cash | $162,305 | $121,901 | -$117,610 |
 | Peak / ending credit drawn | $0 / $0 | $20,000 / $20,000 | $80,000 / $80,000 |
-| Cumulative profit | $354,197 | $15,610 | -$444,379 |
-| Ending clients | 8.6 | 5.6 | 0.4 |
-| Ending effective client slots | 9.1 | 7.7 | 0.4 |
-| Churn / renewals | 3.4 / 11.6 | 2.4 / 10.6 | 7.6 / 4.4 |
-| Ending mean burnout / efficacy | 23.1 / 94.9 | 36.3 / 78.8 | 100.0 / 6.0 |
-| Ending reputation | 92.4 | 86.2 | 21.0 |
-| Recovery spend | $26,700 | $22,900 | $0 |
+| Cumulative profit | $482,869 | $15,610 | -$444,379 |
+| Ending clients | 9.8 | 5.6 | 0.4 |
+| Ending effective client slots | 9.3 | 7.7 | 0.4 |
+| Churn / renewals | 3.4 / 12.2 | 2.4 / 10.6 | 7.6 / 4.4 |
+| Ending mean burnout / efficacy | 21.0 / 96.4 | 36.3 / 78.8 | 100.0 / 6.0 |
+| Ending reputation | 86.2 | 86.2 | 21.0 |
+| Recovery spend | $27,000 | $22,900 | $0 |
 | Full / targeted recovery actions | 3.6 / 0.0 | 1.8 / 9.4 | 0.0 / 0.0 |
 | Ending pending inbox decisions | 0.0 | 2.6 | 2.4 |
 
