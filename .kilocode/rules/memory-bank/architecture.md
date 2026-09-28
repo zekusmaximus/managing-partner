@@ -14,6 +14,8 @@ Next.js App Router provides five routes: dashboard (`/`), finances, HR, clients,
 - Financial history stores opening cash, recurring cash paid, and signed movements for one-time operating costs, equipment, tax payments, partner distributions, and line-of-credit principal. The January opening entry is a P&L run-rate snapshot with no recurring cash payment. The cash waterfall reconciles these recorded movements to the closing balance.
 - A fictional estimated tax expense is booked on positive pretax profit when a month opens. The unpaid principal and quarterly late charge are held in `taxPosition`; only payments move cash. The estimate is not revised when later actions alter that month’s P&L.
 - Manual collections use `lastManualCollection` to permit one attempt per game month. Version 4 saves may lack this additive field; parsing normalizes it to `null`. The save format version is unchanged.
+- `getClientMeetingQuote` and `scheduleClientMeeting` share eligibility and exact effects. A meeting is available for renewal, satisfaction, coverage, or client-specific overdue AR risk, costs $1,000 as a current-month operating cash/P&L movement, and uses one firmwide monthly slot. It raises the targeted client's satisfaction and collects a bounded amount from that client's 31+ day buckets, oldest first. `lastClientMeeting` is additive to version 4 saves and defaults to `null` for older records.
+- Alerts may carry an optional structured action target for reliable deep links; save validation accepts older alerts without it. Dashboard guidance maps warnings to the relevant client, AR, staffing, credit, or budget view. Alert messages are snapshots that players can dismiss after checking current values.
 - `TutorialContext` tracks steps and advances month-action steps explicitly. `TutorialOverlay` locates visible targets, supplies an accessible action fallback, and recognizes checkpoints that the game calendar has already passed.
 
 ## UI Pattern
@@ -21,6 +23,8 @@ Next.js App Router provides five routes: dashboard (`/`), finances, HR, clients,
 `AppShell` renders one full-width top bar and a sidebar below it on desktop. On smaller screens it uses a temporary navigation drawer. Pages provide their own content, while the shell owns navigation and the single Advance Month control.
 
 The phone dashboard shows cash, service coverage, alerts, and the next action before detailed metrics. Finance navigation switches from tabs to a report selector below 900px; the phone P&L uses a month/YTD toggle to keep amount and percentage columns readable.
+
+The Clients page displays a client-specific meeting quote and can open a selected client from a warning or AR row. Finance actions preview their modeled cash, AR, profit, debt, budget, or distribution effects before the player commits.
 
 ## Persistence and Testing
 

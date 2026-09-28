@@ -65,9 +65,18 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Put a compact decision brief and alerts above dashboard detail on phones; make finance reports selectable and year-to-date P&L readable without sideways scrolling.
 - [x] Re-run the seeded balance check under the revised service rule and prepare a new-player session script.
 
+## Interim Playtest Feedback Pass
+
+- [x] Record the first qualitative notes: overdue and approaching-renewal warnings lacked an obvious response, and action costs and benefits were unclear, especially bad-debt write-offs.
+- [x] Add a paid, once-per-month client meeting for renewal, satisfaction, service, or payment risk; show a client-specific estimate and record its cash, AR, profit, and budget effects.
+- [x] Link dashboard warnings and overdue AR rows to relevant actions, and explain that warning snapshots may remain after a player responds.
+- [x] Preview modeled AR write-off, collection, credit, budget, and distribution effects; clarify uncertain inbox outcomes.
+- [x] Verify the new meeting and save behavior with focused tests and run the full Bun quality gate. The existing scripted balance policies do not exercise meetings and their results are unchanged.
+
 ## Next Work
 
-- [ ] Run first-time-player sessions using `docs/new-player-playtest.md`; review participant notes and adjust service balance and UI where needed.
+- [ ] Continue first-time-player sessions using `docs/new-player-playtest.md`; verify that players can follow warnings to actions and predict their consequences, then review the notes.
+- [ ] Decide whether the higher-chance new-client pursuit needs a modeled cost; it currently dominates initial contact when judged by signing chance alone.
 - [ ] Decide whether the simplified month-opening tax estimate needs a deeper accounting model after playtesting.
 - [ ] Add a documented save export/import or account sync only if play across browsers or devices becomes a requirement.
 

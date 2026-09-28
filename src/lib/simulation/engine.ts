@@ -1,5 +1,5 @@
 import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
-import { AR_COLLECTION_RATES, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
+import { AR_COLLECTION_RATES, CLIENT_MEETING_COLLECTION_CAP, CLIENT_MEETING_COLLECTION_RATE, CLIENT_MEETING_COST, CLIENT_MEETING_SATISFACTION_GAIN, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
 import { getClientServiceCapacity, getClientServiceCoverage } from './clientService';
 
 export interface EngineDeps {
@@ -56,12 +56,12 @@ export const recordCashMovement = (state: SimulationState, movement: CashMovemen
 
 export const recordOneTimeOperatingExpense = (
   state: SimulationState,
-  kind: 'hiring' | 'severance' | 'repair',
+  kind: 'hiring' | 'severance' | 'repair' | 'client-meeting',
   amount: number,
 ): SimulationState => {
   if (!isValidAmount(amount)) return state;
   const updated = recordCashMovement(state, { kind, amount: -amount });
-  const budgetCategory = kind === 'repair' ? 'Misc' : 'Payroll';
+  const budgetCategory = kind === 'repair' || kind === 'client-meeting' ? 'Misc' : 'Payroll';
   const quarter = getCurrentQuarter(state.month);
   return {
     ...updated,
@@ -88,6 +88,91 @@ export const sumReceivables = (accounts: ReceivableAccount[]): ARBuckets =>
     sixtyDay: total.sixtyDay + account.aging.sixtyDay,
     ninetyPlus: total.ninetyPlus + account.aging.ninetyPlus,
   }), { current: 0, thirtyDay: 0, sixtyDay: 0, ninetyPlus: 0 });
+
+export interface ClientMeetingQuote {
+  available: boolean;
+  disabledReason: string | null;
+  eligibleReasons: string[];
+  cost: number;
+  satisfactionGain: number;
+  nextSatisfaction: number | null;
+  overdueAmount: number;
+  collectionEstimate: number;
+  netCashEstimate: number;
+}
+
+// A client meeting is a strategic response to renewal, service, or payment
+// risk. The quote is shared by UI and engine so displayed outcomes are exact.
+export const getClientMeetingQuote = (state: SimulationState, clientId: string): ClientMeetingQuote => {
+  const client = state.clients.find(item => item.id === clientId);
+  const account = state.receivables.find(item => item.clientId === clientId);
+  const overdueAmount = account
+    ? account.aging.thirtyDay + account.aging.sixtyDay + account.aging.ninetyPlus : 0;
+  const collectionEstimate = Math.min(overdueAmount, CLIENT_MEETING_COLLECTION_CAP,
+    Math.round(overdueAmount * CLIENT_MEETING_COLLECTION_RATE));
+  const eligibleReasons: string[] = [];
+  if (client && client.contractMonthsRemaining <= 3) eligibleReasons.push('Contract ends within three months');
+  if (client && client.satisfaction < 70) eligibleReasons.push('Client satisfaction is below 70%');
+  if (client && getClientServiceCoverage(state) < 0.9) eligibleReasons.push('Firm service coverage is below 90%');
+  if (client && overdueAmount > 0) eligibleReasons.push('Client has invoices over 30 days old');
+  const satisfactionGain = client ? Math.min(CLIENT_MEETING_SATISFACTION_GAIN, 100 - client.satisfaction) : 0;
+  const disabledReason = !client ? 'This client is no longer active.'
+    : eligibleReasons.length === 0 ? 'No renewal, service, satisfaction, or overdue-payment risk requires a meeting.'
+      : state.lastClientMeeting?.month === state.month && state.lastClientMeeting.year === state.year
+        ? 'The firm has already held a client meeting this month.'
+        : state.financials.cashOnHand < CLIENT_MEETING_COST
+          ? 'The firm needs $1,000 cash to hold this meeting.' : null;
+  return {
+    available: disabledReason === null,
+    disabledReason,
+    eligibleReasons,
+    cost: CLIENT_MEETING_COST,
+    satisfactionGain,
+    nextSatisfaction: client ? client.satisfaction + satisfactionGain : null,
+    overdueAmount,
+    collectionEstimate,
+    netCashEstimate: collectionEstimate - CLIENT_MEETING_COST,
+  };
+};
+
+// Effects resolve immediately. A meeting uses one firmwide monthly slot and
+// pays its operating expense even when the collection amount is small or zero.
+export const scheduleClientMeeting = (state: SimulationState, clientId: string): SimulationState => {
+  const quote = getClientMeetingQuote(state, clientId);
+  if (!quote.available) return state;
+
+  const expensed = recordOneTimeOperatingExpense(state, 'client-meeting', quote.cost);
+  let remaining = quote.collectionEstimate;
+  const receivables = expensed.receivables.map(account => {
+    if (account.clientId !== clientId || remaining <= 0) return account;
+    const aging = { ...account.aging };
+    for (const bucket of ['ninetyPlus', 'sixtyDay', 'thirtyDay'] as const) {
+      const paid = Math.min(remaining, aging[bucket]);
+      aging[bucket] -= paid;
+      remaining -= paid;
+    }
+    return { ...account, aging };
+  });
+  const collected = quote.collectionEstimate - remaining;
+  const clientName = state.clients.find(client => client.id === clientId)?.name ?? 'Client';
+  const meetingAlert: Alert = {
+    id: `client-meeting-${state.year}-${state.month}-${clientId}`,
+    type: 'success',
+    message: `Met with ${clientName}: satisfaction +${quote.satisfactionGain} to ${quote.nextSatisfaction}%; collected $${collected.toLocaleString()} in overdue invoices; $${quote.cost.toLocaleString()} meeting expense paid.`,
+    timestamp: new Date(Date.UTC(state.year, state.month - 1, 1)),
+    actionTarget: { kind: 'client', clientId },
+  };
+  const updated = recordCurrentCash({
+    ...expensed,
+    receivables,
+    arAging: sumReceivables(receivables),
+    clients: expensed.clients.map(client => client.id === clientId
+      ? { ...client, satisfaction: client.satisfaction + quote.satisfactionGain } : client),
+    lastClientMeeting: { month: state.month, year: state.year, clientId },
+    alerts: [meetingAlert, ...expensed.alerts].slice(0, 10),
+  }, expensed.financials.cashOnHand + collected, collected);
+  return updated;
+};
 
 const collectAtRate = (balance: number, rate: number): number =>
   Math.min(balance, Math.round(balance * rate));
@@ -231,6 +316,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         type: 'warning',
         message: `Client service coverage is ${Math.round(serviceCoverage * 100)}% (${getClientServiceCapacity(serviceRoster).toFixed(1)} effective slots for ${prevState.clients.length} clients). Low coverage reduces satisfaction and renewal odds. Add billable or support staff, or restore team effectiveness.`,
         timestamp: contractTimestamp,
+        actionTarget: { kind: 'clients' },
       });
 
       // 3. Revenue recognition — new invoices go to AR current bucket

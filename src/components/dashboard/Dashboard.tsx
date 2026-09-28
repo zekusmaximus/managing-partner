@@ -6,9 +6,81 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import Link from 'next/link';
 import { useSimulation } from '@/context/SimulationContext';
 import { getEmployeeTotalCost, getARTotal, getLOCAvailable } from '@/types/simulation';
+import type { Alert as SimulationAlert, SimulationState } from '@/types/simulation';
 import HelpTooltip from '@/components/help/HelpTooltip';
 import { calculateProfitAndLoss } from '@/lib/simulation/metrics';
 import { getClientServiceCoverage } from '@/lib/simulation/clientService';
+
+type AlertAction = { label: string; href: string };
+type AlertGuidance = { consequence: string; actions: AlertAction[] };
+
+const getAlertGuidance = (alert: SimulationAlert, state: SimulationState): AlertGuidance | null => {
+  const message = alert.message;
+  const target = alert.actionTarget;
+  const client = target?.kind === 'client'
+    ? state.clients.find(candidate => candidate.id === target.clientId)
+    : state.clients.find(candidate =>
+      message.startsWith(`${candidate.name}'s contract expires in `) ||
+      message.startsWith(`${candidate.name}'s satisfaction dropped to `) ||
+      message.startsWith(`${candidate.name} satisfaction is critically low at `));
+  const clientHref = client ? `/clients?clientId=${encodeURIComponent(client.id)}` : '/clients';
+
+  if (message.includes('contract expires in ')) return {
+    consequence: 'Renewal is decided when the term ends. Satisfaction and service coverage affect the chance of keeping this client.',
+    actions: [{ label: client ? 'Discuss renewal' : 'Review client roster', href: clientHref }],
+  };
+  if (message.includes('satisfaction dropped to ') || message.includes('satisfaction is critically low at ')) return {
+    consequence: 'Low satisfaction makes a future renewal less likely.',
+    actions: [{ label: client ? 'Meet with client' : 'Review client roster', href: clientHref }],
+  };
+  if (target?.kind === 'ar' || (message.includes('in AR is ') && message.includes('days overdue'))) {
+    const isNinetyPlus = message.includes('90+ days overdue');
+    const overdueClients = state.receivables.filter(account =>
+      account.clientId !== null &&
+      state.clients.some(active => active.id === account.clientId) &&
+      (isNinetyPlus ? account.aging.ninetyPlus : account.aging.sixtyDay) > 0);
+    const meetingHref = overdueClients.length === 1 && overdueClients[0].clientId
+      ? `/clients?clientId=${encodeURIComponent(overdueClients[0].clientId)}`
+      : '/clients';
+    return {
+      consequence: isNinetyPlus
+        ? 'This balance is at risk. A write-off clears it from receivables but records a bad-debt expense.'
+        : 'Unpaid invoices delay cash and can age into the 90+ day bucket.',
+      actions: [
+        { label: 'Review collections', href: '/finances#accounts-receivable' },
+        ...(overdueClients.length > 0 ? [{ label: overdueClients.length === 1 ? 'Meet with client' : 'Review client meetings', href: meetingHref }] : []),
+      ],
+    };
+  }
+  if (target?.kind === 'clients' || alert.id.startsWith('service-shortfall-')) return {
+    consequence: 'Insufficient service coverage lowers satisfaction and renewal odds each month.',
+    actions: [
+      { label: 'Review staffing', href: '/hr' },
+      { label: 'Meet with a client', href: '/clients' },
+    ],
+  };
+  if (message.includes('burnout is at ') || message.includes('% burnout!')) return {
+    consequence: 'Burnout lowers staff effectiveness and the firm\'s capacity to serve clients.',
+    actions: [{ label: 'Review staff options', href: '/hr' }],
+  };
+  if (message === 'Cash on hand is critically low!') return {
+    consequence: 'Low cash can trigger a credit draw or leave the firm unable to fund upcoming expenses.',
+    actions: [{ label: 'Review cash flow', href: '/finances#cash-flow' }],
+  };
+  if (message.startsWith('Line of credit balance:')) return {
+    consequence: 'An outstanding balance incurs monthly interest and uses available credit.',
+    actions: [{ label: 'Review credit controls', href: '/finances#credit-controls' }],
+  };
+  if (message.includes(' budget exceeded by ')) return {
+    consequence: 'Spending above plan reduces cash and profit while it continues.',
+    actions: [{ label: 'Review budget', href: '/finances#budget' }],
+  };
+  if (alert.id.startsWith('contract-churned-')) return {
+    consequence: 'The client no longer pays a monthly fee. Existing receivables can still be collected.',
+    actions: [{ label: 'Review receivables', href: '/finances#accounts-receivable' }],
+  };
+  return null;
+};
 
 export const Dashboard = () => {
   const { state, dismissAlert } = useSimulation();
@@ -218,21 +290,31 @@ export const Dashboard = () => {
               sx={{ pb: { xs: 0, sm: 1 }, '& .MuiCardHeader-title': { fontSize: { xs: '1.25rem', sm: '1.5rem' } } }}
             />
             <CardContent sx={{ pt: { xs: 1, sm: 2 } }}>
+              {state.alerts.length > 0 && <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Alerts record conditions when raised and may remain after you act. Check current figures, then dismiss an alert once handled.
+              </Typography>}
               {state.alerts.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                   No alerts at this time.
                 </Typography>
               ) : (
-                state.alerts.slice(0, 5).map((alert) => (
-                  <Box key={alert.id} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                state.alerts.map((alert) => {
+                  const guidance = getAlertGuidance(alert, state);
+                  return <Box key={alert.id} sx={{ mb: 2, p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1 }}>
                     <Chip
                       label={alert.message}
                       color={alert.type === 'error' ? 'error' : alert.type === 'warning' ? 'warning' : alert.type === 'success' ? 'success' : 'info'}
                       onDelete={() => dismissAlert(alert.id)}
-                      sx={{ flex: 1, minWidth: 0, height: 'auto', justifyContent: 'left', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.75 } }}
+                      sx={{ width: '100%', height: 'auto', justifyContent: 'space-between', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.75 } }}
                     />
-                  </Box>
-                ))
+                    {guidance && <>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{guidance.consequence}</Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                        {guidance.actions.map(action => <Button key={action.href} component={Link} href={action.href} size="small" variant="outlined">{action.label}</Button>)}
+                      </Box>
+                    </>}
+                  </Box>;
+                })
               )}
             </CardContent>
           </Card>

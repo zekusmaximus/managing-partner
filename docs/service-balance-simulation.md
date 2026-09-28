@@ -2,7 +2,7 @@
 
 These are **deterministic scripted simulations, not new-player playtest results or forecasts**. The harness starts from the January 2026 opening state and advances 24 months across seeds `7, 23, 41, 89, 127`. Each value below is the mean of five runs, rounded as shown. The opening January snapshot is excluded from cumulative profit and event counts.
 
-Run `bun run scripts/balance-report.ts` to reproduce the full JSON report, including each seed. The policy choices are described in the [earlier cash-pressure report](balance-simulation.md#scripted-decisions). The policies do not use the manual **Run Collections** button, so this report isolates the revised staffing and retention loop; the button's monthly limit is covered by focused tests and the [new-player test script](new-player-playtest.md).
+Run `bun run scripts/balance-report.ts` to reproduce the full JSON report, including each seed. The policy choices are described in the [earlier cash-pressure report](balance-simulation.md#scripted-decisions). The policies do not use the manual **Run Collections** button or the later client meeting action, so this report isolates the staffing and retention loop; those actions' monthly limits are covered by focused tests and the [new-player test script](new-player-playtest.md).
 
 ## Revised service rule
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Button, Grid, Card, CardContent, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useSimulation } from '@/context/SimulationContext';
@@ -19,6 +20,12 @@ export default function ARManager() {
   const collectionsRunThisMonth = state.lastManualCollection?.month === state.month &&
     state.lastManualCollection.year === state.year;
   const validWriteOff = isValidAmount(writeOffAmount) && writeOffAmount <= arAging.ninetyPlus;
+  const collectionPreview = receivables.reduce((total, account) => {
+    const collectFrom = (balance: number, rate: number) => Math.min(balance, Math.round(balance * rate));
+    return total + collectFrom(account.aging.thirtyDay, 0.3) +
+      collectFrom(account.aging.sixtyDay, 0.3) + collectFrom(account.aging.ninetyPlus, 0.15);
+  }, 0);
+  const money = (amount: number) => `$${Math.round(amount).toLocaleString()}`;
 
   // DSO calculation: (total AR / avg daily revenue)
   const avgMonthlyRevenue = financialHistory.length > 0
@@ -54,6 +61,7 @@ export default function ARManager() {
       total: getARTotal(account.aging),
       paymentProfile: account.paymentProfile,
       unassigned: account.clientId === null,
+      active,
     };
   });
 
@@ -123,9 +131,28 @@ export default function ARManager() {
           Write Off 90+ ({`$${Math.round(arAging.ninetyPlus).toLocaleString()}`})
         </Button>
       </Box>
-      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 3 }}>
-        Collections can be run once each month when receivables are overdue.
-      </Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.5, mb: 3 }}>
+        <Paper variant="outlined" sx={{ p: 1.5 }}>
+          <Typography variant="subtitle2">Run Collections</Typography>
+          <Typography variant="body2" color="success.main">
+            {collectionsRunThisMonth ? 'This month’s collection attempt has already been used.'
+              : hasOverdueAR ? `+${money(collectionPreview)} cash now from overdue invoices; the same amount leaves AR.`
+                : 'No overdue invoices are available to collect.'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Uses this month&apos;s one manual collection attempt. It does not directly change client satisfaction or add an expense.
+          </Typography>
+        </Paper>
+        <Paper variant="outlined" sx={{ p: 1.5 }}>
+          <Typography variant="subtitle2">Write Off 90+</Typography>
+          <Typography variant="body2" color="success.main">
+            + Clears the amount you choose from the 90+ day balance.
+          </Typography>
+          <Typography variant="body2" color="error.main">
+            − The same amount becomes bad debt expense and reduces this month&apos;s profit. No cash comes in, and that balance can no longer be collected.
+          </Typography>
+        </Paper>
+      </Box>
 
       {/* Aging Chart */}
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -160,6 +187,7 @@ export default function ARManager() {
               <TableCell align="right" sx={{ fontWeight: 'bold' }}>90+</TableCell>
               <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Profile</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Action</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -178,6 +206,13 @@ export default function ARManager() {
                     color={c.paymentProfile === 'prompt' ? 'success' : c.paymentProfile === 'normal' ? 'warning' : 'error'}
                   />}
                 </TableCell>
+                <TableCell>
+                  {c.active && c.thirtyDay + c.sixtyDay + c.ninetyPlus > 0 && (
+                    <Button component={Link} href={`/clients?clientId=${encodeURIComponent(c.id)}`} size="small" aria-label={`Meet with ${c.name}`}>
+                      Meet client
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
             <TableRow sx={{ bgcolor: 'action.hover' }}>
@@ -187,6 +222,7 @@ export default function ARManager() {
               <TableCell align="right" sx={{ fontWeight: 'bold' }}>${Math.round(arAging.sixtyDay).toLocaleString()}</TableCell>
               <TableCell align="right" sx={{ fontWeight: 'bold' }}>${Math.round(arAging.ninetyPlus).toLocaleString()}</TableCell>
               <TableCell align="right" sx={{ fontWeight: 'bold' }}>${Math.round(totalAR).toLocaleString()}</TableCell>
+              <TableCell />
               <TableCell />
             </TableRow>
           </TableBody>
@@ -198,7 +234,7 @@ export default function ARManager() {
         <DialogTitle>Write Off Bad Debt</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Writing off AR removes it from your books as uncollectable. This is recognized as a bad debt expense.
+            Choose how much of the 90+ day balance to give up collecting.
           </Typography>
           <TextField
             label="Write-off Amount"
@@ -210,6 +246,18 @@ export default function ARManager() {
             helperText={`Maximum: $${Math.round(arAging.ninetyPlus).toLocaleString()} (90+ day balance)`}
             slotProps={{ htmlInput: { min: 0, max: arAging.ninetyPlus, step: 1 } }}
           />
+          {validWriteOff && <Paper variant="outlined" sx={{ p: 1.5, mt: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>Effect of writing off {money(writeOffAmount)}</Typography>
+            <Typography variant="body2" color="success.main">
+              + 90+ day AR falls by {money(writeOffAmount)} to {money(arAging.ninetyPlus - writeOffAmount)}.
+            </Typography>
+            <Typography variant="body2" color="error.main">
+              − Bad debt expense rises and this month&apos;s profit falls by {money(writeOffAmount)}.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Cash stays at {money(state.financials.cashOnHand)}. The written-off amount cannot be collected later.
+            </Typography>
+          </Paper>}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWriteOffOpen(false)}>Cancel</Button>

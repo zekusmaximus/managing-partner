@@ -16,7 +16,10 @@ export default function Finances() {
 
   useEffect(() => {
     const selectLinkedTab = () => {
-      if (window.location.hash === '#cash-flow' || window.location.hash === '#credit-controls') setActiveTab(3);
+      const hash = window.location.hash;
+      if (hash === '#accounts-receivable') setActiveTab(2);
+      if (hash === '#budget') setActiveTab(1);
+      if (hash === '#cash-flow' || hash === '#credit-controls') setActiveTab(3);
     };
     selectLinkedTab();
     window.addEventListener('hashchange', selectLinkedTab);
@@ -26,7 +29,8 @@ export default function Finances() {
   const selectTab = (nextTab: number) => {
     setActiveTab(nextTab);
     const path = `${window.location.pathname}${window.location.search}`;
-    window.history.replaceState(null, '', nextTab === 3 ? `${path}#cash-flow` : path);
+    const hash = nextTab === 1 ? '#budget' : nextTab === 2 ? '#accounts-receivable' : nextTab === 3 ? '#cash-flow' : '';
+    window.history.replaceState(null, '', `${path}${hash}`);
   };
 
   const reportNames = ['P&L Statement', 'Budget', 'Accounts Receivable', 'Cash Flow', 'Partner Economics'];

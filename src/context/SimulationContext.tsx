@@ -12,7 +12,7 @@ import {
 } from '@/types/simulation';
 import { useSession } from '@/context/SessionContext';
 import { generateInboxMessages as createInboxMessages } from '@/lib/simulation/scenarios';
-import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, isValidAmount, recordCashMovement, recordOneTimeOperatingExpense, writeOffReceivables } from '@/lib/simulation/engine';
+import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, isValidAmount, recordCashMovement, recordOneTimeOperatingExpense, scheduleClientMeeting, writeOffReceivables } from '@/lib/simulation/engine';
 import { fundStaffRecovery, type StaffRecoveryPlan } from '@/lib/simulation/burnout';
 
 // Re-export types for consumers
@@ -41,6 +41,7 @@ type SimulationContextType = {
   fireEmployee: (employeeId: string) => void;
   adjustSalary: (employeeId: string, newSalary: number) => void;
   fundStaffRecovery: (plan?: StaffRecoveryPlan) => void;
+  meetClient: (clientId: string) => void;
   markInboxMessageRead: (messageId: string) => void;
   handleInboxChoice: (messageId: string, choiceId: string) => void;
   dismissAlert: (alertId: string) => void;
@@ -76,15 +77,15 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
     currentState.clients.forEach(client => {
       if (client.satisfaction < 50) {
-        alerts.push({ id: generateId(), type: 'error', message: `${client.name} satisfaction is critically low at ${client.satisfaction}%!`, timestamp: new Date() });
+        alerts.push({ id: generateId(), type: 'error', message: `${client.name} satisfaction is critically low at ${client.satisfaction}%!`, timestamp: new Date(), actionTarget: { kind: 'client', clientId: client.id } });
       } else if (client.satisfaction < 70) {
-        alerts.push({ id: generateId(), type: 'warning', message: `${client.name}'s satisfaction dropped to ${client.satisfaction}%.`, timestamp: new Date() });
+        alerts.push({ id: generateId(), type: 'warning', message: `${client.name}'s satisfaction dropped to ${client.satisfaction}%.`, timestamp: new Date(), actionTarget: { kind: 'client', clientId: client.id } });
       }
     });
 
     currentState.clients.forEach(client => {
-      if (client.contractMonthsRemaining <= 2 && client.contractMonthsRemaining > 0) {
-        alerts.push({ id: generateId(), type: 'warning', message: `${client.name}'s contract expires in ${client.contractMonthsRemaining} month(s)!`, timestamp: new Date() });
+      if (client.contractMonthsRemaining <= 3 && client.contractMonthsRemaining > 0) {
+        alerts.push({ id: generateId(), type: 'warning', message: `${client.name}'s contract expires in ${client.contractMonthsRemaining} month(s)!`, timestamp: new Date(), actionTarget: { kind: 'client', clientId: client.id } });
       }
     });
 
@@ -94,10 +95,10 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
     // AR aging alerts
     if (currentState.arAging.sixtyDay > 0) {
-      alerts.push({ id: generateId(), type: 'warning', message: `$${Math.round(currentState.arAging.sixtyDay).toLocaleString()} in AR is 61-90 days overdue.`, timestamp: new Date() });
+      alerts.push({ id: generateId(), type: 'warning', message: `$${Math.round(currentState.arAging.sixtyDay).toLocaleString()} in AR is 61-90 days overdue.`, timestamp: new Date(), actionTarget: { kind: 'ar' } });
     }
     if (currentState.arAging.ninetyPlus > 0) {
-      alerts.push({ id: generateId(), type: 'error', message: `$${Math.round(currentState.arAging.ninetyPlus).toLocaleString()} in AR is 90+ days overdue — consider write-off.`, timestamp: new Date() });
+      alerts.push({ id: generateId(), type: 'error', message: `$${Math.round(currentState.arAging.ninetyPlus).toLocaleString()} in AR is 90+ days overdue — consider write-off.`, timestamp: new Date(), actionTarget: { kind: 'ar' } });
     }
 
     // LOC alert
@@ -174,6 +175,10 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
   const fundStaffRecoveryAction = useCallback((plan: StaffRecoveryPlan = 'full') => {
     setState(prevState => fundStaffRecovery(prevState, plan));
+  }, [setState]);
+
+  const meetClient = useCallback((clientId: string) => {
+    setState(prevState => scheduleClientMeeting(prevState, clientId));
   }, [setState]);
 
   // ============= INBOX ACTIONS =============
@@ -294,7 +299,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   return (
     <SimulationContext.Provider value={{
       state, advanceMonth,
-      hireEmployee, fireEmployee, adjustSalary, fundStaffRecovery: fundStaffRecoveryAction,
+      hireEmployee, fireEmployee, adjustSalary, fundStaffRecovery: fundStaffRecoveryAction, meetClient,
       markInboxMessageRead, handleInboxChoice, dismissAlert,
       addVendor, removeVendor, adjustOperatingCost,
       drawLineOfCredit, repayLineOfCredit,

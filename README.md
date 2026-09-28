@@ -10,10 +10,10 @@ This is a playable prototype with a simplified financial model. Progress is save
 
 ## Features
 
-- **Dashboard Overview**: Real-time KPIs including cash position, collections, operating margin, DSO, and reputation, plus a link to credit controls when available borrowing capacity runs low
+- **Dashboard Overview**: Real-time KPIs including cash position, collections, operating margin, DSO, and reputation, plus warning consequences and links to relevant actions
 - **Financial Management**: 5-tab interface with P&L statements, budget tracking, client-attributed AR aging, a reconciled cash waterfall, tax balance, and partner economics
 - **HR Management**: Manage lobbyists, attorneys, and support staff; choose a full or lower-cost targeted recovery program to reduce burnout and restore efficacy
-- **Client Relations**: Monitor satisfaction, service coverage, contract timelines, renewals, churn, and revenue across corporations, trade associations, and non-profits; pursue new clients and handle feedback through inbox decisions
+- **Client Relations**: Monitor satisfaction, service coverage, contract timelines, renewals, churn, and revenue; hold a paid, monthly-limited client meeting when renewal, service, or payment risk appears
 - **Inbox System**: Handle scenario-based decisions including compensation requests, vendor contracts, budget overruns, tax payments, and new business opportunities; pending decisions remain available and completed messages show the actual outcome
 - **Interactive Tutorial**: 34-step guided tutorial across 4 phases teaching GR industry fundamentals and firm management
 - **Help System**: Searchable glossary with 55+ industry terms, contextual help tooltips on every metric, and a floating help button
@@ -130,6 +130,8 @@ The game tracks the following:
 - Contracts resolve when their remaining term reaches zero. Retained clients start a new 12-month term; clients who leave stop generating invoices, while their existing receivables continue to age and be collected. Dashboard alerts name the outcome.
 - Lobbyists and attorneys provide client service capacity based on efficacy, client affinity, and high burnout. Effective support staff improve how much of that capacity reaches clients. The initial four billable staff and one support employee cover roughly eight clients. A shortfall lowers monthly satisfaction and renewal odds; with no billable staff, contracts cannot renew. A dashboard service indicator and month-end alerts explain shortfalls.
 - The manual **Run Collections** action can be attempted once per simulation month when receivables are overdue. It is recorded in the local save and becomes available again next month.
+- One firmwide **client meeting** can be held per simulation month with an active client facing renewal, satisfaction, service, or overdue-payment risk. It costs $1,000 cash and profit, raises that client’s satisfaction by up to 6 points, and collects 15% of its overdue receivables up to $3,000. The Clients page shows the exact estimate before committing; a meeting does not guarantee renewal or fix a staffing shortfall.
+- Finance actions preview their modeled effects. Writing off 90+ day debt clears the selected AR amount and lowers profit by the same amount without bringing in cash.
 - Payroll: salary + 25% benefits + 7.65% FICA
 - Staff recovery costs $1,500 per eligible employee (20+ burnout), covers up to 12 staff once per month, reduces burnout by up to 25 points and restores up to 5 efficacy points per person. It requires enough cash and appears in the current-month P&L, Payroll budget actuals, and cash waterfall.
 - Targeted recovery covers up to two highest-burnout eligible staff for $500 each, reducing burnout by up to 15 points and restoring up to 3 efficacy points per person. When cash covers only one place, the quote scales down to $500. The full and targeted choices share one use per month; both require cash and use the same accounting entries.
@@ -142,7 +144,7 @@ The game tracks the following:
 
 ### Reproducible balance simulation
 
-Run `bun run scripts/balance-report.ts` for a seeded 24-month simulation across five seeds and scripted decision policies, including a cash-pressure policy that uses staff recovery. The JSON report includes cash and credit use, profit, client churn and renewals, staff burnout and efficacy, reputation, and pending inbox volume. Use `--months=12` to shorten the run. The [current service balance check](docs/service-balance-simulation.md) records results under the revised staffing rules. These are **simulation outcomes**, not observations from human play sessions. A [new-player playtest script](docs/new-player-playtest.md) is ready for the next validation step.
+Run `bun run scripts/balance-report.ts` for a seeded 24-month simulation across five seeds and scripted decision policies, including a cash-pressure policy that uses staff recovery. The JSON report includes cash and credit use, profit, client churn and renewals, staff burnout and efficacy, reputation, and pending inbox volume. Use `--months=12` to shorten the run. The [service balance check](docs/service-balance-simulation.md) records results under the staffing rules; its scripted policies do not use client meetings. These are **simulation outcomes**, not observations from human play sessions. The [new-player playtest script](docs/new-player-playtest.md) now includes warning actions and decision tradeoffs.
 
 This is an educational game model, not a full accounting ledger or a model of real tax obligations. The cash projection is a simple run-rate estimate rather than a forecast of future decisions or collections.
 

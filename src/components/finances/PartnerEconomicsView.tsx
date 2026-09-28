@@ -196,6 +196,11 @@ export default function PartnerEconomicsView() {
             slotProps={{ htmlInput: { min: 0, step: 1 } }}
             helperText={`Current: $${partnerEconomics.monthlyDraw.toLocaleString()}/mo`}
           />
+          {isValidAmount(newDrawAmount, true) && <Typography variant="body2" sx={{ mt: 1.5 }}>
+            {newDrawAmount === partnerEconomics.monthlyDraw
+              ? 'The draw stays the same, so monthly cash outflow and profit do not change.'
+              : `Starting next month, partner cash received and the firm's monthly cash outflow ${newDrawAmount > partnerEconomics.monthlyDraw ? 'rise' : 'fall'} by $${Math.abs(newDrawAmount - partnerEconomics.monthlyDraw).toLocaleString()}. Monthly profit changes by the same amount in the opposite direction.`}
+          </Typography>}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDrawDialogOpen(false)}>Cancel</Button>
