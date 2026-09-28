@@ -5,6 +5,7 @@ import { Email, Menu, Notifications } from '@mui/icons-material';
 import Link from 'next/link';
 import { useSimulation } from '@/context/SimulationContext';
 import { useTutorial } from '@/context/TutorialContext';
+import { selectCurrentAlerts } from '@/lib/simulation/alerts';
 
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -15,7 +16,7 @@ export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { state, advanceMonth } = useSimulation();
   const { onMonthAdvanced } = useTutorial();
   const unreadCount = state.inbox.filter(message => !message.read).length;
-  const alertCount = state.alerts.length;
+  const alertCount = selectCurrentAlerts(state).length;
 
   const handleAdvanceMonth = () => {
     advanceMonth();
@@ -40,8 +41,8 @@ export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
         <Typography variant="body2" sx={{ display: { xs: 'none', md: 'block' }, opacity: 0.9, whiteSpace: 'nowrap' }}>
           {monthNames[state.month - 1]} {state.year}
         </Typography>
-        <Tooltip title={`${alertCount} alert${alertCount === 1 ? '' : 's'}`}>
-          <IconButton component={Link} href="/#alerts" color="inherit" aria-label={`Go to dashboard alerts, ${alertCount} active`} size="small">
+        <Tooltip title={`${alertCount} current condition${alertCount === 1 ? '' : 's'}`}>
+          <IconButton component={Link} href="/#alerts" color="inherit" aria-label={`Go to dashboard alerts, ${alertCount} current condition${alertCount === 1 ? '' : 's'}`} size="small">
             <Badge badgeContent={alertCount} color="error"><Notifications /></Badge>
           </IconButton>
         </Tooltip>

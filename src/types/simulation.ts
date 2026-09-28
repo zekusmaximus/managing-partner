@@ -24,6 +24,7 @@ export const TARGETED_RECOVERY_COST_PER_EMPLOYEE = 500;
 export const TARGETED_RECOVERY_MAX_PARTICIPANTS = 2;
 export const TARGETED_RECOVERY_BURNOUT_REDUCTION = 15;
 export const CLIENT_MEETING_COST = 1000;
+export const AGGRESSIVE_CLIENT_PURSUIT_COST = 3000;
 export const CLIENT_MEETING_SATISFACTION_GAIN = 6;
 export const CLIENT_MEETING_COLLECTION_RATE = 0.15;
 export const CLIENT_MEETING_COLLECTION_CAP = 3000;
@@ -179,6 +180,7 @@ export type CashMovementKind =
   | 'severance'
   | 'staff-recovery'
   | 'client-meeting'
+  | 'client-pursuit'
   | 'repair'
   | 'unclassified';
 

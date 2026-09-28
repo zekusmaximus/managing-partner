@@ -14,6 +14,7 @@ import { useSession } from '@/context/SessionContext';
 import { generateInboxMessages as createInboxMessages } from '@/lib/simulation/scenarios';
 import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, isValidAmount, recordCashMovement, recordOneTimeOperatingExpense, scheduleClientMeeting, writeOffReceivables } from '@/lib/simulation/engine';
 import { fundStaffRecovery, type StaffRecoveryPlan } from '@/lib/simulation/burnout';
+import { getAlertConditionKey } from '@/lib/simulation/alerts';
 
 // Re-export types for consumers
 export type { Employee, Client, Financials, FinancialHistoryEntry, Alert, InboxMessage, MessageChoice, SimulationState, OperatingCosts, Vendor, PartnerEconomics, BudgetItem, ARBuckets, LineOfCredit };
@@ -98,7 +99,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
       alerts.push({ id: generateId(), type: 'warning', message: `$${Math.round(currentState.arAging.sixtyDay).toLocaleString()} in AR is 61-90 days overdue.`, timestamp: new Date(), actionTarget: { kind: 'ar' } });
     }
     if (currentState.arAging.ninetyPlus > 0) {
-      alerts.push({ id: generateId(), type: 'error', message: `$${Math.round(currentState.arAging.ninetyPlus).toLocaleString()} in AR is 90+ days overdue — consider write-off.`, timestamp: new Date(), actionTarget: { kind: 'ar' } });
+      alerts.push({ id: generateId(), type: 'error', message: `$${Math.round(currentState.arAging.ninetyPlus).toLocaleString()} in AR is 90+ days overdue. Review collection options before writing off debt.`, timestamp: new Date(), actionTarget: { kind: 'ar' } });
     }
 
     // LOC alert
@@ -199,10 +200,15 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   // ============= ALERT ACTIONS =============
 
   const dismissAlert = useCallback((alertId: string) => {
-    setState(prevState => ({
-      ...prevState,
-      alerts: prevState.alerts.filter(alert => alert.id !== alertId),
-    }));
+    setState(prevState => {
+      const dismissed = prevState.alerts.find(alert => alert.id === alertId);
+      const conditionKey = dismissed ? getAlertConditionKey(dismissed, prevState) : null;
+      return {
+        ...prevState,
+        alerts: prevState.alerts.filter(alert => alert.id !== alertId &&
+          (conditionKey === null || getAlertConditionKey(alert, prevState) !== conditionKey)),
+      };
+    });
   }, [setState]);
 
   // ============= VENDOR ACTIONS =============

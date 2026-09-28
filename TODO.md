@@ -2,7 +2,7 @@
 
 ## Current State
 
-Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. PR #8 delivers staffing effects on client service and retention, constrained client and collections actions, and improved mobile decision and finance views. There is no account, backend, or cross-device sync.
+Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. PR #8 delivers staffing effects on client service and retention, constrained client and collections actions, and improved mobile decision and finance views. The current focused pass makes warning status and new-client pursuit costs clearer. There is no account, backend, or cross-device sync. New-player notes remain preliminary; the interface changes still need human validation.
 
 The earlier 15–20% completion estimate and checklist described work that has since been built. Progress toward a finished game cannot be stated as a precise percentage without defining the intended feature set.
 
@@ -73,10 +73,19 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Preview modeled AR write-off, collection, credit, budget, and distribution effects; clarify uncertain inbox outcomes.
 - [x] Verify the new meeting and save behavior with focused tests and run the full Bun quality gate. The existing scripted balance policies do not exercise meetings and their results are unchanged.
 
+## Focused Decision Loop Pass
+
+- [x] Show the expiring client's monthly fee and share of current contracted monthly fees at the warning, and link to the relevant client meeting.
+- [x] Separate current warning conditions from dated outcomes. Recheck saved warning snapshots against current client, AR, cash, credit, budget, and staff state so resolved conditions do not inflate the active alert count; explain how to dismiss prior outcomes.
+- [x] Frame 90+ day debt as a choice between collection and giving up a balance. Keep the once-per-month meeting and collections limits and the cash, AR, and profit previews visible at the action.
+- [x] Charge $3,000 cash and current-month profit for aggressive new-client pursuit whether or not the prospect signs. Show the tradeoff in new and older pending offers and record the expense in the cash waterfall and budget.
+- [x] Keep phone finance reports selectable and year-to-date P&L readable; add focused playtest checks for finding AR and profit without guidance.
+- [x] Pass 93 Bun tests, typecheck, lint, and production build. Check all five routes at 390, 768, 1280, and 1440px without document overflow; exercise phone keyboard navigation to finance reports, YTD P&L, renewal warnings, and client meetings, plus collections and pursuit outcomes at 390px. No browser console errors or warnings appeared.
+
 ## Next Work
 
-- [ ] Continue first-time-player sessions using `docs/new-player-playtest.md`; verify that players can follow warnings to actions and predict their consequences, then review the notes.
-- [ ] Decide whether the higher-chance new-client pursuit needs a modeled cost; it currently dominates initial contact when judged by signing chance alone.
+- [ ] Continue first-time-player sessions using `docs/new-player-playtest.md`; verify that players can distinguish current warnings from prior outcomes, follow warnings to actions, explain the pursuit and write-off tradeoffs, and find phone finance information.
+- [ ] Revisit the $3,000 pursuit price and service balance after player observations; the initial price is a game design choice, not a measured real-world cost.
 - [ ] Decide whether the simplified month-opening tax estimate needs a deeper accounting model after playtesting.
 - [ ] Add a documented save export/import or account sync only if play across browsers or devices becomes a requirement.
 

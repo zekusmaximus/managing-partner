@@ -1,5 +1,5 @@
 import type { Client, InboxMessage, InboxScenario, SimulationState } from '@/types/simulation';
-import { BENEFITS_RATE, QUARTERLY_TAX_LATE_RATE } from '@/types/simulation';
+import { AGGRESSIVE_CLIENT_PURSUIT_COST, BENEFITS_RATE, QUARTERLY_TAX_LATE_RATE } from '@/types/simulation';
 import { getOverdueClientAccount } from './engine';
 
 export interface ScenarioDeps {
@@ -9,6 +9,9 @@ export interface ScenarioDeps {
 }
 
 const getCurrentQuarter = (month: number): number => Math.ceil(month / 3);
+
+export const getAggressiveClientPursuitEffect = (monthlyFee: number): string =>
+  `70% chance of a $${monthlyFee.toLocaleString()}/mo client; pay $${AGGRESSIVE_CLIENT_PURSUIT_COST.toLocaleString()} now whether or not they sign. Cash and profit fall by this expense; service workload rises if signed.`;
 
 const prospectNames = [
   'InnovateTech', 'EnergyCorp', 'PharmaLife', 'AutoDrive', 'FinServe', 'CivicGrid',
@@ -78,7 +81,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
         description: `${name} (${type}) has expressed interest in our government relations services. They have a monthly budget of $12,000-$18,000.`,
         urgency: 'medium', requiresAction: true, read: false,
         choices: [
-          { id: 'pursue', label: 'Pursue Aggressively', effect: '70% chance of a $15,000/mo client; no immediate cost, but service workload rises if signed' },
+          { id: 'pursue', label: 'Pursue Aggressively', effect: getAggressiveClientPursuitEffect(15000) },
           { id: 'initial-contact', label: 'Initial Contact', effect: '50% chance of a $15,000/mo client; no immediate cost, but service workload rises if signed' },
           { id: 'pass', label: 'Pass on Opportunity', effect: 'No new revenue or service workload' },
         ],

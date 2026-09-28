@@ -30,6 +30,9 @@ describe('scenario generation', () => {
     expect(first.every(message => message.timestamp.getTime() === fixedTime.getTime())).toBe(true);
     expect(first.find(message => message.scenario.kind === 'raise-request').scenario.employeeId)
       .toBe(state.employees.at(-1).id);
+    const offer = first.find(message => message.scenario.kind === 'new-client');
+    expect(offer.choices.find(choice => choice.id === 'pursue').effect).toContain('pay $3,000 now whether or not they sign');
+    expect(offer.choices.find(choice => choice.id === 'initial-contact').effect).toContain('no immediate cost');
   });
 
   test('does not duplicate a pending subject and allows a resolved subject to recur', () => {

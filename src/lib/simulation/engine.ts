@@ -1,5 +1,5 @@
 import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
-import { AR_COLLECTION_RATES, CLIENT_MEETING_COLLECTION_CAP, CLIENT_MEETING_COLLECTION_RATE, CLIENT_MEETING_COST, CLIENT_MEETING_SATISFACTION_GAIN, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
+import { AGGRESSIVE_CLIENT_PURSUIT_COST, AR_COLLECTION_RATES, CLIENT_MEETING_COLLECTION_CAP, CLIENT_MEETING_COLLECTION_RATE, CLIENT_MEETING_COST, CLIENT_MEETING_SATISFACTION_GAIN, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
 import { getClientServiceCapacity, getClientServiceCoverage } from './clientService';
 
 export interface EngineDeps {
@@ -56,12 +56,12 @@ export const recordCashMovement = (state: SimulationState, movement: CashMovemen
 
 export const recordOneTimeOperatingExpense = (
   state: SimulationState,
-  kind: 'hiring' | 'severance' | 'repair' | 'client-meeting',
+  kind: 'hiring' | 'severance' | 'repair' | 'client-meeting' | 'client-pursuit',
   amount: number,
 ): SimulationState => {
   if (!isValidAmount(amount)) return state;
   const updated = recordCashMovement(state, { kind, amount: -amount });
-  const budgetCategory = kind === 'repair' || kind === 'client-meeting' ? 'Misc' : 'Payroll';
+  const budgetCategory = kind === 'repair' || kind === 'client-meeting' || kind === 'client-pursuit' ? 'Misc' : 'Payroll';
   const quarter = getCurrentQuarter(state.month);
   return {
     ...updated,
@@ -580,6 +580,9 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       break;
     }
     case 'new-client': {
+      if (choiceId === 'pursue') {
+        next = recordOneTimeOperatingExpense(next, 'client-pursuit', AGGRESSIVE_CLIENT_PURSUIT_COST);
+      }
       const won = choiceId === 'pursue' ? deps.random() > 0.3 : choiceId === 'initial-contact' ? deps.random() > 0.5 : false;
       if (won) {
         const profiles: Client['paymentProfile'][] = ['prompt', 'normal', 'slow'];
@@ -589,11 +592,14 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
           paymentProfile: profiles[Math.floor(deps.random() * profiles.length)], lastPaymentMonth: state.month,
         }];
       }
+      const pursuitCostResult = choiceId === 'pursue'
+        ? ` The $${AGGRESSIVE_CLIENT_PURSUIT_COST.toLocaleString()} one-time pursuit expense reduced cash and profit.`
+        : ' No pursuit expense was paid.';
       resolutionSummary = choiceId === 'pass'
         ? `Passed on the ${scenario.name} opportunity.`
-        : won
+        : `${won
           ? `${scenario.name} joined as a client at $${scenario.monthlyFee.toLocaleString()}/month.`
-          : `${scenario.name} did not sign a contract.`;
+          : `${scenario.name} did not sign a contract.`}${pursuitCostResult}`;
       break;
     }
     case 'lease-renewal': {

@@ -1,6 +1,7 @@
 import { tutorialSteps } from '@/data/tutorialSteps';
 import { createInitialSimulationState } from '@/lib/simulation/initialState';
 import { sumReceivables } from '@/lib/simulation/engine';
+import { getAggressiveClientPursuitEffect } from '@/lib/simulation/scenarios';
 import { createInitialTutorialState, type TutorialState } from './tutorialState';
 import type { SimulationState } from '@/types/simulation';
 
@@ -71,7 +72,7 @@ const financialHistoryEntry: Check = (value) => fields(value, {
 const cashMovement: Check = (value) => {
   if (!fields(value, {
     kind: oneOf('loc-draw', 'loc-repayment', 'partner-distribution', 'tax-payment',
-      'equipment-purchase', 'hiring', 'severance', 'staff-recovery', 'client-meeting', 'repair', 'unclassified'),
+      'equipment-purchase', 'hiring', 'severance', 'staff-recovery', 'client-meeting', 'client-pursuit', 'repair', 'unclassified'),
     amount: finite,
   })) return false;
   const movement = value as { kind: string; amount: number };
@@ -286,13 +287,21 @@ export function parseSession(raw: string): SessionSnapshot | null {
         alerts: simulation.alerts.map((alert) => ({
           ...alert, timestamp: new Date(alert.timestamp),
         })),
-        inbox: simulation.inbox.map((message) => ({
-          ...message, timestamp: new Date(message.timestamp),
-          ...(parsed.version !== SESSION_VERSION && message.requiresAction && message.scenario.kind === 'tax-planning'
-            ? { read: true, requiresAction: false,
-                resolution: { choiceId: 'expired', summary: 'This prior tax estimate expired during save migration because no payable balance was recorded. Future quarters use the new tax balance.' } }
-            : {}),
-        })),
+        inbox: simulation.inbox.map((message) => {
+          const pendingProspectFee = message.requiresAction && message.scenario.kind === 'new-client'
+            ? message.scenario.monthlyFee : null;
+          return {
+            ...message, timestamp: new Date(message.timestamp),
+            ...(pendingProspectFee !== null
+              ? { choices: message.choices.map(choice => choice.id === 'pursue'
+                  ? { ...choice, effect: getAggressiveClientPursuitEffect(pendingProspectFee) } : choice) }
+              : {}),
+            ...(parsed.version !== SESSION_VERSION && message.requiresAction && message.scenario.kind === 'tax-planning'
+              ? { read: true, requiresAction: false,
+                  resolution: { choiceId: 'expired', summary: 'This prior tax estimate expired during save migration because no payable balance was recorded. Future quarters use the new tax balance.' } }
+              : {}),
+          };
+        }),
       },
       tutorial: parsed.version === SESSION_VERSION
         ? parsed.tutorial as TutorialState
