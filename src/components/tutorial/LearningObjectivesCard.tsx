@@ -38,7 +38,10 @@ export default function LearningObjectivesCard({ phase }: LearningObjectivesCard
           display: 'block',
         }}
       >
-        Learning Objectives — {phaseLabels[phase]}
+        Tour Topics — {phaseLabels[phase]}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+        Checkmarks record topics visited, not demonstrated mastery.
       </Typography>
       <Stack spacing={0.75}>
         {objectives.map((obj) => {

@@ -2,7 +2,7 @@
 
 ## Current State
 
-Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. PR #8 delivers staffing effects on client service and retention, constrained client and collections actions, and improved mobile decision and finance views. The current focused pass makes warning status and new-client pursuit costs clearer. There is no account, backend, or cross-device sync. New-player notes remain preliminary; the interface changes still need human validation.
+Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. Stage 1 of the learning-improvement plan connects coverage to burnout, shares one monthly partner intervention across major personal responses, closes the manual salary-cut loophole, and aligns teaching copy with modeled effects. There is no account, backend, or cross-device sync. One playtester’s learning uncertainty remains a preliminary observation; Stage 1 has no new human learning evidence.
 
 The earlier 15–20% completion estimate and checklist described work that has since been built. Progress toward a finished game cannot be stated as a precise percentage without defining the intended feature set.
 
@@ -84,10 +84,13 @@ The earlier 15–20% completion estimate and checklist described work that has s
 
 ## Next Work
 
-- [ ] Continue first-time-player sessions using `docs/new-player-playtest.md`; verify that players can distinguish current warnings from prior outcomes, follow warnings to actions, explain the pursuit and write-off tradeoffs, and find phone finance information.
+- [x] Complete Stage 1, slice A in `docs/learning-improvement-plan.md`: workload and fatigue rules, shared partner attention, complaint alternatives, salary commitments, truthful copy, save compatibility, focused tests, seeded balance report, and browser checks. Numerical workload bands remain fictional game assumptions; no tuning adjustment was needed.
+- [ ] Build the authored three-round GR case and its intake/policy scenarios (later delivery slice B).
+- [ ] Replace the existing orientation with prediction, decision, result, and debrief guidance (later delivery slice C). Preserve existing save compatibility during that transition.
+- [ ] Freeze the later learning-focused playtest kit, then observe first-time players with distinct pre/post transfer questions (later delivery slice D). The updated `docs/new-player-playtest.md` currently supports Stage 1 rehearsal, not a new learning claim.
 - [ ] Revisit the $3,000 pursuit price and service balance after player observations; the initial price is a game design choice, not a measured real-world cost.
-- [ ] Decide whether the simplified month-opening tax estimate needs a deeper accounting model after playtesting.
-- [ ] Add a documented save export/import or account sync only if play across browsers or devices becomes a requirement.
+- [ ] Deferred beyond this playtest package: decide whether the simplified month-opening tax estimate needs a deeper accounting model.
+- [ ] Deferred beyond this playtest package: add a documented save export/import or account sync only if play across browsers or devices becomes a requirement.
 
 ## Quality Gate
 

@@ -99,7 +99,7 @@ describe('client meetings', () => {
     const first = scheduleClientMeeting(state, state.clients[0].id);
     expect(scheduleClientMeeting(first, state.clients[0].id)).toBe(first);
     expect(getClientMeetingQuote(first, state.clients[1].id).disabledReason)
-      .toContain('already held a client meeting this month');
+      .toContain('Partner intervention already used');
     expect(scheduleClientMeeting(first, state.clients[1].id)).toBe(first);
 
     const february = advance(first);

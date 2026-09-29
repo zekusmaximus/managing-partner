@@ -1,6 +1,9 @@
 import type { Client, InboxMessage, InboxScenario, SimulationState } from '@/types/simulation';
-import { AGGRESSIVE_CLIENT_PURSUIT_COST, BENEFITS_RATE, QUARTERLY_TAX_LATE_RATE } from '@/types/simulation';
+import { BENEFITS_RATE, QUARTERLY_TAX_LATE_RATE } from '@/types/simulation';
 import { getOverdueClientAccount } from './engine';
+import { getAggressiveClientPursuitEffect, getComplaintChoices, getCollectionsChoices } from './inboxChoices';
+
+export { getAggressiveClientPursuitEffect } from './inboxChoices';
 
 export interface ScenarioDeps {
   random: () => number;
@@ -9,9 +12,6 @@ export interface ScenarioDeps {
 }
 
 const getCurrentQuarter = (month: number): number => Math.ceil(month / 3);
-
-export const getAggressiveClientPursuitEffect = (monthlyFee: number): string =>
-  `70% chance of a $${monthlyFee.toLocaleString()}/mo client; pay $${AGGRESSIVE_CLIENT_PURSUIT_COST.toLocaleString()} now whether or not they sign. Cash and profit fall by this expense; service workload rises if signed.`;
 
 const prospectNames = [
   'InnovateTech', 'EnergyCorp', 'PharmaLife', 'AutoDrive', 'FinServe', 'CivicGrid',
@@ -53,11 +53,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       id: deps.generateId(), type: 'alert', title: 'Client Feedback',
       description: `${client.name} has submitted negative feedback about our services. They mention slow response times and lack of visibility on legislative updates.`,
       urgency: 'high', requiresAction: true, read: false,
-      choices: [
-        { id: 'address', label: 'Respond Personally', effect: 'Client satisfaction +15; no additional cash cost' },
-        { id: 'assign', label: 'Add Service Check-ins', effect: 'Client satisfaction +8; no added monthly expense' },
-        { id: 'ignore', label: 'Defer for Now', effect: 'Client satisfaction -10' },
-      ],
+      choices: getComplaintChoices(),
       scenario: { kind: 'client-feedback', clientId: client.id },
       timestamp: deps.now(),
     });
@@ -182,11 +178,7 @@ export const generateInboxMessages = (currentState: SimulationState, deps: Scena
       id: deps.generateId(), type: 'alert', title: 'Collections Problem',
       description: `${overdueClient.clientName} has $${overdueAmount.toLocaleString()} in invoices that are 61–90 days outstanding. Total 61+ day AR across all accounts: $${Math.round(currentState.arAging.sixtyDay + currentState.arAging.ninetyPlus).toLocaleString()}.`,
       urgency: 'high', requiresAction: true, read: false,
-      choices: [
-        { id: 'demand-letter', label: 'Send Formal Demand', effect: 'Collect 60% of the remaining 61–90 day balance now; client satisfaction -5' },
-        { id: 'personal-call', label: 'Personal Call from Partner', effect: 'Collect 40% of the remaining 61–90 day balance now; satisfaction unchanged' },
-        { id: 'write-off-ar', label: 'Write Off Balance', effect: 'Clear the remaining 61–90 day balance; no cash comes in, and bad debt expense rises while profit falls by that amount' },
-      ],
+      choices: getCollectionsChoices(),
       scenario: { kind: 'collections-problem', clientId: overdueClient.clientId ?? undefined, overdueAmount },
       timestamp: deps.now(),
     });

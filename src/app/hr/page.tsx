@@ -9,6 +9,8 @@ import { getEmployeeTotalCost, getEmployeeBenefits, getEmployeePayrollTax } from
 import HelpTooltip from '@/components/help/HelpTooltip';
 import StaffingEconomics from '@/components/hr/StaffingEconomics';
 import { getStaffRecoveryQuote } from '@/lib/simulation/burnout';
+import { getWorkloadBurnoutTrend } from '@/lib/simulation/clientService';
+import { getSalaryIncreaseQuote } from '@/lib/simulation/salary';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -19,7 +21,9 @@ export default function HR() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [newRole, setNewRole] = useState<'Lobbyist' | 'Attorney' | 'Support'>('Lobbyist');
   const [newSalary, setNewSalary] = useState<number>(0);
-  const validSalary = Number.isFinite(newSalary) && newSalary > 0;
+  const salaryQuote = getSalaryIncreaseQuote(state, selectedEmployee?.id ?? '', newSalary);
+  const validSalary = salaryQuote.valid;
+  const workload = getWorkloadBurnoutTrend(state);
 
   // Calculate stats
   const totalPayroll = state.employees.reduce((sum, e) => sum + getEmployeeTotalCost(e), 0);
@@ -155,6 +159,14 @@ export default function HR() {
               <Card>
                 <CardHeader title={<>Staff Recovery <HelpTooltip helpId="hr-recovery" /></>} />
                 <CardContent>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    {workload.explanation}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    These workload bands are simulation assumptions, applied to the whole team.
+                    Recovery reduces fatigue without increasing permanent efficacy. Adequate service capacity
+                    addresses continuing overload; recovery alone does not fix understaffing.
+                  </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Choose one paid recovery option per month for staff at 20% burnout or higher.
                     Payment comes from cash on hand, reduces current-month profit, and counts toward the Payroll budget.
@@ -165,14 +177,12 @@ export default function HR() {
                       <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2, height: '100%' }}>
                         <Typography variant="h6" component="h3" gutterBottom>Full team program</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                          Up to 12 highest-burnout staff. $1,500 each; each loses up to 25 burnout points
-                          and regains up to 5 efficacy points.
+                          Up to 12 highest-burnout staff. $1,500 each; each loses up to 25 burnout points.
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
                           {recoveryQuote.participantIds.length === 0 ? 'No eligible staff.' : <>
                             {recoveryQuote.participantIds.length} staff · ${recoveryQuote.cost.toLocaleString()} now ·
-                            {' '}{recoveryQuote.totalBurnoutReduction} total burnout points reduced ·
-                            {' '}{recoveryQuote.totalEfficacyGain} total efficacy points restored
+                            {' '}{recoveryQuote.totalBurnoutReduction} total burnout points reduced
                           </>}
                         </Typography>
                         <Button
@@ -194,14 +204,13 @@ export default function HR() {
                       <Box sx={{ border: 1, borderColor: !recoveryQuote.canFund && targetedRecoveryQuote.canFund ? 'warning.main' : 'divider', borderRadius: 1, p: 2, height: '100%' }}>
                         <Typography variant="h6" component="h3" gutterBottom>Targeted recovery</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                          Up to 2 highest-burnout staff. $500 each; each loses up to 15 burnout points
-                          and regains up to 3 efficacy points. If cash covers only one, fund one for $500.
+                          Up to 2 highest-burnout staff. $500 each; each loses up to 15 burnout points.
+                          If cash covers only one, fund one for $500.
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
                           {targetedRecoveryQuote.participantIds.length === 0 ? 'No eligible staff.' : <>
                             {targetedRecoveryQuote.participantIds.length} staff · ${targetedRecoveryQuote.cost.toLocaleString()} now ·
-                            {' '}{targetedRecoveryQuote.totalBurnoutReduction} total burnout points reduced ·
-                            {' '}{targetedRecoveryQuote.totalEfficacyGain} total efficacy points restored
+                            {' '}{targetedRecoveryQuote.totalBurnoutReduction} total burnout points reduced
                           </>}
                         </Typography>
                         <Button
@@ -396,13 +405,13 @@ export default function HR() {
                               </Tooltip>
                             </TableCell>
                             <TableCell align="center">
-                              <Tooltip title="Adjust Salary">
+                              <Tooltip title="Increase salary">
                                 <Button
                                   size="small"
-                                  aria-label={`Adjust salary for ${employee.name}`}
+                                  aria-label={`Increase salary for ${employee.name}`}
                                   onClick={() => handleSalaryClick(employee)}
                                 >
-                                  Salary
+                                  Increase salary
                                 </Button>
                               </Tooltip>
                               <Tooltip title="Fire Employee">
@@ -456,9 +465,9 @@ export default function HR() {
         </DialogActions>
       </Dialog>
 
-      {/* Adjust Salary Dialog */}
+      {/* Salary increase is a recurring commitment beginning next month. */}
       <Dialog open={openSalaryDialog} onClose={() => setOpenSalaryDialog(false)}>
-        <DialogTitle>Adjust Salary for {selectedEmployee?.name}</DialogTitle>
+        <DialogTitle>Increase salary for {salaryQuote.employee?.name ?? selectedEmployee?.name}</DialogTitle>
         <DialogContent>
           <TextField
             label="New Monthly Salary"
@@ -467,19 +476,30 @@ export default function HR() {
             value={newSalary}
             onChange={(e) => setNewSalary(Number(e.target.value))}
             error={!validSalary}
-            helperText={!validSalary ? 'Enter a salary greater than zero.' : undefined}
-            slotProps={{ htmlInput: { min: 1, step: 1 } }}
+            helperText={salaryQuote.disabledReason ?? (salaryQuote.isNoOp ? 'Unchanged amount: no salary or payroll change.' : undefined)}
+            slotProps={{ htmlInput: { min: salaryQuote.employee?.salary ?? 0, step: 1 } }}
             sx={{ mt: 1 }}
           />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Current salary: ${selectedEmployee?.salary.toLocaleString()}/month
-            {selectedEmployee && ` (Total cost: $${getEmployeeTotalCost(selectedEmployee).toLocaleString()}/month)`}
+            Current salary: ${salaryQuote.employee?.salary.toLocaleString()}/month
+            {salaryQuote.employee && ` (Loaded cost: $${getEmployeeTotalCost(salaryQuote.employee).toLocaleString()}/month)`}
+          </Typography>
+          {validSalary && <Typography variant="body2" sx={{ mt: 2 }} role="status">
+            Proposed loaded employee cost: ${salaryQuote.employeeLoadedCost.toLocaleString()}/month.
+            Total recurring payroll: ${salaryQuote.loadedPayroll.toLocaleString()}/month
+            {' '}(+${salaryQuote.addedMonthlyPayroll.toLocaleString()}). Includes this simulation&apos;s benefits
+            and payroll tax assumptions. {salaryQuote.isNoOp ? 'No change takes effect.' :
+              `The roster updates now; cash and profit reflect the new payroll when you advance to ${salaryQuote.effectiveMonth}/${salaryQuote.effectiveYear}.`}
+          </Typography>}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Salaries are commitments in this introductory model. Salary reductions and renegotiations
+            are not simulated; existing inbox raise requests remain separate decisions.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenSalaryDialog(false)}>Cancel</Button>
           <Button onClick={handleSalarySave} variant="contained" color="primary" disabled={!validSalary}>
-            Save
+            {salaryQuote.isNoOp ? 'Keep current salary' : 'Increase salary'}
           </Button>
         </DialogActions>
       </Dialog>

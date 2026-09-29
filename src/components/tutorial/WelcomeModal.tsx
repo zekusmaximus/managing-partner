@@ -51,8 +51,8 @@ export default function WelcomeModal() {
       <DialogContent sx={{ px: 4 }}>
         <Typography variant="body1" sx={{ textAlign: 'center', mb: 3, lineHeight: 1.7 }}>
           Step into the role of a managing partner at a Washington, D.C. government relations firm.
-          Learn to manage finances, lead a team of lobbyists and attorneys, and navigate the complex
-          world of government affairs.
+          Explore cash, client commitments, staffing, and limited partner attention in a simplified
+          fictional model. The tutorial introduces the controls; completing it is not a skills assessment.
         </Typography>
 
         <Divider sx={{ mb: 3 }} />
@@ -61,16 +61,16 @@ export default function WelcomeModal() {
           <Box sx={{ flex: 1, textAlign: 'center' }}>
             <School sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Learn GR Fundamentals
+              Explore GR Concepts
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Real-world government relations concepts and terminology
+              Government relations terminology and the model’s limits
             </Typography>
           </Box>
           <Box sx={{ flex: 1, textAlign: 'center' }}>
             <Gavel sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Make Real Decisions
+              Compare Decisions
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Practice managing partner trade-offs and judgment calls
@@ -82,7 +82,7 @@ export default function WelcomeModal() {
               Build Your Firm
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Grow reputation, clients, and profitability over time
+              Balance growth with service capacity and recurring commitments
             </Typography>
           </Box>
         </Box>
@@ -103,7 +103,7 @@ export default function WelcomeModal() {
           onClick={skipTutorial}
           sx={{ color: 'text.secondary' }}
         >
-          Skip — I know GR
+          Explore Freely
         </Button>
       </DialogActions>
     </Dialog>

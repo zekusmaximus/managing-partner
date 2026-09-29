@@ -54,7 +54,7 @@ export default function TutorialProgressBar() {
       />
 
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-        {isCompleted ? '100' : completionPercentage}% complete
+        {isCompleted ? '100' : completionPercentage}% of tour visited
       </Typography>
 
       {(isPaused || isSkipped) && (

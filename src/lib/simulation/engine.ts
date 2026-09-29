@@ -1,6 +1,7 @@
-import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, ReceivableAccount, SimulationState } from '@/types/simulation';
+import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, PartnerIntervention, ReceivableAccount, SimulationState } from '@/types/simulation';
 import { AGGRESSIVE_CLIENT_PURSUIT_COST, AR_COLLECTION_RATES, CLIENT_MEETING_COLLECTION_CAP, CLIENT_MEETING_COLLECTION_RATE, CLIENT_MEETING_COST, CLIENT_MEETING_SATISFACTION_GAIN, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
-import { getClientServiceCapacity, getClientServiceCoverage } from './clientService';
+import { getClientServiceCapacity, getClientServiceCoverage, getWorkloadBurnoutTrend } from './clientService';
+import { getCurrentInboxChoices } from './inboxChoices';
 
 export interface EngineDeps {
   random: () => number;
@@ -89,6 +90,34 @@ export const sumReceivables = (accounts: ReceivableAccount[]): ARBuckets =>
     ninetyPlus: total.ninetyPlus + account.aging.ninetyPlus,
   }), { current: 0, thirtyDay: 0, sixtyDay: 0, ninetyPlus: 0 });
 
+export const getLastPartnerIntervention = (state: SimulationState): PartnerIntervention | null => {
+  const legacy = state.lastClientMeeting;
+  const current = state.lastPartnerIntervention;
+  // A legacy current-month meeting must never be lost to a null/older marker.
+  if (legacy && (!current || legacy.year * 12 + legacy.month > current.year * 12 + current.month)) {
+    return { ...legacy, action: 'client-meeting',
+      clientName: state.clients.find(client => client.id === legacy.clientId)?.name };
+  }
+  return current ?? null;
+};
+
+export const getPartnerInterventionStatus = (state: SimulationState) => {
+  const last = getLastPartnerIntervention(state);
+  const available = last?.month !== state.month || last?.year !== state.year;
+  const nextMonth = state.month === 12 ? 1 : state.month + 1;
+  const nextYear = state.month === 12 ? state.year + 1 : state.year;
+  const availableAgain = available ? 'Available now' : new Date(Date.UTC(nextYear, nextMonth - 1, 1))
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const action = last?.action === 'complaint-recovery' ? 'Recovery meeting'
+    : last?.action === 'personal-collection' ? 'Personal collection call' : 'Client meeting';
+  const usedBy = !available ? `${action}${last?.clientName ? ` with ${last.clientName}` : ''}` : null;
+  return { available, usedBy, availableAgain,
+    disabledReason: available ? null : `Partner intervention already used: ${usedBy}. Available again in ${availableAgain}.` };
+};
+
+const hasPendingComplaint = (state: SimulationState, clientId: string) => state.inbox.some(message =>
+  message.requiresAction && message.scenario.kind === 'client-feedback' && message.scenario.clientId === clientId);
+
 export interface ClientMeetingQuote {
   available: boolean;
   disabledReason: string | null;
@@ -99,6 +128,7 @@ export interface ClientMeetingQuote {
   overdueAmount: number;
   collectionEstimate: number;
   netCashEstimate: number;
+  intervention: ReturnType<typeof getPartnerInterventionStatus>;
 }
 
 // A client meeting is a strategic response to renewal, service, or payment
@@ -111,16 +141,23 @@ export const getClientMeetingQuote = (state: SimulationState, clientId: string):
   const collectionEstimate = Math.min(overdueAmount, CLIENT_MEETING_COLLECTION_CAP,
     Math.round(overdueAmount * CLIENT_MEETING_COLLECTION_RATE));
   const eligibleReasons: string[] = [];
+  const complaintHandledThisMonth = state.inbox.some(message => !message.requiresAction &&
+    message.scenario.kind === 'client-feedback' && message.scenario.clientId === clientId &&
+    message.resolution?.month === state.month && message.resolution.year === state.year);
+  const activeComplaint = hasPendingComplaint(state, clientId);
+  const intervention = getPartnerInterventionStatus(state);
   if (client && client.contractMonthsRemaining <= 3) eligibleReasons.push('Contract ends within three months');
-  if (client && client.satisfaction < 70) eligibleReasons.push('Client satisfaction is below 70%');
-  if (client && getClientServiceCoverage(state) < 0.9) eligibleReasons.push('Firm service coverage is below 90%');
+  if (client && activeComplaint) eligibleReasons.push('Client has an unresolved complaint');
+  if (client && !complaintHandledThisMonth && client.satisfaction < 70) eligibleReasons.push('Client satisfaction is below 70%');
+  if (client && !complaintHandledThisMonth && getClientServiceCoverage(state) < 0.9) eligibleReasons.push('Firm service coverage is below 90%');
   if (client && overdueAmount > 0) eligibleReasons.push('Client has invoices over 30 days old');
   const satisfactionGain = client ? Math.min(CLIENT_MEETING_SATISFACTION_GAIN, 100 - client.satisfaction) : 0;
   const disabledReason = !client ? 'This client is no longer active.'
-    : eligibleReasons.length === 0 ? 'No renewal, service, satisfaction, or overdue-payment risk requires a meeting.'
-      : state.lastClientMeeting?.month === state.month && state.lastClientMeeting.year === state.year
-        ? 'The firm has already held a client meeting this month.'
-        : state.financials.cashOnHand < CLIENT_MEETING_COST
+    : eligibleReasons.length === 0 ? (complaintHandledThisMonth
+      ? 'This complaint was already handled this month. A separate renewal or overdue-payment issue is required for another meeting.'
+      : 'No complaint, renewal, service, satisfaction, or overdue-payment risk requires a meeting.')
+      : !intervention.available ? intervention.disabledReason
+        : !Number.isFinite(state.financials.cashOnHand) || state.financials.cashOnHand < CLIENT_MEETING_COST
           ? 'The firm needs $1,000 cash to hold this meeting.' : null;
   return {
     available: disabledReason === null,
@@ -132,6 +169,7 @@ export const getClientMeetingQuote = (state: SimulationState, clientId: string):
     overdueAmount,
     collectionEstimate,
     netCashEstimate: collectionEstimate - CLIENT_MEETING_COST,
+    intervention,
   };
 };
 
@@ -155,10 +193,12 @@ export const scheduleClientMeeting = (state: SimulationState, clientId: string):
   });
   const collected = quote.collectionEstimate - remaining;
   const clientName = state.clients.find(client => client.id === clientId)?.name ?? 'Client';
+  const resolvesComplaint = hasPendingComplaint(state, clientId);
+  const summary = `Met with ${clientName}: satisfaction +${quote.satisfactionGain} to ${quote.nextSatisfaction}%; collected $${collected.toLocaleString()} in overdue invoices; $${quote.cost.toLocaleString()} meeting expense paid. Used this month’s partner intervention. Profit fell by $${quote.cost.toLocaleString()}; collections converted AR to cash without new revenue.`;
   const meetingAlert: Alert = {
     id: `client-meeting-${state.year}-${state.month}-${clientId}`,
     type: 'success',
-    message: `Met with ${clientName}: satisfaction +${quote.satisfactionGain} to ${quote.nextSatisfaction}%; collected $${collected.toLocaleString()} in overdue invoices; $${quote.cost.toLocaleString()} meeting expense paid.`,
+    message: summary,
     timestamp: new Date(Date.UTC(state.year, state.month - 1, 1)),
     actionTarget: { kind: 'client', clientId },
   };
@@ -169,6 +209,13 @@ export const scheduleClientMeeting = (state: SimulationState, clientId: string):
     clients: expensed.clients.map(client => client.id === clientId
       ? { ...client, satisfaction: client.satisfaction + quote.satisfactionGain } : client),
     lastClientMeeting: { month: state.month, year: state.year, clientId },
+    lastPartnerIntervention: { month: state.month, year: state.year, clientId, clientName,
+      action: resolvesComplaint ? 'complaint-recovery' : 'client-meeting' },
+    inbox: expensed.inbox.map(message => message.requiresAction &&
+      message.scenario.kind === 'client-feedback' && message.scenario.clientId === clientId
+      ? { ...message, choices: getCurrentInboxChoices(message), read: true, requiresAction: false,
+          resolution: { choiceId: 'address', summary, month: state.month, year: state.year } }
+      : message),
     alerts: [meetingAlert, ...expensed.alerts].slice(0, 10),
   }, expensed.financials.cashOnHand + collected, collected);
   return updated;
@@ -262,15 +309,14 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       const newYear = prevState.month === 12 ? prevState.year + 1 : prevState.year;
       const quarter = getCurrentQuarter(newMonth);
 
-      // 1. Update employees (burnout/efficacy)
-      const updatedEmployees = prevState.employees.map(emp => {
-        let newBurnout = Math.min(100, emp.burnout + Math.floor(deps.random() * 5) + 2);
-        let newEfficacy = Math.max(0, emp.efficacy - Math.floor(newBurnout / 20));
-        if (newBurnout < 30) {
-          newEfficacy = Math.min(100, newEfficacy + 2);
-        }
-        return { ...emp, burnout: newBurnout, efficacy: newEfficacy };
-      });
+      // 1. Take one pre-update workload snapshot, then update everyone once.
+      // Fatigue changes effective service below; capability changes only in
+      // explicit staff scenarios, never simply because a month has passed.
+      const workload = getWorkloadBurnoutTrend(prevState);
+      const updatedEmployees = prevState.employees.map(emp => ({
+        ...emp,
+        burnout: Math.max(0, Math.min(100, emp.burnout + workload.burnoutChange)),
+      }));
 
       // 2. Billable capacity serves the current book. This month's service
       // coverage changes satisfaction and directly affects renewal odds.
@@ -522,9 +568,79 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
 
 export interface ChoiceDeps { random: () => number; generateId: () => string }
 
+export interface InboxChoiceQuote {
+  available: boolean;
+  disabledReason: string | null;
+  effect: string;
+  cost: number;
+  satisfactionChange: number;
+  collectionEstimate: number;
+  usesPartnerIntervention: boolean;
+}
+
+export const getInboxChoiceQuote = (state: SimulationState, messageId: string, choiceId: string): InboxChoiceQuote => {
+  const message = state.inbox.find(item => item.id === messageId);
+  const choice = message && getCurrentInboxChoices(message).find(item => item.id === choiceId);
+  let disabledReason: string | null = !message || !message.requiresAction
+    ? 'This decision is no longer pending.' : !choice ? 'This choice is no longer available.' : null;
+  let effect = choice?.effect ?? '';
+  let cost = 0;
+  let satisfactionChange = 0;
+  let collectionEstimate = 0;
+  let usesPartnerIntervention = false;
+  if (!disabledReason && message) {
+    const scenario = message.scenario;
+    if (scenario.kind === 'client-feedback') {
+      const client = state.clients.find(item => item.id === scenario.clientId);
+      if (!client) disabledReason = 'This client is no longer active; the pending choice cannot be applied.';
+      else if (choiceId === 'address') {
+        const meeting = getClientMeetingQuote(state, client.id);
+        disabledReason = meeting.disabledReason;
+        cost = meeting.cost;
+        satisfactionChange = meeting.satisfactionGain;
+        collectionEstimate = meeting.collectionEstimate;
+        usesPartnerIntervention = true;
+        effect = `Pay $${cost.toLocaleString()}; satisfaction +${satisfactionChange} to ${meeting.nextSatisfaction}%. Collect $${collectionEstimate.toLocaleString()} in overdue AR; net cash ${meeting.netCashEstimate < 0 ? '-' : '+'}$${Math.abs(meeting.netCashEstimate).toLocaleString()}, profit -$${cost.toLocaleString()}. Uses this month’s partner intervention; resolves this complaint once. Capacity is unchanged.`;
+      } else if (choiceId === 'assign') {
+        satisfactionChange = Math.min(3, 100 - client.satisfaction);
+        if (!state.employees.some(employee => employee.role !== 'Support')) {
+          disabledReason = 'Delegation requires at least one billable employee (lobbyist or attorney).';
+        }
+        effect = `Satisfaction +${satisfactionChange} to ${client.satisfaction + satisfactionChange}%; no additional cash expense or partner intervention. Uses the already-paid team; capacity is unchanged and understaffing is not repaired.`;
+      } else if (choiceId === 'ignore') {
+        satisfactionChange = -Math.min(10, client.satisfaction);
+        effect = `Satisfaction ${satisfactionChange} to ${client.satisfaction + satisfactionChange}%; no cash expense or partner intervention. Records this complaint as deferred.`;
+      }
+    } else if (scenario.kind === 'collections-problem') {
+      const available = scenario.clientId
+        ? state.receivables.find(account => account.clientId === scenario.clientId)?.aging.sixtyDay ?? 0
+        : state.arAging.sixtyDay;
+      const overdue = Math.min(available, scenario.overdueAmount);
+      if (overdue <= 0) disabledReason = 'No balance remains from this 61–90 day collection request; the pending choice cannot be applied.';
+      const client = state.clients.find(item => item.id === scenario.clientId);
+      if (choiceId === 'personal-call' || choiceId === 'demand-letter') {
+        collectionEstimate = collectAtRate(overdue, choiceId === 'personal-call' ? 0.4 : 0.6);
+        usesPartnerIntervention = choiceId === 'personal-call';
+        satisfactionChange = choiceId === 'demand-letter' && client ? -Math.min(5, client.satisfaction) : 0;
+        if (usesPartnerIntervention && !disabledReason) disabledReason = getPartnerInterventionStatus(state).disabledReason;
+        if (collectionEstimate === 0 && !disabledReason) disabledReason = 'The remaining balance is too small for this collection action.';
+        effect = `Collect $${collectionEstimate.toLocaleString()}: cash rises and AR falls by that amount; profit is unchanged. No cash expense; satisfaction ${satisfactionChange === 0 ? 'unchanged' : satisfactionChange}.${usesPartnerIntervention ? ' Uses this month’s partner intervention.' : ' No partner intervention.'}`;
+      } else if (choiceId === 'write-off-ar') {
+        effect = `Write off $${overdue.toLocaleString()} and close collection efforts for that amount: cash unchanged, AR and profit fall by $${overdue.toLocaleString()}. No partner intervention. Accounting write-off alone need not cancel a debt; this game combines those decisions.`;
+      }
+    }
+  }
+  return { available: disabledReason === null, disabledReason, effect, cost, satisfactionChange,
+    collectionEstimate, usesPartnerIntervention };
+};
+
 export const applyInboxChoice = (state: SimulationState, messageId: string, choiceId: string, deps: ChoiceDeps): SimulationState => {
   const message = state.inbox.find(item => item.id === messageId);
-  if (!message || !message.requiresAction || !message.choices.some(choice => choice.id === choiceId)) return state;
+  if (!message || !getInboxChoiceQuote(state, messageId, choiceId).available) return state;
+  // Both entry points use this exact transition: no second complaint reward.
+  if (message.scenario.kind === 'client-feedback' && choiceId === 'address') {
+    return scheduleClientMeeting(state, message.scenario.clientId);
+  }
 
   let next: SimulationState = { ...state };
   let manualCollections = 0;
@@ -571,12 +687,12 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       break;
     }
     case 'client-feedback': {
-      const change = choiceId === 'address' ? 15 : choiceId === 'assign' ? 8 : choiceId === 'ignore' ? -10 : 0;
+      const change = getInboxChoiceQuote(state, messageId, choiceId).satisfactionChange;
       next.clients = state.clients.map(client => client.id === scenario.clientId
         ? { ...client, satisfaction: Math.max(0, Math.min(100, client.satisfaction + change)) }
         : client);
       const client = next.clients.find(item => item.id === scenario.clientId)!;
-      resolutionSummary = `${client.name}'s satisfaction is now ${client.satisfaction}%.`;
+      resolutionSummary = `${choiceId === 'assign' ? 'Delegated routine response' : 'Deferred response'} for ${client.name}: satisfaction ${change > 0 ? '+' : ''}${change} to ${client.satisfaction}%. No cash expense or partner intervention. Service capacity is unchanged${choiceId === 'assign' ? '; delegation uses the already-paid team and does not repair understaffing' : ''}.`;
       break;
     }
     case 'new-client': {
@@ -672,10 +788,14 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
         next.financials = { ...state.financials, cashOnHand: state.financials.cashOnHand + manualCollections };
         if (choiceId === 'demand-letter' && scenario.clientId) next.clients = state.clients.map(client =>
           client.id === scenario.clientId ? { ...client, satisfaction: Math.max(0, client.satisfaction - 5) } : client);
-        resolutionSummary = `Collected $${manualCollections.toLocaleString()} from 61–90 day receivables${scenario.clientId ? ` for ${state.receivables.find(account => account.clientId === scenario.clientId)?.clientName}` : ''}.`;
+        if (choiceId === 'personal-call') next.lastPartnerIntervention = {
+          month: state.month, year: state.year, action: 'personal-collection', clientId: scenario.clientId,
+          clientName: state.receivables.find(account => account.clientId === scenario.clientId)?.clientName,
+        };
+        resolutionSummary = `Collected $${manualCollections.toLocaleString()} from 61–90 day receivables${scenario.clientId ? ` for ${state.receivables.find(account => account.clientId === scenario.clientId)?.clientName}` : ''}. Cash rose and AR fell by that amount; profit was unchanged. No cash expense.${choiceId === 'personal-call' ? ' Used this month’s partner intervention; satisfaction unchanged.' : ` Satisfaction fell by ${getInboxChoiceQuote(state, messageId, choiceId).satisfactionChange * -1}; no partner intervention.`}`;
       } else if (choiceId === 'write-off-ar') {
         next = writeOffReceivables(next, overdue, 'sixtyDay', scenario.clientId);
-        resolutionSummary = `Wrote off $${(state.arAging.sixtyDay - next.arAging.sixtyDay).toLocaleString()} in 61–90 day receivables as bad debt.`;
+        resolutionSummary = `Wrote off $${(state.arAging.sixtyDay - next.arAging.sixtyDay).toLocaleString()} in 61–90 day receivables as bad debt and closed collection efforts for that amount. No cash came in; AR and profit fell by the written-off amount. Accounting write-off alone need not cancel a debt; this game combines those decisions.`;
       }
       break;
     }
@@ -727,8 +847,10 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
   }
 
   next = recordCurrentCash(next, next.financials.cashOnHand, manualCollections);
-  next.inbox = state.inbox.map(item => item.id === messageId
-    ? { ...item, read: true, requiresAction: false, resolution: { choiceId, summary: resolutionSummary } }
+  next.inbox = state.inbox.map(item => item.id === messageId || (scenario.kind === 'client-feedback' &&
+    item.requiresAction && item.scenario.kind === 'client-feedback' && item.scenario.clientId === scenario.clientId)
+    ? { ...item, choices: getCurrentInboxChoices(item), read: true, requiresAction: false,
+        resolution: { choiceId, summary: resolutionSummary, month: state.month, year: state.year } }
     : item);
   return next;
 };

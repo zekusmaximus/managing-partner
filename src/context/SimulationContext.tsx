@@ -15,6 +15,7 @@ import { generateInboxMessages as createInboxMessages } from '@/lib/simulation/s
 import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, isValidAmount, recordCashMovement, recordOneTimeOperatingExpense, scheduleClientMeeting, writeOffReceivables } from '@/lib/simulation/engine';
 import { fundStaffRecovery, type StaffRecoveryPlan } from '@/lib/simulation/burnout';
 import { getAlertConditionKey } from '@/lib/simulation/alerts';
+import { increaseEmployeeSalary } from '@/lib/simulation/salary';
 
 // Re-export types for consumers
 export type { Employee, Client, Financials, FinancialHistoryEntry, Alert, InboxMessage, MessageChoice, SimulationState, OperatingCosts, Vendor, PartnerEconomics, BudgetItem, ARBuckets, LineOfCredit };
@@ -165,13 +166,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   }, [setState]);
 
   const adjustSalary = useCallback((employeeId: string, newSalary: number) => {
-    if (!isValidAmount(newSalary)) return;
-    setState(prevState => ({
-      ...prevState,
-      employees: prevState.employees.map(emp =>
-        emp.id === employeeId ? { ...emp, salary: newSalary } : emp
-      ),
-    }));
+    setState(prevState => increaseEmployeeSalary(prevState, employeeId, newSalary));
   }, [setState]);
 
   const fundStaffRecoveryAction = useCallback((plan: StaffRecoveryPlan = 'full') => {

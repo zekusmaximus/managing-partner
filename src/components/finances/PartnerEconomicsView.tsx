@@ -92,7 +92,7 @@ export default function PartnerEconomicsView() {
                 ${equityValue.toLocaleString()}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                1.5x T12 profit
+                Model assumption: 1.5x T12 profit
               </Typography>
             </CardContent>
           </Card>
@@ -163,7 +163,7 @@ export default function PartnerEconomicsView() {
                       </TableCell>
                     </TableRow>
                     <TableRow sx={{ bgcolor: 'action.hover' }}>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Estimated Firm Value</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Simulated Firm Value</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                         ${equityValue.toLocaleString()}
                       </TableCell>
@@ -172,7 +172,7 @@ export default function PartnerEconomicsView() {
                 </Table>
               </TableContainer>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Simplified valuation: 1.5x trailing 12-month net profit. Real valuations consider client retention, staff quality, brand value, and more.
+                Fictional valuation assumption: 1.5x profit in the last 12 retained monthly records, with a minimum of zero. This indicator is not spendable cash or a promised sale price.
               </Typography>
             </CardContent>
           </Card>
@@ -184,7 +184,7 @@ export default function PartnerEconomicsView() {
         <DialogTitle>Adjust Monthly Partner Draw</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Your draw is a guaranteed monthly payment before profit distributions. A higher draw provides steady income but reduces the distribution pool and cash reserves.
+            The model records your draw as a recurring monthly cash payment and P&L deduction. A higher draw reduces the distribution pool and cash reserves.
           </Typography>
           <TextField
             label="Monthly Draw Amount"

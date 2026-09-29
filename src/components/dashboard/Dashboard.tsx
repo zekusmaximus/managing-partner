@@ -71,7 +71,7 @@ const getAlertGuidance = (alert: SimulationAlert, state: SimulationState): Alert
         : 'Unpaid invoices delay cash and can age into the 90+ day bucket.',
       actions: [
         { label: 'Review collections', href: '/finances#accounts-receivable' },
-        ...(overdueClients.length > 0 ? [{ label: overdueClients.length === 1 ? 'Meet with client' : 'Review client meetings', href: meetingHref }] : []),
+        ...(overdueClients.length > 0 ? [{ label: overdueClients.length === 1 ? 'Lead recovery meeting' : 'Review recovery meetings', href: meetingHref }] : []),
       ],
     };
   }
