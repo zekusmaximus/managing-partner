@@ -4,6 +4,7 @@ import React from 'react';
 import { Box, Typography, LinearProgress, Button } from '@mui/material';
 import { PlayArrow, Replay } from '@mui/icons-material';
 import { useTutorial } from '@/context/TutorialContext';
+import { useSimulation } from '@/context/SimulationContext';
 
 const phaseLabels: Record<string, string> = {
   welcome: 'Welcome',
@@ -15,9 +16,11 @@ const phaseLabels: Record<string, string> = {
 
 export default function TutorialProgressBar() {
   const { tutorialState, completionPercentage, resumeTutorial, restartTutorial } = useTutorial();
+  const { state } = useSimulation();
 
-  // Don't show if never started
-  if (tutorialState.status === 'not_started') return null;
+  // The authored case has its own required decisions. Keep legacy tutorial
+  // progress intact for saves, but do not let its controls interrupt the case.
+  if (tutorialState.status === 'not_started' || state.authoredCase?.status === 'active') return null;
 
   const isCompleted = tutorialState.status === 'completed';
   const isSkipped = tutorialState.status === 'skipped';

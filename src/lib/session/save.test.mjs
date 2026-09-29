@@ -491,6 +491,25 @@ describe('versioned game save', () => {
     expect(storage.values.has(SESSION_STORAGE_KEY)).toBe(true);
   });
 
+  test('explicit New Game case mode replaces both saved firm and tutorial atomically', () => {
+    const storage = memoryStorage();
+    const store = new SessionStore(storage);
+    store.setSimulation(state => ({ ...state, month: 6 }));
+    store.setTutorial(state => ({ ...state, status: 'completed', showWelcomeModal: false }));
+    const stillFree = new SessionStore(storage).getSnapshot().snapshot;
+    expect(stillFree.simulation.month).toBe(6);
+    expect(stillFree.simulation.authoredCase).toBeNull();
+
+    store.newGame('case');
+    const started = store.getSnapshot().snapshot;
+    expect(started.simulation).toMatchObject({ month: 1, year: 2026,
+      authoredCase: { status: 'active', renewalOutcome: null } });
+    expect(started.simulation.clients.find(client => client.id === 'client1').contractMonthsRemaining).toBe(3);
+    expect(started.simulation.inbox.filter(message => message.id === 'case-2026-01-collection')).toHaveLength(1);
+    expect(started.tutorial).toMatchObject({ status: 'skipped', showWelcomeModal: false });
+    expect(new SessionStore(storage).getSnapshot().snapshot.simulation.authoredCase.status).toBe('active');
+  });
+
   test('starts fresh with a notice when save data is corrupt or storage fails', () => {
     const corruptStorage = memoryStorage();
     corruptStorage.setItem(SESSION_STORAGE_KEY, '{corrupt');

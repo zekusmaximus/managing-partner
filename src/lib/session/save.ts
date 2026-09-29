@@ -39,6 +39,7 @@ const fields = (value: unknown, checks: Record<string, Check>): boolean =>
 const month: Check = (value) => integer(value) && (value as number) >= 1 && (value as number) <= 12;
 const year: Check = (value) => integer(value) && (value as number) >= 2020;
 const percentage: Check = (value) => finite(value) && (value as number) >= 0 && (value as number) <= 100;
+const unitInterval: Check = (value) => finite(value) && (value as number) >= 0 && (value as number) <= 1;
 const timestamp: Check = (value) =>
   typeof value === 'string' && !Number.isNaN(new Date(value).getTime());
 
@@ -107,6 +108,12 @@ const scenario: Check = (value) => {
       name: text, clientType: oneOf('Trade Association', 'Corporation', 'Non-Profit'),
       monthlyFee: nonnegative,
     });
+    case 'case-prospect': return fields(value, {
+      name: text, clientType: oneOf('Trade Association', 'Corporation', 'Non-Profit'),
+      monthlyFee: nonnegative,
+    });
+    case 'case-intake-review': return true;
+    case 'case-policy-delay': return text(value.clientId);
     case 'lease-renewal': return nonnegative(value.currentRent);
     case 'it-vendor': return text(value.vendorId) &&
       (value.quotedMonthlyCost === undefined || nonnegative(value.quotedMonthlyCost));
@@ -202,6 +209,19 @@ const simulationStateV2: Check = (value) => {
 const simulationStateV3: Check = (value) => simulationStateV2(value) && record(value) &&
   Array.isArray(value.financialHistory) && value.financialHistory.every(financialHistoryEntryV3);
 
+const authoredCase: Check = (value) => {
+  if (!fields(value, {
+    status: oneOf('active', 'completed', 'left'),
+    renewalOutcome: (outcome) => outcome === null || oneOf('renewed', 'departed')(outcome),
+  }) || !record(value)) return false;
+  const renewalValid = fields(value.renewal, {
+    serviceCoverage: nonnegative, satisfaction: percentage, chance: unitInterval,
+  });
+  return value.status === 'completed'
+    ? value.renewalOutcome !== null && renewalValid
+    : value.renewalOutcome === null && value.renewal === undefined;
+};
+
 const simulationStateV4: Check = (value) => simulationStateV3(value) && record(value) &&
   fields(value.taxPosition, { principalDue: nonnegative, penaltiesDue: nonnegative }) &&
   (value.lastManualCollection === undefined || value.lastManualCollection === null ||
@@ -214,6 +234,7 @@ const simulationStateV4: Check = (value) => simulationStateV3(value) && record(v
       record(value.lastPartnerIntervention) &&
       (value.lastPartnerIntervention.clientId === undefined || text(value.lastPartnerIntervention.clientId)) &&
       (value.lastPartnerIntervention.clientName === undefined || text(value.lastPartnerIntervention.clientName)))) &&
+  (value.authoredCase === undefined || value.authoredCase === null || authoredCase(value.authoredCase)) &&
   Array.isArray(value.financialHistory) && value.financialHistory.every((entry) =>
     fields(entry, { taxExpense: nonnegative, taxPenalty: nonnegative }));
 
@@ -294,6 +315,7 @@ export function parseSession(raw: string): SessionSnapshot | null {
           .map(entry => parsed.version === SESSION_VERSION ? entry : { ...entry, taxExpense: 0, taxPenalty: 0 }),
         taxPosition: parsed.version === SESSION_VERSION
           ? simulation.taxPosition : { principalDue: 0, penaltiesDue: 0 },
+        authoredCase: parsed.version === SESSION_VERSION ? simulation.authoredCase ?? null : null,
         alerts: simulation.alerts.map((alert) => ({
           ...alert, timestamp: new Date(alert.timestamp),
         })),

@@ -132,6 +132,7 @@ const initialState: SimulationState = {
   lastManualCollection: null,
   lastClientMeeting: null,
   lastPartnerIntervention: null,
+  authoredCase: null,
 };
 
 

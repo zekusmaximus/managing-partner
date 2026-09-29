@@ -25,7 +25,7 @@ bun run build
 
 ## Storage and Integrations
 
-The app uses one version 4 `localStorage` save for the simulation and tutorial. Valid version 1–3 saves migrate, preserving pooled historical AR as unassigned and unexplained cash differences as unclassified. Earlier saves acquire a zero opening tax balance; unresolved legacy tax prompts expire because they have no recorded payable. The older tutorial-only key is discarded. It has no server API, account system, or database. The optional database recipe applies only if server-side or cross-device persistence is later requested.
+The app uses one version 4 `localStorage` save for the simulation and tutorial. The authored case adds optional progress under `SimulationState.authoredCase` so the January–April schedule resumes without a new save slot. Valid version 1–3 saves migrate, preserving pooled historical AR as unassigned and unexplained cash differences as unclassified; older version 4 saves without case progress remain free play. Earlier saves acquire a zero opening tax balance; unresolved legacy tax prompts expire because they have no recorded payable. The older tutorial-only key is discarded. It has no server API, account system, or database. The optional database recipe applies only if server-side or cross-device persistence is later requested.
 
 ## Key Directories
 

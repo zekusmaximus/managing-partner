@@ -1,7 +1,8 @@
 import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, FinancialHistoryEntry, InboxMessage, PartnerIntervention, ReceivableAccount, SimulationState } from '@/types/simulation';
-import { AGGRESSIVE_CLIENT_PURSUIT_COST, AR_COLLECTION_RATES, CLIENT_MEETING_COLLECTION_CAP, CLIENT_MEETING_COLLECTION_RATE, CLIENT_MEETING_COST, CLIENT_MEETING_SATISFACTION_GAIN, ESTIMATED_TAX_RATE, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
+import { AGGRESSIVE_CLIENT_PURSUIT_COST, AR_COLLECTION_RATES, CLIENT_MEETING_COLLECTION_CAP, CLIENT_MEETING_COLLECTION_RATE, CLIENT_MEETING_COST, CLIENT_MEETING_SATISFACTION_GAIN, ESTIMATED_TAX_RATE, HIRING_COST, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
 import { getClientServiceCapacity, getClientServiceCoverage, getWorkloadBurnoutTrend } from './clientService';
 import { getCurrentInboxChoices } from './inboxChoices';
+import { CASE_ANCHOR_ID, CASE_EVENT_IDS, createCaseComplaintMessage, createCaseIntakeReviewMessage, createCasePolicyMessage, createCaseProspectMessage, getCaseAdvanceBlocker } from './authoredCase';
 
 export interface EngineDeps {
   random: () => number;
@@ -305,6 +306,8 @@ export const reallocateBudget = (budget: BudgetItem[], category: string, quarter
 };
 
 export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineDeps): SimulationState => {
+      if (getCaseAdvanceBlocker(prevState)) return prevState;
+      const caseActive = prevState.authoredCase?.status === 'active';
       const newMonth = prevState.month === 12 ? 1 : prevState.month + 1;
       const newYear = prevState.month === 12 ? prevState.year + 1 : prevState.year;
       const quarter = getCurrentQuarter(newMonth);
@@ -328,6 +331,7 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
       // fresh term and churn ends billing; old receivables remain collectible.
       const renewedNames: string[] = [];
       const churnedNames: string[] = [];
+      const anchorRenewals: Array<{ outcome: 'renewed' | 'departed'; satisfaction: number; chance: number }> = [];
       const updatedClients = prevState.clients.flatMap(client => {
         const satisfaction = Math.max(0, Math.min(100,
           client.satisfaction + serviceAdjustment + Math.floor(deps.random() * 11) - 5));
@@ -336,7 +340,11 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
 
         const renewalChance = Math.min(0.95, Math.max(0.15, 0.15 + satisfaction * 0.008)) *
           Math.min(1, serviceCoverage);
-        if (deps.random() < renewalChance) {
+        const renewed = deps.random() < renewalChance;
+        if (caseActive && client.id === CASE_ANCHOR_ID) {
+          anchorRenewals.push({ outcome: renewed ? 'renewed' : 'departed', satisfaction, chance: renewalChance });
+        }
+        if (renewed) {
           renewedNames.push(client.name);
           return [{ ...client, satisfaction, contractMonthsRemaining: 12 }];
         }
@@ -537,6 +545,8 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         locInterestThisMonth: locInterest,
       };
 
+      const anchorRenewal = anchorRenewals[0];
+
       const nextState: SimulationState = {
         ...prevState,
         month: newMonth, year: newYear,
@@ -553,20 +563,59 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         partnerEconomics: newPartnerEconomics,
         budget: recordedBudget,
         inbox: expireTaxDecisions(prevState.inbox),
+        authoredCase: caseActive && newYear === 2026 && newMonth === 4 && anchorRenewal
+          ? { status: 'completed', renewalOutcome: anchorRenewal.outcome,
+              renewal: { serviceCoverage, satisfaction: anchorRenewal.satisfaction,
+                chance: anchorRenewal.chance } }
+          : prevState.authoredCase,
       };
 
       const newAlerts = deps.generateAlerts(nextState);
-      const newInboxMessages = deps.generateInboxMessages(nextState);
+      // During the case, discretionary prompts give way to its authored events.
+      // Tax planning remains available with its actual payable balance/effects.
+      const generatedMessages = deps.generateInboxMessages(nextState);
+      const newInboxMessages = caseActive
+        ? generatedMessages.filter(message => message.scenario.kind === 'tax-planning')
+          .map(message => ({ ...message, timestamp: new Date(Date.UTC(newYear, newMonth - 1, 1, 12)) }))
+        : generatedMessages;
+      const caseMessages = caseActive && newYear === 2026
+        ? newMonth === 2 ? [createCaseIntakeReviewMessage()]
+          : newMonth === 3 ? [createCasePolicyMessage(), createCaseComplaintMessage()]
+            : [] : [];
 
       return {
         ...nextState,
         alerts: [...contractAlerts, ...newAlerts, ...prevState.alerts].slice(0, 10),
-        inbox: retainInboxMessages([...newInboxMessages, ...nextState.inbox]),
+        inbox: retainInboxMessages([...caseMessages, ...newInboxMessages, ...nextState.inbox]),
       };
 };
 
 
 export interface ChoiceDeps { random: () => number; generateId: () => string }
+
+const resolveClientOpportunity = (
+  state: SimulationState,
+  opportunity: { name: string; clientType: Client['type']; monthlyFee: number },
+  choiceId: string,
+  deps: ChoiceDeps,
+): { next: SimulationState; won: boolean } => {
+  let next = choiceId === 'pursue'
+    ? recordOneTimeOperatingExpense(state, 'client-pursuit', AGGRESSIVE_CLIENT_PURSUIT_COST)
+    : state;
+  const won = choiceId === 'pursue' ? deps.random() > 0.3
+    : choiceId === 'initial-contact' ? deps.random() > 0.5 : false;
+  if (won) {
+    const profiles: Client['paymentProfile'][] = ['prompt', 'normal', 'slow'];
+    next = { ...next, clients: [...state.clients, {
+      id: deps.generateId(), name: opportunity.name, type: opportunity.clientType,
+      feeStructure: 'Retainer', monthlyFee: opportunity.monthlyFee,
+      satisfaction: 80, contractMonthsRemaining: 12,
+      paymentProfile: profiles[Math.floor(deps.random() * profiles.length)],
+      lastPaymentMonth: state.month,
+    }] };
+  }
+  return { next, won };
+};
 
 export interface InboxChoiceQuote {
   available: boolean;
@@ -611,12 +660,54 @@ export const getInboxChoiceQuote = (state: SimulationState, messageId: string, c
         satisfactionChange = -Math.min(10, client.satisfaction);
         effect = `Satisfaction ${satisfactionChange} to ${client.satisfaction + satisfactionChange}%; no cash expense or partner intervention. Records this complaint as deferred.`;
       }
+    } else if (scenario.kind === 'case-intake-review') {
+      if (state.authoredCase?.status !== 'active' || state.month !== 2 || state.year !== 2026)
+        disabledReason = 'This intake review is outside the active February case round.';
+      effect = 'Original opposing advocacy scope blocked; the separately reviewed public-monitoring scope becomes available. No cash, client, or partner-intervention change.';
+    } else if (scenario.kind === 'case-prospect') {
+      const reviewDone = state.inbox.some(item => item.id === CASE_EVENT_IDS.intakeReview &&
+        !item.requiresAction && item.resolution?.choiceId === 'review');
+      if (state.authoredCase?.status !== 'active' || state.month !== 2 || state.year !== 2026 || !reviewDone)
+        disabledReason = 'Complete the February intake review before deciding on the reviewed scope.';
+      if (choiceId === 'original-scope') disabledReason = 'The original opposing advocacy mandate has an unresolved conflict and cannot be signed.';
+      const currentCoverage = getClientServiceCoverage(state);
+      const projectedCoverage = getClientServiceCoverage({
+        ...state,
+        clients: [...state.clients, { id: 'case-projected-client', name: scenario.name,
+          type: scenario.clientType, feeStructure: 'Retainer', monthlyFee: scenario.monthlyFee,
+          satisfaction: 80, contractMonthsRemaining: 12, paymentProfile: 'normal', lastPaymentMonth: state.month }],
+      });
+      const capacity = `Current service coverage ${Math.round(currentCoverage * 100)}%; if signed, ${Math.round(projectedCoverage * 100)}% for ${state.clients.length + 1} clients. A billable hire costs $${HIRING_COST.toLocaleString()} now plus loaded monthly payroll.`;
+      if (choiceId === 'pursue') cost = AGGRESSIVE_CLIENT_PURSUIT_COST;
+      effect = `${effect} ${capacity}`;
+    } else if (scenario.kind === 'case-policy-delay') {
+      const client = state.clients.find(item => item.id === scenario.clientId);
+      if (!client) disabledReason = 'TechTrade is no longer an active client.';
+      if (state.authoredCase?.status !== 'active' || state.month !== 3 || state.year !== 2026)
+        disabledReason = 'This response belongs to the March case round.';
+      if (client && choiceId === 'personal') {
+        const meeting = getClientMeetingQuote(state, client.id);
+        if (!disabledReason) disabledReason = meeting.disabledReason;
+        cost = meeting.cost;
+        satisfactionChange = meeting.satisfactionGain;
+        collectionEstimate = meeting.collectionEstimate;
+        usesPartnerIntervention = true;
+        effect = `Pay $${cost.toLocaleString()}, use this month's partner intervention, and raise satisfaction by up to ${satisfactionChange}. Overdue AR collected: $${collectionEstimate.toLocaleString()}. Profit falls by $${cost.toLocaleString()}; collection changes cash and AR, not revenue. The committee schedule is unchanged.`;
+      } else if (client && choiceId === 'delegate') {
+        if (!state.employees.some(employee => employee.role !== 'Support'))
+          disabledReason = 'Delegation requires a billable employee; defer remains available.';
+        satisfactionChange = Math.min(3, 100 - client.satisfaction);
+        effect = `Satisfaction +${satisfactionChange}; no additional cash expense or partner intervention. The already-paid team sends a factual update and next steps. Service capacity and committee timing are unchanged.`;
+      } else if (client && choiceId === 'defer') {
+        satisfactionChange = -Math.min(10, client.satisfaction);
+        effect = `Satisfaction ${satisfactionChange}; no cash expense or partner intervention. The response is explicitly deferred; committee timing is unchanged.`;
+      }
     } else if (scenario.kind === 'collections-problem') {
       const available = scenario.clientId
         ? state.receivables.find(account => account.clientId === scenario.clientId)?.aging.sixtyDay ?? 0
         : state.arAging.sixtyDay;
       const overdue = Math.min(available, scenario.overdueAmount);
-      if (overdue <= 0) disabledReason = 'No balance remains from this 61–90 day collection request; the pending choice cannot be applied.';
+      if (overdue <= 0 && choiceId !== 'hold-collection') disabledReason = 'No balance remains from this 61–90 day collection request; the pending choice cannot be applied.';
       const client = state.clients.find(item => item.id === scenario.clientId);
       if (choiceId === 'personal-call' || choiceId === 'demand-letter') {
         collectionEstimate = collectAtRate(overdue, choiceId === 'personal-call' ? 0.4 : 0.6);
@@ -627,6 +718,9 @@ export const getInboxChoiceQuote = (state: SimulationState, messageId: string, c
         effect = `Collect $${collectionEstimate.toLocaleString()}: cash rises and AR falls by that amount; profit is unchanged. No cash expense; satisfaction ${satisfactionChange === 0 ? 'unchanged' : satisfactionChange}.${usesPartnerIntervention ? ' Uses this month’s partner intervention.' : ' No partner intervention.'}`;
       } else if (choiceId === 'write-off-ar') {
         effect = `Write off $${overdue.toLocaleString()} and close collection efforts for that amount: cash unchanged, AR and profit fall by $${overdue.toLocaleString()}. No partner intervention. Accounting write-off alone need not cancel a debt; this game combines those decisions.`;
+      } else if (choiceId === 'hold-collection') {
+        if (message.id !== CASE_EVENT_IDS.collection) disabledReason = 'This hold choice is only available in the authored January case.';
+        effect = 'No immediate collection or write-off. Cash, AR, and profit do not change from this choice; ordinary automatic collections and aging still apply on month advance.';
       }
     }
   }
@@ -641,10 +735,25 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
   if (message.scenario.kind === 'client-feedback' && choiceId === 'address') {
     return scheduleClientMeeting(state, message.scenario.clientId);
   }
+  if (message.scenario.kind === 'case-policy-delay' && choiceId === 'personal') {
+    const policyClientId = message.scenario.clientId;
+    const met = scheduleClientMeeting(state, policyClientId);
+    if (met === state) return state;
+    const satisfaction = met.clients.find(client => client.id === policyClientId)?.satisfaction;
+    const cashChange = met.financials.cashOnHand - state.financials.cashOnHand;
+    const arChange = met.arAging.current + met.arAging.thirtyDay + met.arAging.sixtyDay + met.arAging.ninetyPlus -
+      (state.arAging.current + state.arAging.thirtyDay + state.arAging.sixtyDay + state.arAging.ninetyPlus);
+    const summary = `Partner led TechTrade's recovery meeting. Satisfaction is ${satisfaction}%; cash ${cashChange >= 0 ? '+' : ''}$${cashChange.toLocaleString()}, AR ${arChange >= 0 ? '+' : ''}$${arChange.toLocaleString()}, profit -$${CLIENT_MEETING_COST.toLocaleString()}. The earlier committee-calendar scan and issue-status memo were delivered; the new committee date remains uncertain. The recommended next step is monitoring the revised notice and briefing TechTrade on options. Committee timing did not change.`;
+    return { ...met, inbox: met.inbox.map(item => item.id === messageId
+      ? { ...item, read: true, requiresAction: false,
+          resolution: { choiceId, summary, month: state.month, year: state.year } }
+      : item) };
+  }
 
   let next: SimulationState = { ...state };
   let manualCollections = 0;
   let resolutionSummary = 'Decision recorded.';
+  const additionalInboxMessages: InboxMessage[] = [];
   const scenario = message.scenario;
   const staleQuote =
     (scenario.kind === 'lease-renewal' && state.operatingCosts.rent !== scenario.currentRent) ||
@@ -696,18 +805,9 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       break;
     }
     case 'new-client': {
-      if (choiceId === 'pursue') {
-        next = recordOneTimeOperatingExpense(next, 'client-pursuit', AGGRESSIVE_CLIENT_PURSUIT_COST);
-      }
-      const won = choiceId === 'pursue' ? deps.random() > 0.3 : choiceId === 'initial-contact' ? deps.random() > 0.5 : false;
-      if (won) {
-        const profiles: Client['paymentProfile'][] = ['prompt', 'normal', 'slow'];
-        next.clients = [...state.clients, {
-          id: deps.generateId(), name: scenario.name, type: scenario.clientType, feeStructure: 'Retainer',
-          monthlyFee: scenario.monthlyFee, satisfaction: 80, contractMonthsRemaining: 12,
-          paymentProfile: profiles[Math.floor(deps.random() * profiles.length)], lastPaymentMonth: state.month,
-        }];
-      }
+      const result = resolveClientOpportunity(next, scenario, choiceId, deps);
+      next = result.next;
+      const won = result.won;
       const pursuitCostResult = choiceId === 'pursue'
         ? ` The $${AGGRESSIVE_CLIENT_PURSUIT_COST.toLocaleString()} one-time pursuit expense reduced cash and profit.`
         : ' No pursuit expense was paid.';
@@ -716,6 +816,39 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
         : `${won
           ? `${scenario.name} joined as a client at $${scenario.monthlyFee.toLocaleString()}/month.`
           : `${scenario.name} did not sign a contract.`}${pursuitCostResult}`;
+      break;
+    }
+    case 'case-intake-review': {
+      additionalInboxMessages.push(createCaseProspectMessage());
+      resolutionSummary = 'Review completed without using partner attention. The original opposing advocacy mandate is blocked. A separate limited public-monitoring assignment is available under the stated case-specific scope and approval.';
+      break;
+    }
+    case 'case-prospect': {
+      if (choiceId === 'decline') {
+        resolutionSummary = `Declined ${scenario.name}. No fee or extra client workload was added; existing service capacity was preserved.`;
+      } else if (choiceId === 'hold') {
+        resolutionSummary = `Held ${scenario.name} pending scope clarification. No fee, cost, or workload was added. The opportunity remains unresolved for this introductory case.`;
+      } else {
+        const result = resolveClientOpportunity(next, scenario, choiceId, deps);
+        next = result.next;
+        resolutionSummary = `${result.won
+          ? `${scenario.name} signed the reviewed public-monitoring scope at $${scenario.monthlyFee.toLocaleString()}/month and added one client slot.`
+          : `${scenario.name} did not sign; no client workload was added.`}
+          ${choiceId === 'pursue'
+            ? `The $${AGGRESSIVE_CLIENT_PURSUIT_COST.toLocaleString()} pursuit expense reduced cash and profit even ${result.won ? 'though signing succeeded' : 'without a signing'}.`
+            : 'No pursuit expense was paid.'} The original opposing advocacy scope remained blocked.`;
+      }
+      break;
+    }
+    case 'case-policy-delay': {
+      const change = getInboxChoiceQuote(state, messageId, choiceId).satisfactionChange;
+      next.clients = state.clients.map(client => client.id === scenario.clientId
+        ? { ...client, satisfaction: Math.max(0, Math.min(100, client.satisfaction + change)) }
+        : client);
+      const client = next.clients.find(item => item.id === scenario.clientId)!;
+      resolutionSummary = `${choiceId === 'delegate'
+        ? 'Delegated a factual update: the earlier committee-calendar scan and issue-status memo were delivered; the new committee date remains uncertain; the team recommends monitoring the revised notice and briefing options'
+        : 'Explicitly deferred response'} for ${client.name}: satisfaction ${change >= 0 ? '+' : ''}${change} to ${client.satisfaction}%. No additional cash expense or partner intervention. The committee's external postponement is unchanged.`;
       break;
     }
     case 'lease-renewal': {
@@ -796,6 +929,8 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
       } else if (choiceId === 'write-off-ar') {
         next = writeOffReceivables(next, overdue, 'sixtyDay', scenario.clientId);
         resolutionSummary = `Wrote off $${(state.arAging.sixtyDay - next.arAging.sixtyDay).toLocaleString()} in 61–90 day receivables as bad debt and closed collection efforts for that amount. No cash came in; AR and profit fell by the written-off amount. Accounting write-off alone need not cancel a debt; this game combines those decisions.`;
+      } else if (choiceId === 'hold-collection') {
+        resolutionSummary = 'Held collection efforts this month. No immediate cash, AR, or profit change from this choice; ordinary automatic collections and aging still apply on advance.';
       }
       break;
     }
@@ -847,10 +982,10 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
   }
 
   next = recordCurrentCash(next, next.financials.cashOnHand, manualCollections);
-  next.inbox = state.inbox.map(item => item.id === messageId || (scenario.kind === 'client-feedback' &&
+  next.inbox = [...additionalInboxMessages, ...state.inbox.map(item => item.id === messageId || (scenario.kind === 'client-feedback' &&
     item.requiresAction && item.scenario.kind === 'client-feedback' && item.scenario.clientId === scenario.clientId)
     ? { ...item, choices: getCurrentInboxChoices(item), read: true, requiresAction: false,
         resolution: { choiceId, summary: resolutionSummary, month: state.month, year: state.year } }
-    : item);
+    : item)];
   return next;
 };
