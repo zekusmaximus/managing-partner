@@ -16,6 +16,7 @@ import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, is
 import { fundStaffRecovery, type StaffRecoveryPlan } from '@/lib/simulation/burnout';
 import { getAlertConditionKey } from '@/lib/simulation/alerts';
 import { increaseEmployeeSalary } from '@/lib/simulation/salary';
+import { leaveAuthoredCase } from '@/lib/simulation/authoredCase';
 
 // Re-export types for consumers
 export type { Employee, Client, Financials, FinancialHistoryEntry, Alert, InboxMessage, MessageChoice, SimulationState, OperatingCosts, Vendor, PartnerEconomics, BudgetItem, ARBuckets, LineOfCredit };
@@ -38,7 +39,8 @@ const getCurrentQuarter = (month: number): number => Math.ceil(month / 3);
 
 type SimulationContextType = {
   state: SimulationState;
-  advanceMonth: () => void;
+  advanceMonth: () => boolean;
+  leaveCase: () => void;
   hireEmployee: (role: 'Lobbyist' | 'Attorney' | 'Support') => void;
   fireEmployee: (employeeId: string) => void;
   adjustSalary: (employeeId: string, newSalary: number) => void;
@@ -133,8 +135,18 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
   // ============= ADVANCE MONTH =============
   const advanceMonth = useCallback(() => {
-    setState(prevState => advanceSimulationMonth(prevState, { random: Math.random, generateAlerts, generateInboxMessages }));
+    let advanced = false;
+    setState(prevState => {
+      const nextState = advanceSimulationMonth(prevState, { random: Math.random, generateAlerts, generateInboxMessages });
+      advanced = nextState.month !== prevState.month || nextState.year !== prevState.year;
+      return nextState;
+    });
+    return advanced;
   }, [setState, generateAlerts, generateInboxMessages]);
+
+  const leaveCase = useCallback(() => {
+    setState(prevState => leaveAuthoredCase(prevState));
+  }, [setState]);
 
   // ============= EMPLOYEE ACTIONS =============
 
@@ -299,7 +311,7 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <SimulationContext.Provider value={{
-      state, advanceMonth,
+      state, advanceMonth, leaveCase,
       hireEmployee, fireEmployee, adjustSalary, fundStaffRecovery: fundStaffRecoveryAction, meetClient,
       markInboxMessageRead, handleInboxChoice, dismissAlert,
       addVendor, removeVendor, adjustOperatingCost,

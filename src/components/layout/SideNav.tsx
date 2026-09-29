@@ -31,6 +31,13 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
   const [confirmOpen, setConfirmOpen] = useState(false);
   const unreadCount = state.inbox.filter(message => !message.read).length;
 
+  const startNewGame = (mode: 'free' | 'case') => {
+    newGame(mode);
+    setConfirmOpen(false);
+    onClose();
+    router.push('/');
+  };
+
   const handleNavigate = (path: string) => {
     if (currentStep?.requiresAction === 'navigate' && currentStep.actionTarget === path) {
       nextStep();
@@ -77,7 +84,8 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         })}
       </List>
       <Divider />
-      <TutorialProgressBar />
+      {state.authoredCase?.status !== 'active' && state.authoredCase?.status !== 'completed' &&
+        <TutorialProgressBar />}
       <Box sx={{ p: 2, mt: 'auto' }}>
         <Button fullWidth variant="outlined" color="warning" startIcon={<RestartAlt />} onClick={() => setConfirmOpen(true)}>
           New Game
@@ -125,16 +133,25 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} aria-labelledby="new-game-title">
         <DialogTitle id="new-game-title">Start a new game?</DialogTitle>
         <DialogContent>
-          <DialogContentText>This resets your simulation and tutorial progress on this device.</DialogContentText>
+          <DialogContentText>
+            This replaces your current firm and tutorial progress on this device. Choose the authored
+            three-round case or start free play with the usual opening conditions.
+          </DialogContentText>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1, px: 3, pb: 2 }}>
           <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button
+            variant="outlined"
+            onClick={() => startNewGame('free')}
+          >
+            Explore Freely
+          </Button>
           <Button
             color="warning"
             variant="contained"
-            onClick={() => { newGame(); setConfirmOpen(false); onClose(); router.push('/'); }}
+            onClick={() => startNewGame('case')}
           >
-            Start New Game
+            Start Authored Case
           </Button>
         </DialogActions>
       </Dialog>

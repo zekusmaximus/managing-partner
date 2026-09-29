@@ -1,11 +1,14 @@
 "use client";
 
-import { AppBar, Toolbar, Typography, Button, Box, Badge, IconButton, Tooltip } from '@mui/material';
+import { useState } from 'react';
+import { AppBar, Toolbar, Typography, Button, Box, Badge, IconButton, Tooltip, Snackbar } from '@mui/material';
 import { Email, Menu, Notifications } from '@mui/icons-material';
 import Link from 'next/link';
 import { useSimulation } from '@/context/SimulationContext';
 import { useTutorial } from '@/context/TutorialContext';
 import { selectCurrentAlerts } from '@/lib/simulation/alerts';
+import { getCaseAdvanceBlocker } from '@/lib/simulation/authoredCase';
+import CaseStatusPanel from '@/components/case/CaseStatusPanel';
 
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -15,15 +18,21 @@ const monthNames = [
 export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { state, advanceMonth } = useSimulation();
   const { onMonthAdvanced } = useTutorial();
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const unreadCount = state.inbox.filter(message => !message.read).length;
   const alertCount = selectCurrentAlerts(state).length;
 
   const handleAdvanceMonth = () => {
-    advanceMonth();
-    onMonthAdvanced();
+    if (advanceMonth()) {
+      setBlockedReason(null);
+      onMonthAdvanced();
+    } else {
+      setBlockedReason(getCaseAdvanceBlocker(state) ?? 'Finish the current decision before advancing.');
+    }
   };
 
   return (
+    <>
     <AppBar position="static" sx={{ bgcolor: 'primary.main', flexShrink: 0 }}>
       <Toolbar sx={{ gap: { xs: 0.5, sm: 1 }, flexWrap: { xs: 'wrap', md: 'nowrap' }, py: { xs: 0.75, md: 0 } }}>
         <IconButton
@@ -70,6 +79,7 @@ export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
             color="secondary"
             size="small"
             onClick={handleAdvanceMonth}
+            aria-describedby={state.authoredCase?.status === 'active' ? 'case-advance-reason' : undefined}
             data-tutorial-target="advance-month"
             sx={{ fontWeight: 700, whiteSpace: 'nowrap', px: { xs: 1, sm: 2 }, fontSize: { xs: '0.72rem', sm: '0.875rem' } }}
           >
@@ -78,5 +88,14 @@ export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
         </Box>
       </Toolbar>
     </AppBar>
+    <CaseStatusPanel />
+    <Snackbar
+      open={Boolean(blockedReason)}
+      autoHideDuration={5000}
+      onClose={() => setBlockedReason(null)}
+      message={blockedReason}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    />
+    </>
   );
 }

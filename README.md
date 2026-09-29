@@ -4,7 +4,7 @@
 
 ## Overview
 
-**Managing Partner** is a business simulation game where players take on the role of a managing partner at a mid-size government relations firm in Washington, D.C. Make strategic decisions about finances, human resources, and client relationships to grow your firm's reputation and profitability. An interactive tutorial system guides new players through the fundamentals of GR industry management.
+**Managing Partner** is a business simulation game where players take on the role of a managing partner at a mid-size government relations firm in Washington, D.C. Make strategic decisions about finances, human resources, and client relationships. Players can start a bounded, authored three-round case or manage the original free-play firm. The existing interactive tutorial remains available while a shorter guided learning experience is developed.
 
 This is a playable prototype with a simplified financial model. Progress is saved in the current browser; a confirmed **New Game** action resets the simulation and tutorial together. Valid version 1–3 saves migrate to the current version 4 format on load.
 
@@ -15,6 +15,7 @@ This is a playable prototype with a simplified financial model. Progress is save
 - **HR Management**: Manage pooled billable and support capacity, see how current coverage affects next-month burnout, increase committed salaries, and fund recovery that reduces fatigue without adding permanent skill
 - **Client Relations**: Monitor satisfaction, service coverage, contract timelines, renewals, churn, and revenue; allocate one shared monthly partner intervention to a paid recovery meeting or a personal collection call
 - **Inbox System**: Handle scenario-based decisions including compensation requests, vendor contracts, budget overruns, tax payments, and new business opportunities; pending decisions remain available and completed messages show the actual outcome
+- **Authored Case**: Play a separate January–March firm-management case, then see the anchor client's April renewal or departure; required decisions gate each month and persist across reloads
 - **Interactive Tutorial**: Existing 34-step orientation across 4 phases; completing it records pages and topics visited, not demonstrated mastery
 - **Help System**: Searchable glossary with 55+ industry terms, contextual help tooltips on every metric, and a floating help button
 - **Local Save**: Simulation decisions, receivables, cash activity, inbox outcomes, and tutorial progress resume together after a reload
@@ -96,7 +97,7 @@ src/
 │   ├── SimulationContext.tsx      # Simulation actions
 │   └── TutorialContext.tsx        # Tutorial actions
 ├── lib/
-│   ├── simulation/               # Pure transitions and shared financial metrics
+│   ├── simulation/               # Pure transitions, authored case, and shared financial metrics
 │   └── session/                  # Save loading, validation, and defaults
 ├── data/
 │   ├── tutorialSteps.ts          # 34 tutorial steps across 4 phases
@@ -121,6 +122,19 @@ The game tracks the following:
 - **Operating Costs**: Rent, insurance, technology, compliance, miscellaneous
 - **Vendors**: Third-party service providers with contract tracking
 - **Partner Economics**: Monthly draws and distribution pools
+
+### Authored Three-Round Case
+
+Use the confirmed **New Game** flow to start the authored case. Starting it replaces the current browser-local firm only after that explicit reset; loading an existing save resumes the firm instead. Free play retains its original opening conditions.
+
+The case begins in January 2026 with $45,000 cash, an undrawn $100,000 credit line, $33,000 in receivables including $18,000 overdue from TechTrade Association, and positive reported profit of $16,589. Service coverage starts near its limit, and TechTrade's contract has three months remaining. Opening cash, receivables, tax, budget, and financial history use the normal model rather than a separate case ledger.
+
+- **January:** Choose how to address TechTrade's overdue balance. Collection choices can change cash and AR without creating new billed revenue; personal contact uses the shared partner intervention.
+- **February:** Review Community Energy Council's proposed $18,000/month opposing advocacy mandate. That original scope cannot be signed. After ordinary intake review, decline, hold for clarification, or seek a separately approved $12,000/month public-monitoring assignment through initial contact or paid aggressive pursuit. The choices show signing odds, up-front cost, and possible effect on service coverage. Paid pursuit costs $3,000 even when signing fails.
+- **March:** A committee delays TechTrade's policy issue independently of the firm's earlier choices. Decide how to respond while a different existing client also raises a complaint; personal responses compete for the monthly partner intervention, while delegation and deferral remain explicit paths.
+- **April:** The existing service and satisfaction rules resolve TechTrade's renewal. The case reaches a terminal state whether the prospect signed, the client renewed, or the firm was managed poorly; the current firm can continue afterward.
+
+Each round requires explicit case choices before advancing, including hold or defer when appropriate. Case events have stable identifiers and resume from the local save without being regenerated as duplicate prompts. This is a fixed authored situation using the ordinary simulation transitions, not a general story engine. Prediction prompts, causal recaps, replacement onboarding, and a final teaching review are planned for the next slice.
 
 ### Financial Model
 
@@ -151,7 +165,7 @@ The game tracks the following:
 
 Run `bun run scripts/balance-report.ts` for a seeded 24-month simulation across five seeds and scripted decision policies, including a cash-pressure policy that uses staff recovery. The JSON report includes cash and credit use, profit, service, churn and renewals, burnout and efficacy, reputation, and pending decisions. Use `--months=12` to shorten the run. Policies respect shared attention and delegate when personal handling is unavailable. The [service balance check](docs/service-balance-simulation.md) records model results, not human learning evidence. Removing random burnout rolls changes subsequent random sequences; whole-run differences are not controlled estimates of any one rule’s effect.
 
-Stage 1 implements delivery slice A, **Rules and truthful copy**, in the [learning-improvement plan](docs/learning-improvement-plan.md). The authored three-round case, replacement guidance, prediction prompts, debrief, and new learning-focused study remain later stages. The [existing playtest instructions](docs/new-player-playtest.md) include Stage 1 checks. Tutorial step IDs and progress are preserved. Version 1–4 saves remain supported; an existing monthly meeting becomes the equivalent spent partner intervention, with no invented historical calls or restored efficacy.
+Stage 1 implements slice A, **Rules and truthful copy**, and Phase 2 implements slice B, **Authored three-round case**, in the [learning-improvement plan](docs/learning-improvement-plan.md). Replacement guidance, prediction prompts, causal recaps, the final teaching review, and the new learning-focused study remain later slices. The [playtest instructions](docs/new-player-playtest.md) include case rehearsal checks but no claim that the case improves learning. Tutorial step IDs and progress are preserved. Version 1–4 saves remain supported; an existing monthly meeting becomes the equivalent spent partner intervention, with no invented historical calls or restored efficacy.
 
 Reputation summarizes client satisfaction and staff efficacy; it does not alter acquisition or recruitment. Attorney and lobbyist capacity is pooled without specialist matching or distinct legal capabilities. Numerical margin, reserves, staffing, and valuation targets are simulation assumptions. Client concentration concerns fee exposure and shared issues, not organization types alone; shared issue exposure is not calculated by this version.
 

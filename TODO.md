@@ -2,7 +2,7 @@
 
 ## Current State
 
-Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. Stage 1 of the learning-improvement plan connects coverage to burnout, shares one monthly partner intervention across major personal responses, closes the manual salary-cut loophole, and aligns teaching copy with modeled effects. There is no account, backend, or cross-device sync. One playtester’s learning uncertainty remains a preliminary observation; Stage 1 has no new human learning evidence.
+Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. Stage 1 of the learning-improvement plan corrected workload and shared-attention rules. Phase 2 adds a separate authored case with three decision-gated rounds and an April terminal state. There is no account, backend, or cross-device sync. One playtester’s learning uncertainty remains a preliminary observation; the case has no new human learning evidence.
 
 The earlier 15–20% completion estimate and checklist described work that has since been built. Progress toward a finished game cannot be stated as a precise percentage without defining the intended feature set.
 
@@ -82,12 +82,19 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Keep phone finance reports selectable and year-to-date P&L readable; add focused playtest checks for finding AR and profit without guidance.
 - [x] Pass 93 Bun tests, typecheck, lint, and production build. Check all five routes at 390, 768, 1280, and 1440px without document overflow; exercise phone keyboard navigation to finance reports, YTD P&L, renewal warnings, and client meetings, plus collections and pursuit outcomes at 390px. No browser console errors or warnings appeared.
 
+## Completed Authored Three-Round Case (Phase 2)
+
+- [x] Add a separate, reconciled January opening firm with positive profit, constrained cash, TechTrade Association's named overdue receivable, near-limit service coverage, and three months until its renewal. Preserve the free-play opening.
+- [x] Schedule January collection; February conflict review with decline, hold, or reviewed narrower-scope pursuit; and March's external policy delay with a second client's complaint. Resolve the anchor renewal on the April advance under the existing service and satisfaction rules.
+- [x] Require explicit case choices before each advance, allow valid hold/defer paths, and preserve one case schedule through reloads and rapid actions. Use the confirmed New Game/reset flow to start the case.
+- [x] Keep the original conflicting scope unsignable, ordinary intake review free of partner-attention cost, and pursuit expense and possible service demand visible even if signing fails.
+
 ## Next Work
 
 - [x] Complete Stage 1, slice A in `docs/learning-improvement-plan.md`: workload and fatigue rules, shared partner attention, complaint alternatives, salary commitments, truthful copy, save compatibility, focused tests, seeded balance report, and browser checks. Numerical workload bands remain fictional game assumptions; no tuning adjustment was needed.
-- [ ] Build the authored three-round GR case and its intake/policy scenarios (later delivery slice B).
-- [ ] Replace the existing orientation with prediction, decision, result, and debrief guidance (later delivery slice C). Preserve existing save compatibility during that transition.
-- [ ] Freeze the later learning-focused playtest kit, then observe first-time players with distinct pre/post transfer questions (later delivery slice D). The updated `docs/new-player-playtest.md` currently supports Stage 1 rehearsal, not a new learning claim.
+- [x] Build the authored three-round GR case and its intake/policy scenarios (delivery slice B).
+- [ ] Replace the existing orientation with prediction prompts, causal recaps, and a final teaching review (delivery slice C). Preserve existing save compatibility during that transition.
+- [ ] Freeze the learning-focused playtest kit, then observe first-time players with distinct pre/post transfer questions (delivery slice D). The updated `docs/new-player-playtest.md` supports Phase 2 case rehearsal, not a new learning claim.
 - [ ] Revisit the $3,000 pursuit price and service balance after player observations; the initial price is a game design choice, not a measured real-world cost.
 - [ ] Deferred beyond this playtest package: decide whether the simplified month-opening tax estimate needs a deeper accounting model.
 - [ ] Deferred beyond this playtest package: add a documented save export/import or account sync only if play across browsers or devices becomes a requirement.

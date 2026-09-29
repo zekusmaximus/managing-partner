@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -10,18 +10,23 @@ import {
   Typography,
   Box,
   Divider,
+  DialogContentText,
 } from '@mui/material';
 import { School, Gavel, AccountBalance } from '@mui/icons-material';
 import { useTutorial } from '@/context/TutorialContext';
+import { useSession } from '@/context/SessionContext';
 
 export default function WelcomeModal() {
   const { tutorialState, startTutorial, skipTutorial } = useTutorial();
+  const { newGame } = useSession();
+  const [caseConfirmOpen, setCaseConfirmOpen] = useState(false);
 
   if (!tutorialState.showWelcomeModal) return null;
 
   return (
+    <>
     <Dialog
-      open={tutorialState.showWelcomeModal}
+      open={!caseConfirmOpen}
       maxWidth="sm"
       fullWidth
       sx={{ zIndex: 1400 }}
@@ -52,7 +57,8 @@ export default function WelcomeModal() {
         <Typography variant="body1" sx={{ textAlign: 'center', mb: 3, lineHeight: 1.7 }}>
           Step into the role of a managing partner at a Washington, D.C. government relations firm.
           Explore cash, client commitments, staffing, and limited partner attention in a simplified
-          fictional model. The tutorial introduces the controls; completing it is not a skills assessment.
+          fictional model. Start the authored three-round case or explore the usual free-play firm.
+          The existing tutorial is still available for a longer tour of the controls.
         </Typography>
 
         <Divider sx={{ mb: 3 }} />
@@ -88,12 +94,19 @@ export default function WelcomeModal() {
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 4, pb: 3, justifyContent: 'center', gap: 2 }}>
+      <DialogActions sx={{ px: 4, pb: 3, justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
         <Button
           variant="contained"
           size="large"
+          onClick={() => setCaseConfirmOpen(true)}
+          sx={{ fontWeight: 600 }}
+        >
+          Start Authored Case
+        </Button>
+        <Button
+          variant="outlined"
+          size="large"
           onClick={startTutorial}
-          sx={{ px: 4, fontWeight: 600 }}
         >
           Start Tutorial
         </Button>
@@ -107,5 +120,21 @@ export default function WelcomeModal() {
         </Button>
       </DialogActions>
     </Dialog>
+    <Dialog open={caseConfirmOpen} onClose={() => setCaseConfirmOpen(false)} aria-labelledby="start-case-title">
+      <DialogTitle id="start-case-title">Start the authored case?</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          This uses New Game to replace the current firm on this device with the case opening.
+          The case runs from January through the April renewal outcome.
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={() => setCaseConfirmOpen(false)}>Cancel</Button>
+        <Button variant="contained" onClick={() => { newGame('case'); setCaseConfirmOpen(false); }}>
+          Start New Case
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 }

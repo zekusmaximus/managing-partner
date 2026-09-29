@@ -115,7 +115,14 @@ export const getBalancePolicyChoice = (state: SimulationState, message: InboxMes
       case 'benefits-increase': return 'absorb-benefits';
       case 'partner-distribution': return 'defer-distribution';
       case 'collections-problem':
-        return ['personal-call', 'demand-letter', 'write-off-ar'].find(choice =>
+        return ['personal-call', 'demand-letter', 'hold-collection', 'write-off-ar'].find(choice =>
+          getInboxChoiceQuote(state, message.id, choice).available) ?? null;
+      case 'case-intake-review': return 'review';
+      case 'case-prospect':
+        return ['pursue', 'initial-contact', 'hold'].find(choice =>
+          getInboxChoiceQuote(state, message.id, choice).available) ?? null;
+      case 'case-policy-delay':
+        return ['personal', 'delegate', 'defer'].find(choice =>
           getInboxChoiceQuote(state, message.id, choice).available) ?? null;
       case 'budget-overrun': return 'reallocate';
       case 'equipment-failure': return 'temp-fix';
@@ -130,7 +137,14 @@ export const getBalancePolicyChoice = (state: SimulationState, message: InboxMes
     case 'it-vendor': return null;
     case 'benefits-increase': return 'pass-benefits';
     case 'partner-distribution': return null;
-    case 'collections-problem': return 'demand-letter';
+    case 'collections-problem':
+      return ['demand-letter', 'hold-collection'].find(choice =>
+        getInboxChoiceQuote(state, message.id, choice).available) ?? null;
+    case 'case-intake-review': return 'review';
+    case 'case-prospect': return 'hold';
+    case 'case-policy-delay':
+      return ['delegate', 'defer'].find(choice =>
+        getInboxChoiceQuote(state, message.id, choice).available) ?? null;
     case 'budget-overrun': return null;
     case 'equipment-failure': return 'temp-fix';
     case 'industry-update': return null;

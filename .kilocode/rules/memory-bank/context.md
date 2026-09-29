@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype with Stage 1 of the learning-improvement plan implemented. Staffing workload affects service and burnout, major personal partner responses share one monthly intervention allowance, and salary increases create recurring commitments. The dashboard distinguishes current warning conditions from dated outcomes and shows an expiring client's monthly fee and share of current contracted revenue. Aggressive new-client pursuit has a $3,000 expense even when unsuccessful. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid, including pending choices. The existing new-player notes are preliminary; more sessions are needed to validate comprehension.
+**Project Status**: Playable single-browser prototype with Stage 1 rules and Phase 2's separate authored three-round case implemented. Staffing workload affects service and burnout, major personal partner responses share one monthly intervention allowance, and salary increases create recurring commitments. The case begins from a reconciled January firm with TechTrade Association's overdue receivable, schedules a February conflict review and narrower-scope prospect choice, then a March external policy delay and competing complaint before the April renewal. Case choices gate month advancement and persist with the firm. Free-play opening conditions remain unchanged. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid. The existing new-player notes are preliminary; more sessions are needed to validate comprehension.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -45,7 +45,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Keep the simplified game model internally consistent and make decision consequences clear. The next product priority is to validate the core staffing, client, and cash tradeoffs with human play sessions; scripted balance policies alone do not establish player behavior. The tax balance remains deliberately simple.
+Keep the simplified game model internally consistent and make decision consequences clear. Phase 3 will add prediction prompts, causal recaps, replacement onboarding, and the final teaching review to the authored case. The later learning-focused pilot must validate comprehension; scripted case branches and balance policies alone do not establish player behavior. The tax balance remains deliberately simple.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -172,6 +172,14 @@ Keep the simplified game model internally consistent and make decision consequen
 - Kept the version 4 local-save format. Additive `lastPartnerIntervention` defaults to null; an existing `lastClientMeeting` normalizes into a spent shared allowance. Version 1–4 saves retain pending decisions, receivables, historical cash, tutorial IDs/progress, and employee capability without invented past actions.
 - Verification: Bun tests, typecheck, lint, and build pass after the final changes. The seeded 24-month five-seed report is recorded in `docs/service-balance-simulation.md`; it reports model results, not learning evidence. Browser checks used an isolated save at 390, 768, 1280, and 1440px across all five routes with no document overflow or console warning/error, plus keyboard complaint/salary controls, cross-route attention, and reload persistence.
 
+### Phase 2 authored-case implementation (2026-09-29)
+
+- Delivery slice B adds a separate January 2026 firm fixture without changing the free-play opening. It starts with $45,000 cash, $33,000 total AR including an $18,000 61–90 day TechTrade Association balance, $16,589 reported profit, roughly 100.7% service coverage, no credit drawn, and three months to the anchor renewal. The opening financial history reconciles to the fixture.
+- January requires an explicit response to the named overdue balance. February reviews an opposing prospect mandate: the original scope cannot be signed, ordinary review uses no partner intervention, and the player may decline, hold, or pursue the reviewed narrower monitoring assignment with existing signing odds and pursuit costs. March schedules a committee delay independent of that prospect outcome and a complaint from a different client, making personal, delegated, and deferred responses compete for attention and service. April uses the ordinary service/satisfaction renewal rules and reaches a terminal case state after renewal or departure.
+- Stable authored event IDs and minimal `SimulationState.authoredCase` progress resume the same round without duplicating prompts. Case decisions gate the shared month transition, including valid hold/defer paths. The case starts only through confirmed New Game; an existing firm is never silently replaced. Financial and service transitions, automatic credit behavior, mandatory obligations, Stage 1 attention guards, and version 1–4 save compatibility remain in place.
+- The existing 34-step tutorial remains for compatibility. Prediction prompts, causal recaps, replacement onboarding, the final teaching review, and the learning-focused human study belong to later slices. Case branch tests and scripted model checks do not establish learning effectiveness.
+- Final Phase 2 verification: 158 Bun tests (9,921 assertions), typecheck, lint, and production build pass. Keyboard case runs at 390px and 1280px covered decline/departure and paid pursuit/renewal, shared attention, reload, and rapid advance; all five routes had no document overflow or browser console warning/error at those widths. These are technical checks, not observed player learning.
+
 | Date | Changes |
 |------|---------|
 | Initial | Template created with base setup |
@@ -195,3 +203,4 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-28 | Started the focused warning-status and pursuit-cost pass; updated the new-player script while further human observations remain pending |
 | 2026-09-28 | Researched managing-partner responsibilities and assessed learning on merged main at dbdacf6; recorded proposed priorities and transfer questions, with no code changes |
 | 2026-09-28 | Created a detailed staged implementation plan for the next learning playtest build; updated TODO and memory only, with implementation still pending |
+| 2026-09-29 | Implemented the separate three-round authored case from the reconciled January fixture through April renewal; prediction prompts, causal recaps, replacement onboarding, final teaching review, and human learning study remain pending |

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useSyncExternalS
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { SimulationState } from '@/types/simulation';
 import type { TutorialState } from '@/lib/session/tutorialState';
+import { createAuthoredCaseSimulationState } from '@/lib/simulation/authoredCase';
 import {
   createFreshSession, FIRST_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, LEGACY_TUTORIAL_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, loadSession,
   saveSession, type SessionSnapshot, type SessionStorage,
@@ -66,8 +67,12 @@ export class SessionStore {
     this.commit({ ...this.view.snapshot, tutorial });
   };
 
-  newGame = (): void => {
-    this.commit(createFreshSession());
+  newGame = (mode: 'free' | 'case' = 'free'): void => {
+    const fresh = createFreshSession();
+    this.commit(mode === 'case' ? {
+      simulation: createAuthoredCaseSimulationState(),
+      tutorial: { ...fresh.tutorial, status: 'skipped', showWelcomeModal: false },
+    } : fresh);
   };
 
   dismissNotice = (): void => {

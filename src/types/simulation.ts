@@ -238,7 +238,10 @@ export type InboxScenario =
   | { kind: 'budget-overrun'; category: string; quarter?: number; year?: number }
   | { kind: 'equipment-failure' }
   | { kind: 'tax-planning'; estimatedTax: number }
-  | { kind: 'industry-update' };
+  | { kind: 'industry-update' }
+  | { kind: 'case-intake-review' }
+  | { kind: 'case-prospect'; name: string; clientType: Client['type']; monthlyFee: number }
+  | { kind: 'case-policy-delay'; clientId: string };
 
 // ============= STATE =============
 
@@ -248,6 +251,18 @@ export interface PartnerIntervention {
   action: 'client-meeting' | 'complaint-recovery' | 'personal-collection';
   clientId?: string;
   clientName?: string;
+}
+
+// The authored case keeps only lifecycle and the actual renewal input/outcome.
+// Required decisions and their summaries live in stable-ID inbox messages.
+export interface AuthoredCaseState {
+  status: 'active' | 'completed' | 'left';
+  renewalOutcome: 'renewed' | 'departed' | null;
+  renewal?: {
+    serviceCoverage: number;
+    satisfaction: number;
+    chance: number;
+  };
 }
 
 export interface SimulationState {
@@ -275,6 +290,7 @@ export interface SimulationState {
   receivables: ReceivableAccount[];
   lineOfCredit: LineOfCredit;
   taxPosition: TaxPosition;
+  authoredCase: AuthoredCaseState | null;
 }
 
 // AR collection rates by payment profile
