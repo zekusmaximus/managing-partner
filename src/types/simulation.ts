@@ -221,7 +221,7 @@ export interface InboxMessage {
   choices: MessageChoice[];
   timestamp: Date;
   scenario: InboxScenario;
-  resolution?: { choiceId: string; summary: string };
+  resolution?: { choiceId: string; summary: string; month?: number; year?: number };
 }
 
 // Scenario data is captured when a message is created. Decisions must never infer
@@ -242,14 +242,23 @@ export type InboxScenario =
 
 // ============= STATE =============
 
+export interface PartnerIntervention {
+  month: number;
+  year: number;
+  action: 'client-meeting' | 'complaint-recovery' | 'personal-collection';
+  clientId?: string;
+  clientName?: string;
+}
+
 export interface SimulationState {
   month: number;
   year: number;
   // A manual AR collection push is allowed once per game month. Null also
   // represents pre-feature saves that have not used the action yet.
   lastManualCollection: { month: number; year: number } | null;
-  // One firmwide client meeting can be held per game month. Older V4 saves
-  // without this marker load as eligible for their current month.
+  // One major partner escalation per game month, shared by meetings and calls.
+  lastPartnerIntervention: PartnerIntervention | null;
+  // Retained for older saves; normalized into lastPartnerIntervention on load.
   lastClientMeeting: { month: number; year: number; clientId: string } | null;
   financials: Financials;
   financialHistory: FinancialHistoryEntry[];

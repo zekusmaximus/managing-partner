@@ -40,7 +40,7 @@ export default function StaffingEconomics() {
           </Grid>
           <Grid size={{ xs: 6, md: 4 }}>
             <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary">Profit / Employee</Typography>
+              <Typography variant="caption" color="text.secondary">Revenue less Payroll / Employee</Typography>
               <Typography variant="h6" color={profitPerEmployee >= 0 ? 'success.main' : 'error.main'}>
                 ${profitPerEmployee.toLocaleString()}
               </Typography>
@@ -65,6 +65,10 @@ export default function StaffingEconomics() {
             </Box>
           </Grid>
         </Grid>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+          Lobbyists and attorneys supply pooled service capacity in this model; specialist matching is not simulated.
+          Hiring, severance, and payroll loads are fictional assumptions. Revenue less payroll excludes other operating costs.
+        </Typography>
       </CardContent>
     </Card>
   );

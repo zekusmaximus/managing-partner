@@ -34,7 +34,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'What is Government Relations?',
     content:
-      'Government relations (GR) firms help organizations navigate the legislative and regulatory process. Clients hire your firm to advocate on their behalf before Congress, federal agencies, and state governments.\n\nYour team includes lobbyists who build relationships with policymakers on Capitol Hill, attorneys who handle regulatory compliance and filings, and support staff who manage scheduling, research, and administration.\n\nThis is a multi-billion dollar industry centered on K Street in Washington, D.C., where the most prominent firms are headquartered.',
+      'Government relations (GR) firms help organizations navigate legislative and regulatory processes and communicate with public officials. Managing the firm includes staffing, client commitments, finances, and oversight.\n\nThis version pools Lobbyist and Attorney service capacity. It does not model specialist matching, distinct legal capabilities, or legislative outcomes. Support staff improve the team’s pooled capacity. The numbers and scenarios are simplified simulation assumptions.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: ['lo-m1-gr-role'],
@@ -45,7 +45,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'How Your Firm Makes Money',
     content:
-      'Most GR firms charge clients on a retainer basis — a fixed monthly fee for ongoing representation, regardless of hours worked. Some engagements are billed hourly, especially project-based or regulatory work.\n\nYour revenue comes from these client fees, while your expenses are primarily payroll for your professional staff. The difference is your profit, which funds partner distributions, firm growth, and cash reserves.\n\nA healthy GR firm targets 20-35% profit margins. Below that, and you are not generating enough to invest in the firm\'s future.',
+      'The simulation bills each active client’s stated monthly fee. Expenses include loaded payroll and other recurring or one-time commitments. The difference between billed revenue and recorded expenses is profit; cash arrives when clients pay.\n\nA 20-35% operating margin is an illustrative simulation target, not an industry standard. Review margins alongside cash and service coverage: a profitable firm can still lack cash or enough staff to serve its clients.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: ['lo-m1-financials'],
@@ -82,7 +82,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'Cash on Hand',
     content:
-      'Cash on Hand is your firm\'s available operating capital — the money in your bank account right now. In the GR industry, firms aim to maintain 3-6 months of operating expenses as a cash buffer.\n\nYour current reserve is {{cash}}. At the current recurring cash-cost estimate of {{expenses}} per month, cash alone covers about {{runway}} months before collections. Available credit is a separate buffer. This position can change quickly if you lose a major client or hire aggressively.',
+      'Cash on Hand is the money available right now. A buffer of 3-6 months of recurring cash costs is an illustrative simulation target, not an industry standard.\n\nYour current reserve is {{cash}}. At the current recurring cash-cost estimate of {{expenses}} per month, cash alone covers about {{runway}} months before collections. Available credit is a separate buffer. This position can change quickly if you lose a major client or hire aggressively.',
     targetSelector: '[data-tutorial-target="stat-cash"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m1-cash-mgmt'],
@@ -115,7 +115,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'Firm Reputation',
     content:
-      'Reputation is an important signal in government relations. In this simulation it summarizes two pillars: client satisfaction (60%) and employee efficacy (40%). Think of it as a quick read on how your firm is doing with clients and staff.',
+      'At the monthly update, reputation summarizes average client satisfaction (60%) and employee efficacy (40%). It is a quick read on those measures.\n\nThe reputation score does not change acquisition odds or recruitment in this version. Inspect the underlying client and staff measures to decide what needs attention.',
     targetSelector: '[data-tutorial-target="stat-reputation"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m1-gr-role'],
@@ -150,7 +150,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/finances',
     title: 'Accounts Receivable',
     content:
-      'Accounts Receivable (AR) is money clients owe you for services already rendered. In the GR industry, standard payment terms are net-30 (due within 30 days).\n\nEach client row shows its recorded balance by age. Prior balances without a known client appear separately as unassigned, and former clients remain until their balance is resolved. AR beyond 60 days is a red flag — it can threaten cash even when the firm is profitable on paper.',
+      'Accounts Receivable (AR) is billed money clients have not yet paid. Each client row shows its recorded balance by age. Prior balances without a known client appear as unassigned; former clients remain until their balance is resolved.\n\nCollecting raises cash and reduces AR without creating new revenue. “Write off and close collection efforts” reduces AR and profit, brings in no cash, and ends collection of that amount in this game. Accounting write-off alone does not necessarily cancel a debt.',
     targetSelector: '[data-tutorial-target="ar-aging-table"]',
     position: 'top',
     learningObjectiveIds: ['lo-m1-cash-mgmt'],
@@ -174,7 +174,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/hr',
     title: 'Your Team',
     content:
-      'Your team is your most valuable asset in government relations. You have three types of professionals:\n\n\u2022 Lobbyists — Your client-facing advocates who build relationships on Capitol Hill and represent client interests before Congress.\n\u2022 Attorneys — Handle regulatory filings, compliance, and legal analysis of proposed legislation and rules.\n\u2022 Support Staff — Manage scheduling, research, correspondence, and the administrative backbone of the firm.\n\nEach person has efficacy (how well they perform), burnout (how exhausted they are), and client affinity (how well they connect with clients).',
+      'The roster has Lobbyists, Attorneys, and Support staff. This version pools Lobbyist and Attorney service capacity using the same formula; specialist matching and distinct legal capabilities are not modeled. Support staff improve that pooled capacity.\n\nEfficacy represents capability, burnout represents fatigue, and affinity helps determine service effectiveness. Hiring adds loaded recurring payroll. Salaries are commitments: the manual control allows increases only, with the cost beginning in the next monthly payroll.',
     targetSelector: '[data-tutorial-target="employee-table"]',
     position: 'top',
     learningObjectiveIds: ['lo-m1-team-roles'],
@@ -183,9 +183,9 @@ export const tutorialSteps: TutorialStep[] = [
     id: 'm1-burnout',
     phase: 'month1',
     page: '/hr',
-    title: 'The Burnout Crisis',
+    title: 'Workload and Burnout',
     content:
-      'Burnout is a real and serious issue in the GR industry. Long hours, high-stakes advocacy, constant travel, and the pressure of representing client interests before powerful officials all take a toll.\n\nWatch these numbers carefully. In the simulation, higher burnout reduces employee efficacy as months advance. Staff decisions can also raise burnout or support performance.',
+      'The monthly update uses one coverage snapshot for the whole team. Fictional tuning bands: below 90% coverage adds 6 burnout points; 90% to below 100% adds 3; 100% to below 115% adds none; 115% or more removes 3. With no clients, burnout falls by 3.\n\nFatigue above 60% reduces effective service capacity. It does not permanently reduce efficacy each month. Paid recovery reduces fatigue without adding capability; adequate staffing addresses continuing overload.',
     targetSelector: '[data-tutorial-target="burnout-chart"]',
     position: 'left',
     learningObjectiveIds: ['lo-m1-team-roles'],
@@ -196,7 +196,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/hr',
     title: 'Advance to the Next Month',
     content:
-      'You\'ve reviewed your firm\'s position — finances, team, and metrics. Advance the month to see how things evolve. Click "Advance Month" in the top bar.\n\nEach month, employee burnout increases, client satisfaction fluctuates, contracts tick down, and new situations land in your inbox. This is the heartbeat of your firm.',
+      'You have reviewed your firm’s finances, team, and metrics. Click "Advance Month" in the top bar to see the next monthly result.\n\nCoverage determines the team’s burnout change first. Service, satisfaction, and renewal effects then use the updated roster. Contracts tick down, bills and collections are recorded, and new situations may arrive in your inbox. The shared partner intervention becomes available again in the new month.',
     targetSelector: '[data-tutorial-target="advance-month"]',
     position: 'bottom',
     learningObjectiveIds: [],
@@ -236,7 +236,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/clients',
     title: 'Understanding Client Types',
     content:
-      'Your clients fall into three categories:\n\n\u2022 Corporations — Lobby on specific business issues like tax policy, trade regulation, and industry rules. They tend to have larger budgets and more focused agendas.\n\u2022 Trade Associations — Represent entire industries (tech, healthcare, finance). They have broader policy portfolios and often coordinate industry-wide advocacy.\n\u2022 Non-Profits — Advocate for causes like environment, education, or healthcare access. Typically smaller budgets but deeply mission-driven.\n\nA diversified client base reduces risk — you don\'t want one client type to dominate your revenue.',
+      'The roster includes corporations, trade associations, and non-profits. Organization type describes the client; it does not automatically diversify risk.\n\nCompare each client’s monthly fee with the total contracted fees. Losing a large account creates greater fee exposure. Different organization types can also share an issue or funding source. This version shows fee exposure but does not simulate shared-issue shocks or a portfolio-risk score.',
     targetSelector: '[data-tutorial-target="client-type-chart"]',
     position: 'left',
     learningObjectiveIds: ['lo-m2-client-types'],
@@ -247,7 +247,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/clients',
     title: 'Client Satisfaction',
     content:
-      'Client satisfaction measures how well your firm is serving each organization. Your team\'s capacity and performance affect service each month. Inbox responses and a paid client meeting can raise satisfaction.\n\nIn real GR, satisfaction depends on policy outcomes, responsiveness, advice, and relationships. Below 60%, clients are at risk; below 40%, losing them becomes likely. Keep enough capable staff to serve the roster and respond when clients raise concerns.',
+      'Client satisfaction is a model score affected by service coverage, monthly variation, and your responses. Lower satisfaction and insufficient coverage weaken renewal odds. Those odds are simulation assumptions, not predictions about real clients.\n\nA recovery meeting adds up to 6 satisfaction for $1,000 and one shared partner intervention. Delegating a routine complaint response adds up to 3 using the already-paid billable team. Neither response repairs a staffing shortfall.',
     targetSelector: '[data-tutorial-target="client-table"]',
     position: 'top',
     learningObjectiveIds: ['lo-m2-satisfaction'],
@@ -293,7 +293,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/inbox',
     title: 'Making Decisions',
     content:
-      'Each decision changes specific measures in your firm. Consider the trade-offs:\n\n\u2022 Approving a raise increases monthly payroll and employee efficacy\n\u2022 Responding personally to client feedback improves satisfaction\n\u2022 Pursuing new business may add monthly revenue and client service workload\n\nA separate paid client meeting is available on the Clients page when a relationship, renewal, service, or payment risk arises. Click a message in the highlighted list to see its choices; afterward, the inbox shows what happened.',
+      'Compare each action’s current costs and effects before choosing.\n\n\u2022 Lead recovery meeting costs $1,000 and adds up to 6 satisfaction, with bounded overdue collections when applicable. Inbox and Clients use the same action and complaint reward.\n\u2022 Delegate routine response requires billable staff, adds up to 3 satisfaction, and uses no extra cash or partner intervention. It does not improve capacity.\n\u2022 Meetings and personal collection calls share one major partner intervention per month. Calls keep their own collection effects and do not charge the meeting fee.\n\nThis limit represents major escalations in a compressed month. Reports, routine delegation, manual collections, and staff recovery do not use it; the last two have separate monthly limits.',
     targetSelector: '[data-tutorial-target="inbox-message-list"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m2-decisions', 'lo-m2-tradeoffs'],
@@ -304,7 +304,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/inbox',
     title: 'The Art of Decision-Making',
     content:
-      'Real managing partners balance costs against relationships every day. There are rarely perfect answers.\n\nDenying a raise keeps salary flat but reduces efficacy and increases burnout. Ignoring a client complaint lowers satisfaction. Pursuing new business can add a client, but success is uncertain.\n\nUse the reported outcome and next month\'s metrics to learn from each choice.',
+      'Compare cash commitments, ongoing workload, and the other uses of partner attention. A personal intervention has an opportunity cost: it leaves no allowance for another major intervention that month.\n\nDelegating uses the already-paid team but does not repair understaffing. Explicitly deferring a complaint lowers satisfaction as shown in its preview. Pursuing new business can add fees and workload, but success is uncertain.\n\nRead the recorded outcome and compare it with the next monthly result. An uncertain renewal outcome alone cannot prove a decision was good or bad.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: ['lo-m2-tradeoffs'],
@@ -331,7 +331,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/',
     title: 'Strategic Thinking',
     content:
-      'Now that you understand the fundamentals — finances, team, and clients — let\'s think about long-term strategy.\n\nReal GR firm leaders don\'t just manage day-to-day operations. They think quarters and years ahead, anticipating industry shifts, planning for growth, and positioning their firm for success in a competitive market.',
+      'You have visited the finances, team, and client screens. Next, compare trends and recurring commitments over several months.\n\nConsider whether growth leaves enough service capacity and cash for the commitments already made. This tour introduces the controls; visiting a screen does not demonstrate that you can apply the ideas in a new situation.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: ['lo-m3-strategy'],
@@ -386,9 +386,9 @@ export const tutorialSteps: TutorialStep[] = [
     id: 'm3-reputation-management',
     phase: 'month3',
     page: '/hr',
-    title: 'Building Reputation',
+    title: 'Reading the Reputation Summary',
     content:
-      'Your firm\'s reputation is displayed in the top navigation bar. It reflects how the government affairs community perceives your firm.\n\nIn the real world, reputation encompasses word-of-mouth among Hill staffers, rankings in publications like The National Journal, your track record of legislative wins, and the caliber of clients you represent.\n\nReputation is slow to build and fast to destroy. Every decision you make — how you treat employees, how you serve clients — compounds over time.',
+      'The reputation score in the top bar summarizes average client satisfaction (60%) and staff efficacy (40%) at the monthly update. It has no separate effect on new-client acquisition or recruitment.\n\nLook behind the summary: are client scores changing because coverage is strained? Has an explicit staff scenario changed efficacy? Use the underlying measures to explain the change.',
     targetSelector: '[data-tutorial-target="reputation-display"]',
     position: 'bottom',
     learningObjectiveIds: ['lo-m3-reputation'],
@@ -399,7 +399,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/hr',
     title: 'Tutorial Complete!',
     content:
-      'Congratulations! You\'ve completed the Managing Partner tutorial.\n\nYou now understand the fundamentals of managing a government relations firm:\n\n\u2022 Financial management — revenue, expenses, profit, and receivables\n\u2022 Team leadership — hiring, compensation, burnout, and efficacy\n\u2022 Client relations — satisfaction, contracts, and diversification\n\u2022 Decision-making — trade-offs, urgency, and long-term thinking\n\u2022 Strategic planning — trends, resource allocation, and reputation',
+      'Tutorial complete. You have toured the main controls and reports:\n\n\u2022 Billed revenue, profit, cash, and receivables\n\u2022 Staffing commitments, coverage, fatigue, and efficacy\n\u2022 Satisfaction, contracts, and fee exposure\n\u2022 Shared partner attention and delegated responses\n\u2022 Trends and the reputation summary\n\nCompleting this tour records screens visited, not demonstrated mastery. Continue making decisions and explaining their costs and consequences to practice these ideas.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: [],
@@ -410,7 +410,7 @@ export const tutorialSteps: TutorialStep[] = [
     page: '/hr',
     title: 'What\'s Next',
     content:
-      'Continue running your firm. Grow your client base, manage your team, build your reputation, and make the tough calls.\n\nUse the GR Glossary (the help button in the bottom-right corner) anytime you encounter unfamiliar terms. Every metric on every page has a help icon that explains what it means in real government relations context.\n\nYou can replay this tutorial anytime from the sidebar. Good luck, Managing Partner.',
+      'Continue managing the firm. Compare opportunities for growth with recurring payroll, service capacity, and cash. Before spending your monthly partner intervention, consider which other escalation must wait or be delegated.\n\nUse the help icons and GR Glossary for explanations of the model and its limits. The fictional numerical assumptions are not industry benchmarks. You can replay this tour from the sidebar.',
     targetSelector: 'center',
     position: 'center',
     learningObjectiveIds: [],

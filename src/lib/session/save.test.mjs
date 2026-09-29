@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { SessionStore } from '@/context/SessionContext';
 import { fundStaffRecovery, getStaffRecoveryQuote } from '@/lib/simulation/burnout';
-import { applyInboxChoice, scheduleClientMeeting, sumReceivables } from '@/lib/simulation/engine';
+import { applyInboxChoice, getClientMeetingQuote, getInboxChoiceQuote, getPartnerInterventionStatus, scheduleClientMeeting, sumReceivables } from '@/lib/simulation/engine';
 import {
   createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession, parseSession,
   serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
@@ -44,6 +44,127 @@ function removeV4TaxFields(snapshot) {
 }
 
 describe('versioned game save', () => {
+  test('migrates a spent legacy meeting into shared attention without inventing earlier interventions', () => {
+    const previous = JSON.parse(serializeSession(createFreshSession()));
+    delete previous.simulation.lastPartnerIntervention;
+    previous.simulation.lastClientMeeting = { month: 1, year: 2026, clientId: 'client1' };
+    let loaded = parseSession(JSON.stringify(previous));
+    expect(loaded.simulation.lastPartnerIntervention).toMatchObject({
+      month: 1, year: 2026, clientId: 'client1', action: 'client-meeting', clientName: 'TechTrade Association',
+    });
+    expect(getPartnerInterventionStatus(loaded.simulation).available).toBe(false);
+    expect(getPartnerInterventionStatus(loaded.simulation).usedBy).toContain('TechTrade Association');
+    expect(loaded.simulation.financialHistory).toEqual(createFreshSession().simulation.financialHistory);
+    expect(loaded.simulation.employees).toEqual(createFreshSession().simulation.employees);
+
+    previous.simulation.lastPartnerIntervention = null;
+    loaded = parseSession(JSON.stringify(previous));
+    expect(getPartnerInterventionStatus(loaded.simulation).available).toBe(false);
+    previous.simulation.lastClientMeeting = { month: 12, year: 2025, clientId: 'departed' };
+    loaded = parseSession(JSON.stringify(previous));
+    expect(loaded.simulation.lastPartnerIntervention).toMatchObject({ action: 'client-meeting', month: 12, year: 2025 });
+    expect(getPartnerInterventionStatus(loaded.simulation).available).toBe(true);
+    delete previous.simulation.lastClientMeeting;
+    loaded = parseSession(JSON.stringify(previous));
+    expect(loaded.simulation.lastPartnerIntervention).toBeNull();
+    expect(loaded.simulation.lastClientMeeting).toBeNull();
+  });
+
+  test('personal collection reload preserves its shared limit, exact cash/AR, and no meeting expense', () => {
+    const snapshot = createFreshSession();
+    const state = snapshot.simulation;
+    state.clients[0].contractMonthsRemaining = 2;
+    state.receivables.push({ clientId: 'client1', clientName: state.clients[0].name, paymentProfile: 'normal',
+      aging: { current: 0, thirtyDay: 0, sixtyDay: 10000, ninetyPlus: 0 } });
+    state.arAging = sumReceivables(state.receivables);
+    state.inbox = [{
+      id: 'collection', type: 'alert', title: 'Collections', description: 'Unpaid invoices', urgency: 'high',
+      requiresAction: true, read: false, timestamp: new Date('2026-01-01T00:00:00Z'),
+      choices: [{ id: 'personal-call', label: 'Personal call', effect: 'Collect 40%' }],
+      scenario: { kind: 'collections-problem', clientId: 'client1', overdueAmount: 10000 },
+    }];
+    snapshot.simulation = applyInboxChoice(state, 'collection', 'personal-call', { random: () => 0, generateId: () => 'unused' });
+    const loaded = parseSession(serializeSession(snapshot));
+    expect(loaded.simulation).toEqual(snapshot.simulation);
+    expect(getClientMeetingQuote(loaded.simulation, 'client1').available).toBe(false);
+    expect(loaded.simulation.lastClientMeeting).toBeNull();
+    expect(loaded.simulation.financialHistory[0].cashMovements).toEqual([]);
+    expect(loaded.simulation.lastPartnerIntervention.action).toBe('personal-collection');
+  });
+
+  test('preserves delegated resolution through reload without reopening its complaint for another award', () => {
+    const snapshot = createFreshSession();
+    snapshot.simulation.clients[0].satisfaction = 50;
+    snapshot.simulation.inbox = [{
+      id: 'complaint', type: 'alert', title: 'Client feedback', description: 'Slow responses', urgency: 'high',
+      requiresAction: true, read: false, timestamp: new Date('2026-01-01T00:00:00Z'),
+      choices: [{ id: 'assign', label: 'Add service check-ins', effect: '+8' }],
+      scenario: { kind: 'client-feedback', clientId: 'client1' },
+    }];
+    snapshot.simulation = applyInboxChoice(snapshot.simulation, 'complaint', 'assign', { random: () => 0, generateId: () => 'unused' });
+    const loaded = parseSession(serializeSession(snapshot));
+    expect(loaded.simulation.inbox).toEqual(snapshot.simulation.inbox);
+    expect(loaded.simulation.clients[0].satisfaction).toBe(53);
+    expect(getClientMeetingQuote(loaded.simulation, 'client1').available).toBe(false);
+    expect(getPartnerInterventionStatus(loaded.simulation).available).toBe(true);
+  });
+
+  for (const version of [1, 2, 3, 4]) {
+    test(`V${version} retains tutorial, capability, balances and pending decisions with current response choices`, () => {
+      const prior = JSON.parse(serializeSession(createFreshSession()));
+      prior.version = version;
+      delete prior.simulation.lastPartnerIntervention;
+      delete prior.simulation.lastClientMeeting;
+      prior.simulation.employees[0].efficacy = 12;
+      prior.tutorial.status = 'in_progress';
+      prior.tutorial.currentStepIndex = 5;
+      prior.tutorial.completedSteps = ['m1-dashboard-overview'];
+      prior.simulation.inbox = [
+        { id: 'complaint', type: 'alert', title: 'Client feedback', description: 'Slow responses', urgency: 'high',
+          requiresAction: true, read: false, timestamp: '2026-01-01T00:00:00Z',
+          choices: [{ id: 'address', label: 'Respond Personally', effect: '+15 for free' },
+            { id: 'assign', label: 'Add Service Check-ins', effect: '+8' }],
+          scenario: { kind: 'client-feedback', clientId: 'client1' } },
+        { id: 'collections', type: 'alert', title: 'Collections', description: 'Unpaid invoices', urgency: 'high',
+          requiresAction: true, read: false, timestamp: '2026-01-01T00:00:00Z',
+          choices: [{ id: 'personal-call', label: 'Personal Call from Partner', effect: 'Collect 40%' },
+            { id: 'write-off-ar', label: 'Write Off Balance', effect: 'Clear balance' }],
+          scenario: { kind: 'collections-problem', overdueAmount: 10000 } },
+      ];
+      if (version < 4) removeV4TaxFields(prior);
+      if (version < 3) prior.simulation.financialHistory = prior.simulation.financialHistory.map(removeV3CashFields);
+      if (version === 1) delete prior.simulation.receivables;
+      const loaded = parseSession(JSON.stringify(prior));
+      expect(loaded).not.toBeNull();
+      expect(loaded.tutorial.completedSteps).toEqual(['m1-dashboard-overview']);
+      expect(loaded.tutorial.currentStepIndex).toBe(5);
+      expect(loaded.simulation.employees[0].efficacy).toBe(12);
+      expect(loaded.simulation.arAging).toEqual(prior.simulation.arAging);
+      expect(loaded.simulation.financials.cashOnHand).toBe(prior.simulation.financials.cashOnHand);
+      expect(loaded.simulation.lastPartnerIntervention).toBeNull();
+      expect(loaded.simulation.inbox.every(message => message.requiresAction && !message.read)).toBe(true);
+      expect(loaded.simulation.inbox[0].choices[0]).toMatchObject({ id: 'address', label: 'Lead recovery meeting' });
+      expect(loaded.simulation.inbox[0].choices[0].effect).toContain('$1,000');
+      expect(loaded.simulation.inbox[0].choices[1].effect).toContain('up to 3');
+      expect(loaded.simulation.inbox[1].choices.find(choice => choice.id === 'personal-call').effect).toContain('partner intervention');
+      expect(loaded.simulation.inbox[1].choices.find(choice => choice.id === 'write-off-ar').label).toBe('Write off and close collection efforts');
+      expect(getInboxChoiceQuote(loaded.simulation, 'complaint', 'address').cost).toBe(1000);
+      expect(parseSession(serializeSession(loaded))).not.toBeNull();
+    });
+  }
+
+  test('invalid shared intervention markers cannot silently reset the allowance', () => {
+    const snapshot = JSON.parse(serializeSession(createFreshSession()));
+    for (const marker of [
+      { month: 13, year: 2026, action: 'client-meeting' },
+      { month: 1, year: 2026, action: 'invented' },
+      { month: 1, year: 2026, action: 'personal-collection', clientName: 12 },
+    ]) {
+      snapshot.simulation.lastPartnerIntervention = marker;
+      expect(parseSession(JSON.stringify(snapshot))).toBeNull();
+    }
+  });
+
   test('refreshes an old pending pursuit quote and preserves its paid cash movement', () => {
     const snapshot = createFreshSession();
     const offer = {

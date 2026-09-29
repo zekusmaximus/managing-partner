@@ -1,5 +1,5 @@
 import type { InboxMessage, SimulationState } from '@/types/simulation';
-import { applyInboxChoice, advanceSimulationMonth } from './engine';
+import { applyInboxChoice, advanceSimulationMonth, getInboxChoiceQuote } from './engine';
 import { createInitialSimulationState } from './initialState';
 import { generateInboxMessages } from './scenarios';
 import { getClientServiceCapacity } from './clientService';
@@ -30,6 +30,7 @@ export interface BalanceMonth {
   generatedInformation: number;
   pendingBeforeDecisions: number;
   pendingAfterDecisions: number;
+  blockedDecisions: number;
   recoverySpend: number;
   recoveryPlan: BalanceRecoveryPlan | null;
 }
@@ -58,6 +59,7 @@ export interface BalanceRun {
   averagePendingAfterDecisions: number;
   peakPending: number;
   endingPending: number;
+  blockedDecisions: number;
   recoverySpend: number;
   fullRecoveryActions: number;
   targetedRecoveryActions: number;
@@ -96,19 +98,25 @@ const average = (numbers: number[]): number =>
 const countPending = (state: SimulationState): number =>
   state.inbox.filter(message => message.requiresAction).length;
 
-const choiceFor = (message: InboxMessage, policy: BalancePolicy): string | null => {
+export const getBalancePolicyChoice = (state: SimulationState, message: InboxMessage, policy: BalancePolicy): string | null => {
   const kind = message.scenario.kind;
   if (kind === 'tax-planning') return 'pay-taxes';
   if (policy === 'stewardship') {
     switch (kind) {
       case 'raise-request': return 'counter';
-      case 'client-feedback': return 'address';
+      case 'client-feedback':
+        // Review against the current state after every earlier decision. If
+        // personal attention or cash is unavailable, delegate or explicitly defer.
+        return ['address', 'assign', 'ignore'].find(choice =>
+          getInboxChoiceQuote(state, message.id, choice).available) ?? null;
       case 'new-client': return 'pursue';
       case 'lease-renewal': return 'negotiate-rent';
       case 'it-vendor': return 'switch-vendor';
       case 'benefits-increase': return 'absorb-benefits';
       case 'partner-distribution': return 'defer-distribution';
-      case 'collections-problem': return 'personal-call';
+      case 'collections-problem':
+        return ['personal-call', 'demand-letter', 'write-off-ar'].find(choice =>
+          getInboxChoiceQuote(state, message.id, choice).available) ?? null;
       case 'budget-overrun': return 'reallocate';
       case 'equipment-failure': return 'temp-fix';
       case 'industry-update': return null;
@@ -176,11 +184,19 @@ export const runBalanceSimulation = ({
     // Work through only the decisions available at the start of this step.
     // Cash-guard and cash-pressure intentionally leave vendor, partner, and budget decisions
     // open to exercise the product's pending-message retention rules.
+    let blockedDecisions = 0;
     for (const message of state.inbox.filter(item => item.requiresAction)) {
-      const choice = choiceFor(message, policy);
+      if (!state.inbox.some(item => item.id === message.id && item.requiresAction)) continue;
+      const choice = getBalancePolicyChoice(state, message, policy);
       if (choice) {
         state = applyInboxChoice(state, message.id, choice, { random, generateId });
         observeFinancialBounds();
+        if (state.inbox.some(item => item.id === message.id && item.requiresAction)) blockedDecisions++;
+      } else if (policy === 'stewardship' &&
+        (message.scenario.kind === 'client-feedback' || message.scenario.kind === 'collections-problem')) {
+        // Stale decisions cannot be force-resolved. Keep them visible in the
+        // report instead of silently counting an unavailable action as handled.
+        blockedDecisions++;
       }
     }
 
@@ -244,6 +260,7 @@ export const runBalanceSimulation = ({
       generatedInformation: generated.filter(message => message.scenario.kind === 'industry-update').length,
       pendingBeforeDecisions,
       pendingAfterDecisions: countPending(state),
+      blockedDecisions,
       recoverySpend,
       recoveryPlan,
     });
@@ -274,6 +291,7 @@ export const runBalanceSimulation = ({
     averagePendingAfterDecisions: sum('pendingAfterDecisions') / months,
     peakPending: Math.max(...monthly.map(item => item.pendingBeforeDecisions)),
     endingPending: last.pendingAfterDecisions,
+    blockedDecisions: sum('blockedDecisions'),
     recoverySpend: sum('recoverySpend'),
     fullRecoveryActions: monthly.filter(item => item.recoveryPlan === 'full').length,
     targetedRecoveryActions: monthly.filter(item => item.recoveryPlan === 'targeted').length,

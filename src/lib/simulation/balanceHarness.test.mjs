@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { fundStaffRecovery, getStaffRecoveryQuote } from './burnout';
-import { runBalanceSimulation, createSeededRandom } from './balanceHarness';
-import { advanceSimulationMonth, sumReceivables } from './engine';
+import { runBalanceSimulation, createSeededRandom, getBalancePolicyChoice } from './balanceHarness';
+import { advanceSimulationMonth, applyInboxChoice, sumReceivables } from './engine';
 import { createInitialSimulationState } from './initialState';
 import { generateInboxMessages } from './scenarios';
 
@@ -12,6 +12,56 @@ const run = (seed, months, policy) => runBalanceSimulation({
 });
 
 describe('seeded balance simulation', () => {
+  const complaint = (id, clientId) => ({
+    id, type: 'alert', title: 'Complaint', description: 'Review this complaint', urgency: 'high',
+    requiresAction: true, read: false, choices: [], timestamp: new Date('2026-01-01'),
+    scenario: { kind: 'client-feedback', clientId },
+  });
+
+  test('stewardship resolves a second complaint through delegation after spending shared attention', () => {
+    const initial = createInitialSimulationState();
+    const first = complaint('first', initial.clients[0].id);
+    const second = complaint('second', initial.clients[1].id);
+    let state = { ...initial, inbox: [first, second] };
+    const deps = { random: () => 0.5, generateId: () => 'test' };
+    expect(getBalancePolicyChoice(state, first, 'stewardship')).toBe('address');
+    state = applyInboxChoice(state, first.id, getBalancePolicyChoice(state, first, 'stewardship'), deps);
+    expect(getBalancePolicyChoice(state, second, 'stewardship')).toBe('assign');
+    state = applyInboxChoice(state, second.id, getBalancePolicyChoice(state, second, 'stewardship'), deps);
+    expect(state.inbox.every(message => !message.requiresAction)).toBe(true);
+    expect(state.clients[0].satisfaction).toBe(initial.clients[0].satisfaction + 6);
+    expect(state.clients[1].satisfaction).toBe(initial.clients[1].satisfaction + 3);
+  });
+
+  test('unaffordable personal handling delegates, or explicitly defers without billable staff', () => {
+    const initial = createInitialSimulationState();
+    const message = complaint('complaint', initial.clients[0].id);
+    const state = { ...initial, inbox: [message], financials: { ...initial.financials, cashOnHand: 0 } };
+    expect(getBalancePolicyChoice(state, message, 'stewardship')).toBe('assign');
+    const noStaff = { ...state, employees: [] };
+    expect(getBalancePolicyChoice(noStaff, message, 'stewardship')).toBe('ignore');
+    const next = applyInboxChoice(noStaff, message.id, getBalancePolicyChoice(noStaff, message, 'stewardship'), { random: () => 0.5, generateId: () => 'test' });
+    expect(next.inbox[0].requiresAction).toBe(false);
+    expect(next.clients[0].satisfaction).toBe(state.clients[0].satisfaction - 10);
+  });
+
+  test('collections use a demand letter when a recovery meeting spent the intervention', () => {
+    const initial = createInitialSimulationState();
+    const message = complaint('complaint', initial.clients[0].id);
+    const collections = { ...message, id: 'collections', scenario: {
+      kind: 'collections-problem', clientId: initial.clients[1].id, overdueAmount: 1000,
+    } };
+    const receivables = [{ clientId: initial.clients[1].id, clientName: initial.clients[1].name,
+      paymentProfile: 'normal', aging: { current: 0, thirtyDay: 0, sixtyDay: 1000, ninetyPlus: 0 } }];
+    let state = { ...initial, receivables, arAging: sumReceivables(receivables), inbox: [message, collections] };
+    const deps = { random: () => 0.5, generateId: () => 'test' };
+    state = applyInboxChoice(state, message.id, 'address', deps);
+    expect(getBalancePolicyChoice(state, collections, 'stewardship')).toBe('demand-letter');
+    const next = applyInboxChoice(state, collections.id, getBalancePolicyChoice(state, collections, 'stewardship'), deps);
+    expect(next.inbox.every(item => !item.requiresAction)).toBe(true);
+    expect(next.financials.cashOnHand - state.financials.cashOnHand).toBe(600);
+  });
+
   test('is repeatable over 12 and 24 months but differs by seed', () => {
     const short = run(7, 12, 'stewardship');
     const long = run(7, 24, 'stewardship');

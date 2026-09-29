@@ -128,7 +128,7 @@ export default function ARManager() {
           {collectionsRunThisMonth ? 'Collections Run This Month' : 'Run Collections'}
         </Button>
         <Button variant="outlined" size="small" color="error" onClick={() => { setWriteOffAmount(arAging.ninetyPlus); setWriteOffOpen(true); }} disabled={arAging.ninetyPlus === 0}>
-          Write Off 90+ ({`$${Math.round(arAging.ninetyPlus).toLocaleString()}`})
+          Write off and close collection efforts
         </Button>
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 1.5, mb: 3 }}>
@@ -140,16 +140,19 @@ export default function ARManager() {
                 : 'No overdue invoices are available to collect.'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Uses this month&apos;s one manual collection attempt. It does not directly change client satisfaction or add an expense.
+            Uses this month&apos;s one manual collection attempt, separate from partner interventions. It does not directly change client satisfaction or add an expense.
           </Typography>
         </Paper>
         <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle2">Write Off 90+</Typography>
+          <Typography variant="subtitle2">Write off and close collection efforts</Typography>
           <Typography variant="body2" color="success.main">
-            + Clears the amount you choose from the 90+ day balance.
+            + Clears the amount you choose from the {money(arAging.ninetyPlus)} 90+ day balance.
           </Typography>
           <Typography variant="body2" color="error.main">
             − The same amount becomes bad debt expense and reduces this month&apos;s profit. No cash comes in, and that balance can no longer be collected.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This game combines two decisions. An accounting write-off alone does not necessarily cancel a debt.
           </Typography>
         </Paper>
       </Box>
@@ -231,10 +234,11 @@ export default function ARManager() {
 
       {/* Write-off Dialog */}
       <Dialog open={writeOffOpen} onClose={() => setWriteOffOpen(false)}>
-        <DialogTitle>Write Off Bad Debt</DialogTitle>
+        <DialogTitle>Write off and close collection efforts</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Choose how much of the 90+ day balance to give up collecting.
+            Choose how much of the 90+ day balance to remove from AR and stop collecting in this game.
+            An accounting write-off alone does not necessarily cancel a debt.
           </Typography>
           <TextField
             label="Write-off Amount"
@@ -247,7 +251,7 @@ export default function ARManager() {
             slotProps={{ htmlInput: { min: 0, max: arAging.ninetyPlus, step: 1 } }}
           />
           {validWriteOff && <Paper variant="outlined" sx={{ p: 1.5, mt: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>Effect of writing off {money(writeOffAmount)}</Typography>
+            <Typography variant="subtitle2" gutterBottom>Effect of writing off and closing collection of {money(writeOffAmount)}</Typography>
             <Typography variant="body2" color="success.main">
               + 90+ day AR falls by {money(writeOffAmount)} to {money(arAging.ninetyPlus - writeOffAmount)}.
             </Typography>
@@ -261,7 +265,7 @@ export default function ARManager() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWriteOffOpen(false)}>Cancel</Button>
-          <Button onClick={handleWriteOff} variant="contained" color="error" disabled={!validWriteOff}>Write Off</Button>
+          <Button onClick={handleWriteOff} variant="contained" color="error" disabled={!validWriteOff}>Write off and close collection efforts</Button>
         </DialogActions>
       </Dialog>
     </Box>

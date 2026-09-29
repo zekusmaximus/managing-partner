@@ -28,3 +28,24 @@ export const getClientServiceCapacity = ({ employees }: ServiceRoster): number =
 // satisfaction benefit, while a shortfall reduces satisfaction and renewals.
 export const getClientServiceCoverage = (state: ServiceRoster): number =>
   state.clients.length === 0 ? 1 : getClientServiceCapacity(state) / state.clients.length;
+
+// Fictional tuning bands for this introductory simulation, not industry norms.
+export const getWorkloadBurnoutChange = (coverage: number, clientCount: number): number => {
+  if (clientCount === 0) return -3;
+  if (coverage < 0.9) return 6;
+  if (coverage < 1) return 3;
+  if (coverage < 1.15) return 0;
+  return -3;
+};
+
+export const getWorkloadBurnoutTrend = (state: ServiceRoster) => {
+  const coverage = getClientServiceCoverage(state);
+  const burnoutChange = getWorkloadBurnoutChange(coverage, state.clients.length);
+  const trend = burnoutChange > 0 ? `+${burnoutChange} burnout points per employee`
+    : burnoutChange < 0 ? `${burnoutChange} burnout points per employee` : 'burnout unchanged';
+  return {
+    coverage,
+    burnoutChange,
+    explanation: `${state.clients.length === 0 ? 'No active clients' : `${(coverage * 100).toFixed(1)}% current coverage`} → ${trend} next month (bounded to 0–100).`,
+  };
+};

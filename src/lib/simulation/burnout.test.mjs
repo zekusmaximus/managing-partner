@@ -13,14 +13,14 @@ describe('staff recovery investment', () => {
     const quote = getStaffRecoveryQuote(initial);
     expect(quote).toMatchObject({
       participantIds: ['emp4', 'emp1'], cost: 3000,
-      totalBurnoutReduction: 45, totalEfficacyGain: 9,
+      totalBurnoutReduction: 45,
       alreadyFunded: false, canFund: true,
     });
 
     const funded = fundStaffRecovery(initial);
     const entry = funded.financialHistory.at(-1);
-    expect(funded.employees.find(employee => employee.id === 'emp4')).toMatchObject({ burnout: 0, efficacy: 87 });
-    expect(funded.employees.find(employee => employee.id === 'emp1')).toMatchObject({ burnout: 0, efficacy: 89 });
+    expect(funded.employees.find(employee => employee.id === 'emp4')).toMatchObject({ burnout: 0, efficacy: 82 });
+    expect(funded.employees.find(employee => employee.id === 'emp1')).toMatchObject({ burnout: 0, efficacy: 85 });
     expect(funded.employees.find(employee => employee.id === 'emp2')).toEqual(initial.employees.find(employee => employee.id === 'emp2'));
     expect(funded.financials.cashOnHand).toBe(initial.financials.cashOnHand - 3000);
     expect(funded.financials.operatingExpenses).toBe(initial.financials.operatingExpenses + 3000);
@@ -58,12 +58,12 @@ describe('staff recovery investment', () => {
     expect(getStaffRecoveryQuote(state).canFund).toBe(false);
     expect(getStaffRecoveryQuote(state, 'targeted')).toMatchObject({
       participantIds: ['emp4'], cost: 500, totalBurnoutReduction: 15,
-      totalEfficacyGain: 3, canFund: true,
+      canFund: true,
     });
 
     const funded = fundStaffRecovery(state, 'targeted');
     const entry = funded.financialHistory.at(-1);
-    expect(funded.employees.find(employee => employee.id === 'emp4')).toMatchObject({ burnout: 10, efficacy: 85 });
+    expect(funded.employees.find(employee => employee.id === 'emp4')).toMatchObject({ burnout: 10, efficacy: 82 });
     expect(funded.employees.find(employee => employee.id === 'emp1')).toEqual(state.employees.find(employee => employee.id === 'emp1'));
     expect(funded.financials.cashOnHand).toBe(250);
     expect(funded.financials.operatingExpenses).toBe(state.financials.operatingExpenses + 500);
@@ -96,36 +96,36 @@ describe('staff recovery investment', () => {
     });
     expect(getStaffRecoveryQuote(withCash(1000), 'targeted')).toMatchObject({
       participantIds: ['emp4', 'emp1'], cost: 1000,
-      totalBurnoutReduction: 30, totalEfficacyGain: 6, canFund: true,
+      totalBurnoutReduction: 30, canFund: true,
     });
     const funded = fundStaffRecovery(initial, 'targeted');
-    expect(funded.employees.find(employee => employee.id === 'emp4')).toMatchObject({ burnout: 10, efficacy: 85 });
-    expect(funded.employees.find(employee => employee.id === 'emp1')).toMatchObject({ burnout: 5, efficacy: 88 });
+    expect(funded.employees.find(employee => employee.id === 'emp4')).toMatchObject({ burnout: 10, efficacy: 82 });
+    expect(funded.employees.find(employee => employee.id === 'emp1')).toMatchObject({ burnout: 5, efficacy: 85 });
     expect(funded.financials.cashOnHand).toBe(initial.financials.cashOnHand - 1000);
     expect(fundStaffRecovery(funded, 'targeted')).toBe(funded);
   });
 
-  test('caps participant count, cost, burnout, and efficacy', () => {
+  test('caps participant count, cost, and burnout without buying permanent efficacy', () => {
     const initial = createInitialSimulationState();
     const employees = Array.from({ length: 20 }, (_, index) => ({
       ...initial.employees[0], id: `staff-${index}`, burnout: 100, efficacy: 99,
     }));
     const state = { ...initial, employees };
     expect(getStaffRecoveryQuote(state)).toMatchObject({
-      cost: 18000, totalBurnoutReduction: 300, totalEfficacyGain: 12,
+      cost: 18000, totalBurnoutReduction: 300,
     });
     const funded = fundStaffRecovery(state);
-    expect(funded.employees.filter(employee => employee.burnout === 75 && employee.efficacy === 100)).toHaveLength(12);
+    expect(funded.employees.filter(employee => employee.burnout === 75 && employee.efficacy === 99)).toHaveLength(12);
     expect(funded.employees.filter(employee => employee.burnout === 100 && employee.efficacy === 99)).toHaveLength(8);
     expect(funded.financials.cashOnHand).toBe(initial.financials.cashOnHand - 18000);
     expect(fundStaffRecovery(funded)).toBe(funded);
 
     expect(getStaffRecoveryQuote(state, 'targeted')).toMatchObject({
       participantIds: ['staff-0', 'staff-1'], cost: 1000,
-      totalBurnoutReduction: 30, totalEfficacyGain: 2,
+      totalBurnoutReduction: 30,
     });
     const targeted = fundStaffRecovery(state, 'targeted');
-    expect(targeted.employees.filter(employee => employee.burnout === 85 && employee.efficacy === 100)).toHaveLength(2);
+    expect(targeted.employees.filter(employee => employee.burnout === 85 && employee.efficacy === 99)).toHaveLength(2);
     expect(targeted.employees.filter(employee => employee.burnout === 100 && employee.efficacy === 99)).toHaveLength(18);
   });
 

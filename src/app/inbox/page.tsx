@@ -6,6 +6,9 @@ import { Email, CheckCircle, CircleOutlined, PriorityHigh } from '@mui/icons-mat
 import { useSimulation } from '@/context/SimulationContext';
 import type { InboxMessage } from '@/context/SimulationContext';
 import HelpTooltip from '@/components/help/HelpTooltip';
+import PartnerInterventionNotice from '@/components/PartnerInterventionNotice';
+import { getInboxChoiceQuote } from '@/lib/simulation/engine';
+import { getCurrentInboxChoices } from '@/lib/simulation/inboxChoices';
 
 export default function Inbox() {
   const { state, markInboxMessageRead, handleInboxChoice } = useSimulation();
@@ -69,6 +72,7 @@ export default function Inbox() {
             </Box>
           </Box>
 
+          <PartnerInterventionNotice state={state} />
           <Grid container spacing={2} sx={{ minWidth: 0 }}>
             {/* Message List */}
             <Grid size={{ xs: 12, md: 5 }} sx={{ minWidth: 0, height: { md: 'calc(100dvh - 210px)' } }} data-tutorial-target="inbox-message-list">
@@ -193,19 +197,26 @@ export default function Inbox() {
                             Choose one of the following actions:
                           </Typography>
                           <Grid container spacing={2}>
-                            {selectedMessage.choices.map((choice) => (
+                            {getCurrentInboxChoices(selectedMessage).map((choice) => {
+                              const quote = getInboxChoiceQuote(state, selectedMessage.id, choice.id);
+                              return (
                               <Grid size={{ xs: 12 }} key={choice.id}>
                                 <Button
                                   variant="outlined"
                                   fullWidth
                                   sx={{ display: 'block', textAlign: 'left', textTransform: 'none', p: 2, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
                                   onClick={() => handleChoiceClick(choice.id)}
+                                  disabled={!quote.available}
+                                  aria-describedby={quote.disabledReason ? `choice-reason-${choice.id}` : undefined}
                                 >
                                   <Typography variant="body1" fontWeight="bold">{choice.label}</Typography>
-                                  <Typography variant="body2" color="text.secondary">{choice.effect}</Typography>
+                                  <Typography variant="body2" color="text.secondary">{quote.effect}</Typography>
                                 </Button>
+                                {quote.disabledReason && <Typography id={`choice-reason-${choice.id}`} variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                  {quote.disabledReason}
+                                </Typography>}
                               </Grid>
-                            ))}
+                            );})}
                           </Grid>
                         </Box>
                       )}

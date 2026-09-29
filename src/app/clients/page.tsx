@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { useSimulation } from '@/context/SimulationContext';
 import HelpTooltip from '@/components/help/HelpTooltip';
 import { getClientMeetingQuote } from '@/lib/simulation/engine';
+import PartnerInterventionNotice from '@/components/PartnerInterventionNotice';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
@@ -135,10 +136,11 @@ function ClientsContent() {
             <Grid size={{ xs: 12 }}>
               <Card id="client-meeting" sx={{ scrollMarginTop: 80 }}>
                 <CardHeader
-                  title="Meet with a client"
-                  subheader="Use one firmwide meeting this month to respond to renewal, service, satisfaction, or overdue-payment risk."
+                  title="Lead recovery meeting"
+                  subheader="Respond to a complaint, renewal, service, satisfaction, or overdue-payment risk."
                 />
                 <CardContent>
+                  <PartnerInterventionNotice state={state} />
                   {selectedClient && meetingQuote ? (
                     <Box sx={{ display: 'grid', gap: 1.5 }}>
                       <TextField
@@ -156,7 +158,8 @@ function ClientsContent() {
                       </TextField>
                       {meetingCompleted && (
                         <Alert severity="success">
-                          Meeting completed this month. The client’s satisfaction and overdue balance have been updated.
+                          {state.alerts.find(alert => alert.id === `client-meeting-${state.year}-${state.month}-${selectedClient.id}`)?.message ??
+                            'Recovery meeting completed this month. Review the dated outcome for its effects.'}
                         </Alert>
                       )}
                       {!meetingCompleted && <>
@@ -171,7 +174,7 @@ function ClientsContent() {
                             : 'no immediate collection'}.
                         </Typography>
                         <Typography variant="body2" color="error.main">
-                          Cost: ${meetingQuote.cost.toLocaleString()} cash and current-month profit; only one client meeting per firm per month.
+                          Cost: ${meetingQuote.cost.toLocaleString()} cash and current-month profit, plus this month’s shared partner intervention.
                         </Typography>
                       </Box>
                       <Typography variant="caption" color="text.secondary">
@@ -183,7 +186,7 @@ function ClientsContent() {
                       )}
                       <Box>
                         <Button variant="contained" disabled={!meetingQuote.available} onClick={() => meetClient(selectedClient.id)}>
-                          Meet with {selectedClient.name} (${meetingQuote.cost.toLocaleString()})
+                          Lead recovery meeting (${meetingQuote.cost.toLocaleString()})
                         </Button>
                       </Box>
                       </>}
@@ -226,6 +229,10 @@ function ClientsContent() {
                       </Box>
                     ))}
                   </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    These categories describe the book. Concentration depends on fee exposure and shared issues;
+                    different organization types do not automatically diversify risk. Shared issue exposure is not simulated here.
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>

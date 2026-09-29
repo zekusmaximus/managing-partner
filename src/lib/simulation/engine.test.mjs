@@ -367,7 +367,8 @@ describe('client receivable accounts', () => {
     const next = applyInboxChoice({ ...state, inbox: [message] }, message.id, 'demand-letter', { random: () => 0, generateId: () => 'new' });
     expect(next.receivables).toBe(state.receivables);
     expect(next.financials.cashOnHand).toBe(state.financials.cashOnHand);
-    expect(next.inbox[0].resolution.summary).toContain('no longer available');
+    expect(next.inbox[0].requiresAction).toBe(true);
+    expect(next.inbox[0].resolution).toBeUndefined();
   });
 
   test('manual collections reconcile cash, history, and aggregate accounts', () => {
@@ -456,7 +457,7 @@ describe('inbox decisions and amount guards', () => {
     };
     const addressed = applyInboxChoice(addMessage(state, feedback), 'feedback', 'address', { random: () => 0, generateId: () => 'new' });
     expect(addressed.clients[0].satisfaction).toBe(state.clients[0].satisfaction);
-    expect(addressed.clients[1].satisfaction).toBe(Math.min(100, state.clients[1].satisfaction + 15));
+    expect(addressed.clients[1].satisfaction).toBe(Math.min(100, state.clients[1].satisfaction + 6));
     const opportunity = { ...feedback, id: 'opportunity', choices: [{ id: 'pursue', label: 'Pursue', effect: 'Win' }], scenario: { kind: 'new-client', name: 'New Nonprofit', clientType: 'Non-Profit', monthlyFee: 12000 } };
     const won = applyInboxChoice(addMessage(addressed, opportunity), 'opportunity', 'pursue', { random: () => 0.9, generateId: () => 'won' });
     expect(won.clients.at(-1)).toMatchObject({ name: 'New Nonprofit', type: 'Non-Profit', monthlyFee: 12000 });

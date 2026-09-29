@@ -1,7 +1,7 @@
 import { tutorialSteps } from '@/data/tutorialSteps';
 import { createInitialSimulationState } from '@/lib/simulation/initialState';
-import { sumReceivables } from '@/lib/simulation/engine';
-import { getAggressiveClientPursuitEffect } from '@/lib/simulation/scenarios';
+import { getLastPartnerIntervention, sumReceivables } from '@/lib/simulation/engine';
+import { getCurrentInboxChoices } from '@/lib/simulation/inboxChoices';
 import { createInitialTutorialState, type TutorialState } from './tutorialState';
 import type { SimulationState } from '@/types/simulation';
 
@@ -130,9 +130,11 @@ const inboxMessage: Check = (value) => fields(value, {
   requiresAction: bool, read: bool,
   choices: arrayOf((choice) => fields(choice, { id: text, label: text, effect: text })),
   timestamp, scenario,
-}) && record(value) && (value.resolution === undefined || fields(value.resolution, {
+}) && record(value) && (value.resolution === undefined || (fields(value.resolution, {
   choiceId: text, summary: text,
-}));
+}) && record(value.resolution) &&
+  (value.resolution.month === undefined || month(value.resolution.month)) &&
+  (value.resolution.year === undefined || year(value.resolution.year))));
 
 const alertActionTarget: Check = (value) => fields(value, { kind: oneOf('clients', 'ar') }) ||
   fields(value, { kind: oneOf('client'), clientId: text });
@@ -206,6 +208,12 @@ const simulationStateV4: Check = (value) => simulationStateV3(value) && record(v
     fields(value.lastManualCollection, { month, year })) &&
   (value.lastClientMeeting === undefined || value.lastClientMeeting === null ||
     fields(value.lastClientMeeting, { month, year, clientId: text })) &&
+  (value.lastPartnerIntervention === undefined || value.lastPartnerIntervention === null ||
+    (fields(value.lastPartnerIntervention, { month, year,
+      action: oneOf('client-meeting', 'complaint-recovery', 'personal-collection') }) &&
+      record(value.lastPartnerIntervention) &&
+      (value.lastPartnerIntervention.clientId === undefined || text(value.lastPartnerIntervention.clientId)) &&
+      (value.lastPartnerIntervention.clientName === undefined || text(value.lastPartnerIntervention.clientName)))) &&
   Array.isArray(value.financialHistory) && value.financialHistory.every((entry) =>
     fields(entry, { taxExpense: nonnegative, taxPenalty: nonnegative }));
 
@@ -278,6 +286,8 @@ export function parseSession(raw: string): SessionSnapshot | null {
           ? simulation.lastManualCollection ?? null : null,
         lastClientMeeting: parsed.version === SESSION_VERSION
           ? simulation.lastClientMeeting ?? null : null,
+        lastPartnerIntervention: parsed.version === SESSION_VERSION
+          ? getLastPartnerIntervention(simulation) : null,
         receivables,
         financialHistory: (parsed.version >= 3
           ? simulation.financialHistory : migrateLegacyCashHistory(simulation.financialHistory))
@@ -288,14 +298,9 @@ export function parseSession(raw: string): SessionSnapshot | null {
           ...alert, timestamp: new Date(alert.timestamp),
         })),
         inbox: simulation.inbox.map((message) => {
-          const pendingProspectFee = message.requiresAction && message.scenario.kind === 'new-client'
-            ? message.scenario.monthlyFee : null;
           return {
             ...message, timestamp: new Date(message.timestamp),
-            ...(pendingProspectFee !== null
-              ? { choices: message.choices.map(choice => choice.id === 'pursue'
-                  ? { ...choice, effect: getAggressiveClientPursuitEffect(pendingProspectFee) } : choice) }
-              : {}),
+            choices: getCurrentInboxChoices(message),
             ...(parsed.version !== SESSION_VERSION && message.requiresAction && message.scenario.kind === 'tax-planning'
               ? { read: true, requiresAction: false,
                   resolution: { choiceId: 'expired', summary: 'This prior tax estimate expired during save migration because no payable balance was recorded. Future quarters use the new tax balance.' } }

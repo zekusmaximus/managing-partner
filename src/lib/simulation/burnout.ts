@@ -16,7 +16,6 @@ export interface StaffRecoveryQuote {
   cost: number;
   participantIds: string[];
   totalBurnoutReduction: number;
-  totalEfficacyGain: number;
   alreadyFunded: boolean;
   canFund: boolean;
 }
@@ -47,15 +46,11 @@ export const getStaffRecoveryQuote = (state: SimulationState, plan: StaffRecover
   const cost = participants.length * costPerEmployee;
   const totalBurnoutReduction = participants.reduce((sum, employee) =>
     sum + Math.min(employee.burnout, burnoutReduction), 0);
-  const totalEfficacyGain = participants.reduce((sum, employee) =>
-    sum + Math.min(100 - employee.efficacy,
-      Math.floor(Math.min(employee.burnout, burnoutReduction) / 5)), 0);
 
   return {
     cost,
     participantIds: participants.map(employee => employee.id),
     totalBurnoutReduction,
-    totalEfficacyGain,
     alreadyFunded: Boolean(alreadyFunded),
     canFund: Boolean(hasCurrentEntry && !alreadyFunded && cost > 0 &&
       Number.isFinite(state.financials.cashOnHand) && state.financials.cashOnHand >= cost),
@@ -77,7 +72,6 @@ export const fundStaffRecovery = (state: SimulationState, plan: StaffRecoveryPla
       return {
         ...employee,
         burnout: Math.max(0, employee.burnout - recovered),
-        efficacy: Math.min(100, employee.efficacy + Math.floor(recovered / 5)),
       };
     }),
     financials: {

@@ -12,52 +12,52 @@ export const learningObjectives: LearningObjective[] = [
   {
     id: 'lo-m1-gr-role',
     phase: 'month1',
-    title: 'Understand Government Relations',
-    description: 'Learn what a government relations firm does and its role in the political ecosystem.',
+    title: 'Government Relations and the Partner Role',
+    description: 'Introduction to firm management, client commitments, and the limits of this simulation.',
   },
   {
     id: 'lo-m1-financials',
     phase: 'month1',
-    title: 'Read Firm Financials',
-    description: 'Identify the key financial metrics that determine firm health: revenue, expenses, profit, and cash reserves.',
+    title: 'Firm Financials',
+    description: 'Tour of billed revenue, expenses, profit, and available cash.',
   },
   {
     id: 'lo-m1-team-roles',
     phase: 'month1',
-    title: 'Know Your Team',
-    description: 'Learn the three types of GR professionals — lobbyists, attorneys, and support staff — and their roles.',
+    title: 'Team Capacity and Commitments',
+    description: 'Introduction to pooled Lobbyist and Attorney capacity, support staff, fatigue, and recurring payroll.',
   },
   {
     id: 'lo-m1-cash-mgmt',
     phase: 'month1',
     title: 'Cash Management',
-    description: 'Understand accounts receivable and cash management in a professional services firm.',
+    description: 'Introduction to receivables, collections, and the difference between profit and cash.',
   },
 
   // Month 2 — "Client Management & Decision-Making"
   {
     id: 'lo-m2-client-types',
     phase: 'month2',
-    title: 'Client Diversification',
-    description: 'Distinguish between client types (corporations, trade associations, non-profits) and understand revenue diversification.',
+    title: 'Client Types and Fee Exposure',
+    description: 'Compare client fees and shared issue exposure; organization type alone does not diversify risk.',
   },
   {
     id: 'lo-m2-satisfaction',
     phase: 'month2',
     title: 'Client Satisfaction',
-    description: 'Learn how client satisfaction drives contract renewals and firm reputation.',
+    description: 'Review how coverage and satisfaction affect modeled renewal odds and the reputation summary.',
   },
   {
     id: 'lo-m2-decisions',
     phase: 'month2',
     title: 'Decision-Making Under Pressure',
-    description: 'Practice decision-making with real-world GR scenarios where there are no perfect answers.',
+    description: 'Tour of fictional inbox choices, current effect previews, and recorded outcomes.',
   },
   {
     id: 'lo-m2-tradeoffs',
     phase: 'month2',
     title: 'Managing Trade-Offs',
-    description: 'Understand the trade-offs inherent in managing partner decisions — short-term costs vs. long-term relationships.',
+    description: 'Compare personal intervention, delegation, cash costs, and continuing workload.',
   },
 
   // Month 3 — "Strategic Thinking & Resource Allocation"
@@ -65,25 +65,25 @@ export const learningObjectives: LearningObjective[] = [
     id: 'lo-m3-trends',
     phase: 'month3',
     title: 'Trend Analysis',
-    description: 'Analyze financial trends to identify emerging problems or opportunities before they become crises.',
+    description: 'Review changing financial measures alongside current warnings and historical outcomes.',
   },
   {
     id: 'lo-m3-staffing',
     phase: 'month3',
     title: 'Resource Allocation',
-    description: 'Assess team capacity and determine optimal staffing levels for your client load.',
+    description: 'Review effective coverage and loaded payroll when considering growth or hiring.',
   },
   {
     id: 'lo-m3-reputation',
     phase: 'month3',
-    title: 'Reputation Management',
-    description: 'Understand how reputation is built and maintained in the government relations industry.',
+    title: 'Reputation Summary',
+    description: 'Read the satisfaction and efficacy summary; it does not change acquisition or recruitment.',
   },
   {
     id: 'lo-m3-strategy',
     phase: 'month3',
     title: 'Strategic Thinking',
-    description: 'Develop a strategic mindset for long-term firm management — thinking quarters and years ahead.',
+    description: 'Introduction to recurring commitments and their consequences over several months.',
   },
 ];
 

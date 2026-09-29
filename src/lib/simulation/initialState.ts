@@ -131,6 +131,7 @@ const initialState: SimulationState = {
   taxPosition: { principalDue: initialTaxExpense, penaltiesDue: 0 },
   lastManualCollection: null,
   lastClientMeeting: null,
+  lastPartnerIntervention: null,
 };
 
 

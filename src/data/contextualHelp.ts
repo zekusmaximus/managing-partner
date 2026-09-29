@@ -14,7 +14,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/',
     metricName: 'Cash on Hand',
     shortDescription: 'Your firm\'s available liquid capital.',
-    grExplanation: 'In real GR firms, managing partners aim to maintain 3-6 months of operating expenses as a cash buffer. This covers late client payments, unexpected costs, and seasonal slowdowns (e.g., August recess, holiday breaks). Running low on cash can force difficult decisions like delaying payroll or cutting staff.',
+    grExplanation: 'A cash buffer helps cover late client payments and unexpected costs. For this simulation, 3-6 months of recurring cash costs is an illustrative planning target, not an industry standard. Compare available cash with recurring commitments, expected collections, and remaining credit.',
     relatedGlossaryTerms: ['monthly-recurring-revenue', 'accounts-receivable'],
   },
   'dashboard-revenue': {
@@ -22,7 +22,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/',
     metricName: 'Monthly Revenue',
     shortDescription: 'Total income from all client retainers and billings this month.',
-    grExplanation: 'For a mid-size DC firm, $100K-$200K monthly revenue is typical. Revenue stability depends on your retainer vs. hourly billing mix — retainers provide predictable income, while hourly work fluctuates. Most successful firms aim for 70%+ retainer revenue for stability.',
+    grExplanation: 'This simulation bills each active client’s stated monthly fee. Those fees are fictional scenario amounts, not market benchmarks. Billing creates revenue; cash arrives through collections, so recurring revenue does not guarantee cash is available to spend.',
     relatedGlossaryTerms: ['retainer', 'hourly-billing', 'monthly-recurring-revenue'],
   },
   'dashboard-expenses': {
@@ -30,7 +30,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/',
     metricName: 'Monthly Expenses',
     shortDescription: 'Total operating costs, primarily payroll.',
-    grExplanation: 'In GR firms, compensation typically represents 60-75% of total expenses. Other costs include office space (often premium DC locations), travel to state capitals, compliance filings, political event sponsorships, and professional development. Controlling expenses without cutting talent is a constant balancing act.',
+    grExplanation: 'The simulation combines loaded payroll, overhead, and recorded one-time operating costs. Payroll supports service capacity but creates a recurring commitment. Compare the P&L with cash activity: a billed fee or a noncash bad-debt expense can change profit without the same cash movement.',
     relatedGlossaryTerms: ['utilization-rate'],
   },
   'dashboard-profit': {
@@ -38,7 +38,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/',
     metricName: 'Net Profit',
     shortDescription: 'Revenue minus all expenses.',
-    grExplanation: 'Healthy GR firms target 20-35% profit margins. This funds partner distributions, firm growth investments, and cash reserves. Profit margins below 15% suggest the firm is either overstaffed or under-pricing its services. Negative margins require immediate corrective action.',
+    grExplanation: 'Profit is billed revenue less the expenses recorded in the P&L. It differs from cash because clients may not have paid, and borrowing or repaying credit changes cash without changing revenue. The 20-35% operating-margin target used in help is a fictional simulation target, not a universal net-profit benchmark.',
     relatedGlossaryTerms: ['retainer', 'managing-partner'],
   },
   'dashboard-satisfaction': {
@@ -46,15 +46,15 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/',
     metricName: 'Avg Client Satisfaction',
     shortDescription: 'Aggregate measure of how well you\'re serving clients.',
-    grExplanation: 'In real GR, client satisfaction correlates with: legislative and regulatory outcomes achieved, responsiveness to requests, quality of strategic advice, strength of personal relationships, and transparency in reporting progress. Dissatisfied clients rarely give warning before leaving.',
+    grExplanation: 'In this simulation, monthly service coverage and chance adjust satisfaction. Choices such as a recovery meeting or delegated response can also change it. Satisfaction and coverage influence renewal odds, but neither guarantees a client stays. Real clients also assess strategy, communication, and outcomes that this version does not model.',
     relatedGlossaryTerms: ['client-affinity', 'book-of-business'],
   },
   'dashboard-reputation': {
     id: 'dashboard-reputation',
     page: '/',
     metricName: 'Firm Reputation',
-    shortDescription: 'How the GR community perceives your firm.',
-    grExplanation: 'Reputation is driven by client satisfaction (60%) and employee performance (40%). In the real world, this encompasses word-of-mouth among Hill staffers, rankings in publications like The National Journal, media mentions, and your track record of legislative wins. It directly affects your ability to win new clients and recruit top talent.',
+    shortDescription: 'A summary of client satisfaction and staff efficacy.',
+    grExplanation: 'At the monthly update, this simulation summarizes average client satisfaction (60%) and employee efficacy (40%) as reputation. The score does not change acquisition odds or recruitment. Review its underlying measures when deciding what needs attention.',
     relatedGlossaryTerms: ['k-street', 'rainmaker'],
   },
 
@@ -64,7 +64,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/finances',
     metricName: 'Accounts Receivable',
     shortDescription: 'Money clients owe you for services already rendered.',
-    grExplanation: 'AR aging beyond 60 days signals collection problems and threatens cash. In this simulation, you can run one manual collection attempt each month or pay for a targeted client meeting. A write-off clears old AR but brings in no cash and records a bad-debt expense that lowers profit.',
+    grExplanation: 'Older AR ties up cash. You can run one manual collection attempt per month, independently of the shared partner-intervention allowance used by meetings and personal collection calls. “Write off and close collection efforts” clears selected old AR, ends its collection in this game, and records an expense without bringing in cash. Accounting write-off alone does not necessarily cancel a debt.',
     relatedGlossaryTerms: ['accounts-receivable', 'retainer'],
   },
   'finance-avg-profit': {
@@ -98,7 +98,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Total Employees',
     shortDescription: 'Your firm\'s headcount across all roles.',
-    grExplanation: 'Your headcount includes lobbyists (client-facing advocates on Capitol Hill), attorneys (regulatory filings and compliance), and support staff (scheduling, research, administration). The ideal ratio depends on your client load — industry standard is roughly 1.5-2 lobbyists per active client for quality service.',
+    grExplanation: 'This version pools Lobbyist and Attorney service capacity; it does not model specialist matching or distinct legal capabilities. Support staff improve the pooled team’s capacity. Use effective coverage, workload pressure, and loaded payroll to assess staffing; no fixed headcount ratio fits every roster.',
     relatedGlossaryTerms: ['lobbyist', 'bench-strength'],
   },
   'hr-payroll': {
@@ -106,7 +106,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Total Payroll',
     shortDescription: 'Your largest expense category.',
-    grExplanation: 'In the GR industry, top lobbyists command $120K-$300K+ annually, with senior partners earning significantly more. Attorneys with regulatory expertise are equally expensive. Payroll typically represents 60-75% of total costs. The challenge is balancing competitive compensation (to retain talent) with profitability.',
+    grExplanation: 'Salaries and hiring prices here are fictional simulation assumptions. Loaded payroll adds benefits and employer payroll tax to salary. Salaries are commitments: the manual control allows increases only, effective in the next monthly payroll. Salary reductions and renegotiations are not simulated; inbox raise negotiations retain their stated effects.',
     relatedGlossaryTerms: ['lobbyist', 'rainmaker', 'book-of-business'],
   },
   'hr-efficacy': {
@@ -114,7 +114,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Employee Efficacy',
     shortDescription: 'How effectively each team member performs their role.',
-    grExplanation: 'Efficacy reflects client outcomes, relationship quality on the Hill, successful advocacy campaigns, and overall productivity. In this simulation, efficacy affects billable capacity and how much support staff help the whole team. Low efficacy reduces service coverage, which can lower satisfaction and renewal odds.',
+    grExplanation: 'Efficacy represents capability in this model. It affects pooled billable capacity and support effectiveness, which affect satisfaction and renewal odds. Explicit staff scenarios can change efficacy; the calendar and routine workload update do not erode or increase it. Recovery reduces fatigue without buying permanent capability.',
     relatedGlossaryTerms: ['efficacy', 'client-affinity', 'direct-lobbying'],
   },
   'hr-burnout': {
@@ -122,7 +122,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Burnout',
     shortDescription: 'Physical and emotional exhaustion from sustained high-pressure work.',
-    grExplanation: 'Burnout is a real crisis in the GR industry. Long hours, high-stakes advocacy, constant travel between DC and state capitals, and tight legislative deadlines all contribute. In this simulation, burnout above 60% cuts effective client service capacity. If the team becomes stretched, satisfaction and renewal odds suffer.',
+    grExplanation: 'The monthly update takes one current service-coverage snapshot for the whole team. Fictional tuning bands: below 90% adds 6 burnout points; 90% to below 100% adds 3; 100% to below 115% leaves burnout unchanged; 115% or more removes 3. With no clients, burnout falls by 3. Values stay within 0-100. Burnout above 60% reduces effective capacity; service and renewal effects then use the updated roster.',
     relatedGlossaryTerms: ['burnout', 'managing-partner'],
   },
   'hr-recovery': {
@@ -130,7 +130,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Staff Recovery',
     shortDescription: 'Paid coverage and recovery time for staff at 20% burnout or higher.',
-    grExplanation: 'Choose one recovery option per month. The full program covers up to 12 highest-burnout staff for $1,500 each, reducing burnout by up to 25 points and restoring up to 5 efficacy points each. Targeted recovery covers up to 2 for $500 each, reducing burnout by up to 15 and restoring up to 3 efficacy points each; when cash covers only one, it costs $500. Both options require cash on hand. Payment reduces cash and current-month profit, and counts toward the Payroll budget.',
+    grExplanation: 'Choose one recovery option per month, separately from partner interventions. Full recovery covers up to 12 highest-burnout eligible staff for $1,500 each and removes up to 25 burnout points each. Targeted recovery covers up to 2 for $500 each and removes up to 15 points each; $500-$999 cash covers one. Neither option increases efficacy. Recovery addresses fatigue; adequate capacity addresses continuing overload. Payment reduces cash and current-month profit and counts toward the Payroll budget. These costs and effects are simulation assumptions.',
     relatedGlossaryTerms: ['burnout', 'efficacy'],
   },
   'hr-affinity': {
@@ -138,7 +138,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Client Affinity',
     shortDescription: 'How well an employee connects with and serves clients.',
-    grExplanation: 'High-affinity lobbyists build trust with clients. Here, affinity combines with efficacy to determine staff service effectiveness. Billable staff create client capacity, while support staff strengthen the whole team. More coverage protects satisfaction and improves renewal odds as the client roster grows.',
+    grExplanation: 'In this model, affinity combines with efficacy to determine staff service effectiveness for every role. Lobbyists and attorneys contribute pooled billable capacity; support staff strengthen the whole team. More coverage protects satisfaction and improves renewal odds as the client roster grows.',
     relatedGlossaryTerms: ['client-affinity', 'book-of-business', 'rainmaker'],
   },
 
@@ -148,7 +148,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Client Satisfaction',
     shortDescription: 'How well your firm is meeting each client\'s GR needs.',
-    grExplanation: 'Each billable Lobbyist or Attorney can cover about two clients at 80% combined efficacy and affinity. Effective support staff help the whole team; without any support, billable capacity falls by about 15%. Burnout above 60% reduces staff effectiveness. When the team cannot cover the client roster, satisfaction tends to fall each month; spare capacity gives it a modest lift. Inbox responses and a paid client meeting can also change satisfaction.',
+    grExplanation: 'As a fictional simulation assumption, each Lobbyist or Attorney contributes about two client slots at 80% weighted efficacy and affinity, before support and fatigue adjustments. Both roles share the same capacity formula, with no specialist matching. No support reduces billable capacity by 15%; burnout above 60% also reduces effectiveness. Coverage affects monthly satisfaction and renewal odds. A meeting or delegated response can improve satisfaction but does not repair understaffing.',
     relatedGlossaryTerms: ['client-affinity', 'direct-lobbying'],
   },
   'clients-contract': {
@@ -156,7 +156,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Contract Duration',
     shortDescription: 'Months remaining on each client\'s engagement.',
-    grExplanation: 'When a contract expires, renewal odds depend on both client satisfaction and current service coverage. The expiry warning shows the monthly fee at risk and its share of current contracted monthly revenue: that fee divided by all active clients’ monthly fees. An overloaded team has weaker renewal odds even with a happy client; with no billable staff, a contract cannot renew. Within three months of expiry, you may spend $1,000 on a client meeting to raise satisfaction, using the firm’s one meeting slot that month. This helps but does not guarantee renewal.',
+    grExplanation: 'Renewal odds depend on satisfaction and current service coverage. The expiry warning shows the monthly fee at risk divided by all active clients’ monthly fees. With no billable staff, a contract cannot renew. A recovery meeting costs $1,000, adds up to 6 satisfaction, and uses the same monthly partner intervention as personal collection calls. It may collect bounded overdue AR, but cannot guarantee renewal or repair a staffing shortfall. An active complaint is also a reason to offer a meeting.',
     relatedGlossaryTerms: ['retainer', 'book-of-business'],
   },
   'clients-type': {
@@ -164,7 +164,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Client Type',
     shortDescription: 'The kind of organization your client represents.',
-    grExplanation: 'Corporations lobby on specific business issues (tax policy, trade regulation, industry rules). Trade Associations represent entire industries and tend to have broader policy portfolios. Non-Profits advocate for causes (environment, healthcare, education) and typically have smaller budgets. A diverse portfolio reduces revenue concentration risk — losing one client type shouldn\'t threaten the firm.',
+    grExplanation: 'Organization type describes the client, not an automatic diversification benefit. Judge fee exposure by each client’s share of contracted revenue. Different organization types may depend on the same policy issue or funding source. This version does not model shared-issue shocks or a portfolio-risk score; the fee-at-risk warning shows the modeled revenue exposure.',
     relatedGlossaryTerms: ['government-relations', 'coalition-building'],
   },
   'clients-fee': {
@@ -172,7 +172,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/clients',
     metricName: 'Monthly Fee',
     shortDescription: 'The retainer or expected monthly billing for each client.',
-    grExplanation: 'Fees vary by client size, complexity of issues, and scope of work. Typical retainers range from $5K/month for small non-profits to $50K+ for major corporations with complex legislative agendas. Hourly rates for senior lobbyists can exceed $500/hour. Pricing should reflect the value delivered, not just time spent.',
+    grExplanation: 'Each active client is billed its stated monthly fee. The amounts are fictional scenario assumptions, not industry pricing benchmarks. Every client uses one service slot in this version regardless of fee, organization type, or issue complexity. Compare added fees with service coverage and payroll commitments when considering growth.',
     relatedGlossaryTerms: ['retainer', 'hourly-billing', 'monthly-recurring-revenue'],
   },
 
@@ -197,8 +197,8 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     id: 'inbox-choices',
     page: '/inbox',
     metricName: 'Decision Choices',
-    shortDescription: 'The realistic options a managing partner would face.',
-    grExplanation: 'Each choice shows its modeled effects or chance of success. Approving a raise increases pay and efficacy. Responding personally to client feedback improves satisfaction without a separate cash charge; the paid monthly client meeting is an action on the Clients page. New business can add revenue and service workload. Compare the stated effects before deciding, then read the recorded outcome.',
+    shortDescription: 'Choices and their effects in this simplified model.',
+    grExplanation: 'Lead recovery meeting costs $1,000, adds up to 6 satisfaction, may collect overdue AR, and uses one shared monthly partner intervention. Personal collection calls use that same allowance with their own collection effects and no meeting fee. Delegate routine response uses the already-paid billable team, adds up to 3 satisfaction, and uses no partner intervention; it does not improve capacity. The shared limit represents major escalations in a compressed game month, not the number of meetings a real partner holds. Read each action’s current preview and recorded outcome.',
     relatedGlossaryTerms: ['managing-partner', 'book-of-business'],
   },
 
@@ -208,7 +208,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/finances',
     metricName: 'P&L Statement',
     shortDescription: 'Your firm\'s income statement showing revenue, costs, and profit.',
-    grExplanation: 'The Profit & Loss (P&L) statement is the single most important financial report for a managing partner. It shows whether the firm is making or losing money, breaking down revenue sources and every expense category. Review it monthly to spot trends — rising payroll as a percentage of revenue, vendor costs creeping up, or operating margins compressing. Healthy GR firms target 20-35% operating margins.',
+    grExplanation: 'The P&L compares billed revenue with recorded expenses. Review it alongside cash activity to spot payroll growth, rising overhead, or shrinking margins. The 20-35% operating-margin reference in this simulation is an illustrative game target, not a universal industry benchmark. Profit alone does not show whether clients have paid.',
     relatedGlossaryTerms: ['profit-loss-statement', 'gross-margin', 'operating-margin'],
   },
   'finance-gross-margin': {
@@ -216,7 +216,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/finances',
     metricName: 'Gross Margin',
     shortDescription: 'Revenue minus the direct cost of delivering services (payroll).',
-    grExplanation: 'Gross margin shows how much revenue remains after paying the people who do the work. In a GR firm, this is primarily lobbyist, attorney, and support staff compensation (salary + benefits + payroll taxes). A healthy gross margin is 40-55%. If it drops below 35%, you\'re spending too much on compensation relative to revenue — either raise prices, improve utilization, or reduce headcount.',
+    grExplanation: 'This simulation subtracts all loaded employee payroll from billed revenue to calculate gross margin. The 40-55% reference is an illustrative simulation target, not an industry standard. A falling margin means payroll takes a larger share of revenue; consider service coverage as well as affordability before changing staffing.',
     relatedGlossaryTerms: ['gross-margin', 'utilization-rate'],
   },
   'finance-operating-margin': {
@@ -224,7 +224,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/finances',
     metricName: 'Operating Margin',
     shortDescription: 'Profit after all operating expenses but before partner draws.',
-    grExplanation: 'Operating margin is gross margin minus overhead (rent, insurance, technology, compliance, vendors). It represents the true profitability of firm operations before partner compensation. Target 20-35%. Below 15% means overhead is eating into profits. This metric helps you decide whether to invest in growth (more staff, better office) or cut costs.',
+    grExplanation: 'Operating income is what remains after payroll and operating costs, before the partner draw and credit-line interest. Operating margin divides that income by billed revenue. The 20-35% reference is a fictional simulation target, not a universal benchmark. Compare it with cash, service coverage, and recurring commitments.',
     relatedGlossaryTerms: ['operating-margin', 'operating-leverage'],
   },
   'finance-budget-variance': {
@@ -232,7 +232,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/finances',
     metricName: 'Budget Variance',
     shortDescription: 'Difference between planned and actual spending by category.',
-    grExplanation: 'Budget variance analysis is how managing partners control costs. Set quarterly budgets for each expense category, then track actual spending against them. Variances above 10% warrant investigation. Consistent overruns in a category mean either the budget was unrealistic or spending is out of control. Consistent underruns may mean you\'re under-investing.',
+    grExplanation: 'Compare actual quarterly spending with the plan for each category. The 10% warning threshold is a simulation assumption. An overrun may reflect an unexpected cost or an unrealistic plan; an underrun may reflect timing or a postponed investment. Editing the budget changes the plan, not actual spending or cash.',
     relatedGlossaryTerms: ['budget-variance'],
   },
   'finance-dso': {
@@ -240,7 +240,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/finances',
     metricName: 'Days Sales Outstanding',
     shortDescription: 'Average number of days it takes to collect payment after invoicing.',
-    grExplanation: 'DSO measures how quickly clients pay. Industry standard for GR firms is 30-45 days. Above 45 days signals collection problems that will eventually hurt cash flow. Non-profits and trade associations tend to pay slower than corporations. Proactive collection efforts (monthly statements, personal calls at 45 days, formal demands at 60) keep DSO manageable.',
+    grExplanation: 'DSO estimates cash tied up in receivables by dividing total AR by average daily billed revenue. The 30-day and 45-day display thresholds are fictional simulation targets, not industry standards. Inspect each account’s aging and payment profile before choosing a collection action.',
     relatedGlossaryTerms: ['days-sales-outstanding', 'accounts-receivable'],
   },
   'finance-collections': {
@@ -248,7 +248,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/finances',
     metricName: 'Collections',
     shortDescription: 'Actual cash received from clients this month.',
-    grExplanation: 'Collections is the cash you actually received, as opposed to revenue (which is what you billed). The gap between billing and collections is your accounts receivable. A healthy firm collects 85-95% of billings within 30 days. If collections consistently lag revenue, your cash position deteriorates even if the firm is "profitable" on paper.',
+    grExplanation: 'Collections are cash received; revenue is what was billed. Collecting an earlier invoice raises cash and reduces AR without adding revenue or profit. If collections consistently lag bills, cash can fall while reported profit stays positive. The collection-ratio color thresholds are simulation indicators, not industry benchmarks.',
     relatedGlossaryTerms: ['accounts-receivable', 'days-sales-outstanding'],
   },
   'finance-loc': {
@@ -301,16 +301,16 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     id: 'finance-partner-draw',
     page: '/finances',
     metricName: 'Partner Draw',
-    shortDescription: 'Your guaranteed monthly payment as managing partner.',
-    grExplanation: 'A partner draw is a regular payment to the managing partner, similar to a salary but technically an advance against profits. It\'s your "guaranteed" income. Set it at a sustainable level — too high drains cash, too low and you\'re not compensating yourself fairly. Typical managing partner draws at mid-size DC firms range from $12,000-$25,000/month, with additional quarterly distributions from profits.',
+    shortDescription: 'The recurring monthly partner payment in this model.',
+    grExplanation: 'The simulation treats the partner draw as a recurring cash payment and deducts it in its simplified P&L. Increasing the draw leaves less cash and modeled profit for the firm. Displayed draw amounts are fictional scenario assumptions, not compensation benchmarks or a guide to real partnership accounting.',
     relatedGlossaryTerms: ['partner-draw', 'partner-distribution'],
   },
   'finance-partner-equity': {
     id: 'finance-partner-equity',
     page: '/finances',
     metricName: 'Firm Equity Value',
-    shortDescription: 'Estimated value of your ownership stake in the firm.',
-    grExplanation: 'GR firms are typically valued at 1-2x trailing 12-month profit, adjusted for client retention rates, staff quality, brand reputation, and recurring revenue stability. This is what you\'d receive if you sold the firm. Building equity value is a long-term wealth creation strategy — every dollar of sustainable profit increases your firm\'s value by $1.50 or more.',
+    shortDescription: 'A fictional valuation indicator based on recorded profit.',
+    grExplanation: 'This indicator uses 1.5 times the profit in the last 12 retained monthly records, with a minimum of zero. The multiplier is a simulation assumption, not a market valuation or a promised sale price. It does not create spendable cash.',
     relatedGlossaryTerms: ['equity-value'],
   },
 
@@ -320,7 +320,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Total Employee Cost',
     shortDescription: 'Full cost including salary, benefits, and payroll taxes.',
-    grExplanation: 'Base salary is only about 75% of what an employee actually costs. Add health insurance, retirement contributions (25% benefits load) and employer payroll taxes (7.65% FICA). A lobbyist earning $8,000/mo actually costs ~$10,600/mo. Always think in total cost when evaluating whether a hire is affordable or a raise is justified.',
+    grExplanation: 'This simulation adds a 25% benefits load and 7.65% employer payroll-tax load to salary. These are simplified model assumptions, not a complete payroll calculation. An $8,000 monthly salary therefore costs $10,612 per month in the model. A salary increase raises the loaded recurring cost starting with the next monthly payroll.',
     relatedGlossaryTerms: ['utilization-rate'],
   },
   'hr-revenue-per-employee': {
@@ -328,7 +328,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Revenue per Employee',
     shortDescription: 'Total firm revenue divided by headcount.',
-    grExplanation: 'Revenue per employee is a key efficiency metric. For mid-size DC GR firms, $15,000-$25,000 per employee per month is typical. Below $15,000 suggests overstaffing or underpricing. Above $25,000 suggests the team is stretched thin (watch burnout). This metric helps you decide when to hire (revenue growing faster than headcount) or when to hold.',
+    grExplanation: 'Revenue divided by headcount describes the current fee base relative to staffing. It is not a workload measure: every client uses one service slot here, even when fees differ. Use effective coverage to assess overload, and loaded payroll plus expected collections to assess affordability.',
     relatedGlossaryTerms: ['utilization-rate'],
   },
   'hr-utilization': {
@@ -336,7 +336,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/hr',
     metricName: 'Utilization / Client Load',
     shortDescription: 'Number of clients per billing staff member.',
-    grExplanation: 'Client load per lobbyist/attorney indicates whether your team is properly sized. Ideal is 1.5-3 clients per billing staff member, depending on engagement complexity. Below 1.5 means you\'re overstaffed (or need more clients). Above 3 means staff is stretched, quality suffers, and burnout accelerates. Monitor this alongside satisfaction and burnout metrics.',
+    grExplanation: 'This ratio divides active clients by Lobbyist and Attorney headcount. Both roles supply pooled service capacity; specialist matching and distinct legal capabilities are not modeled. Effective coverage also depends on efficacy, affinity, support, and fatigue, so this headcount ratio alone cannot tell you whether the team is overloaded.',
     relatedGlossaryTerms: ['utilization-rate', 'book-of-business'],
   },
 
@@ -346,7 +346,7 @@ export const contextualHelpItems: Record<string, ContextualHelpItem> = {
     page: '/',
     metricName: 'Operating Margin',
     shortDescription: 'Percentage of revenue remaining after all operating expenses.',
-    grExplanation: 'Operating margin is your firm\'s profitability ratio. It answers: "For every dollar of revenue, how many cents remain as operating profit?" Target 20-35% for a healthy GR firm. Below 15% means you need to either grow revenue or cut costs. This single number tells you more about firm health than any other metric.',
+    grExplanation: 'Operating margin shows how much billed revenue remains after payroll and operating costs. The 20-35% reference is a fictional simulation target, not a universal industry benchmark. Read it alongside cash, service coverage, and client fee exposure; one ratio cannot establish firm health.',
     relatedGlossaryTerms: ['operating-margin'],
   },
   'dashboard-dso': {

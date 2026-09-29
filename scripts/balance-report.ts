@@ -44,6 +44,7 @@ const rows = policies.map(policy => {
     pendingAfter: mean(selected, 'averagePendingAfterDecisions'),
     pendingPeak: mean(selected, 'peakPending'),
     pendingEnd: mean(selected, 'endingPending'),
+    blockedDecisions: mean(selected, 'blockedDecisions'),
     recoverySpend: mean(selected, 'recoverySpend'),
     fullRecoveryActions: mean(selected, 'fullRecoveryActions'),
     targetedRecoveryActions: mean(selected, 'targetedRecoveryActions'),
