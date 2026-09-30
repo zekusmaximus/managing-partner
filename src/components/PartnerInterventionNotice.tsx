@@ -4,10 +4,13 @@ import { getPartnerInterventionStatus } from '@/lib/simulation/engine';
 
 export default function PartnerInterventionNotice({ state }: { state: SimulationState }) {
   const status = getPartnerInterventionStatus(state);
+  const usage = status.available
+    ? 'available this month.'
+    : `used${status.usedBy ? ` — ${status.usedBy}` : ''}${status.usedBy?.endsWith('.') ? '' : '.'}`;
   return (
     <Box role="status" aria-live="polite" sx={{ mb: 2 }}>
       <Typography variant="body2" fontWeight="bold">
-        Partner intervention: {status.available ? 'available this month' : `used${status.usedBy ? ` — ${status.usedBy}` : ''}`}.
+        Partner intervention: {usage}
       </Typography>
       {!status.available && <Typography variant="body2">Available again: {status.availableAgain}.</Typography>}
       <Typography variant="caption" color="text.secondary">

@@ -21,6 +21,7 @@ bun test
 bun typecheck
 bun lint
 bun run build
+bun run scripts/case-branch-report.ts
 ```
 
 ## Storage and Integrations

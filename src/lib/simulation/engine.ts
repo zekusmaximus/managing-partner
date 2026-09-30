@@ -113,7 +113,7 @@ export const getPartnerInterventionStatus = (state: SimulationState) => {
     : last?.action === 'personal-collection' ? 'Personal collection call' : 'Client meeting';
   const usedBy = !available ? `${action}${last?.clientName ? ` with ${last.clientName}` : ''}` : null;
   return { available, usedBy, availableAgain,
-    disabledReason: available ? null : `Partner intervention already used: ${usedBy}. Available again in ${availableAgain}.` };
+    disabledReason: available ? null : `Partner intervention already used: ${usedBy}${usedBy?.endsWith('.') ? '' : '.'} Available again in ${availableAgain}.` };
 };
 
 const hasPendingComplaint = (state: SimulationState, clientId: string) => state.inbox.some(message =>

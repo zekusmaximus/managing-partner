@@ -56,6 +56,18 @@ describe('authored opening and January collections', () => {
     expect(state.authoredCase.status).toBe('active');
     expect(state.clients.find(client => client.id === 'client1').contractMonthsRemaining).toBe(3);
     expect(state.financials.netProfit).toBeGreaterThan(0);
+    expect(state.financials.netProfit).toBe(16589);
+    expect(state.financials.grossRevenue).toBe(111000);
+    expect(state.financials.operatingExpenses).toBe(94411);
+    expect(state.financials.cashOnHand).toBe(45000);
+    expect(state.arAging).toEqual({ current: 15000, thirtyDay: 0, sixtyDay: 18000, ninetyPlus: 0 });
+    expect(state.taxPosition).toEqual({ principalDue: 5530, penaltiesDue: 0 });
+    expect(state.lineOfCredit).toMatchObject({ limit: 100000, drawn: 0 });
+    expect(state.budget.find(item => item.category === 'Payroll').actualQuarterlySpend).toBe(49081);
+    expect(state.financialHistory[0].isOpeningSnapshot).toBe(true);
+    expect(state.financialHistory[0].recurringCashExpensesPaid).toBe(0);
+    expect(state.employees).toHaveLength(5);
+    expect(state.clients).toHaveLength(8);
     expect(state.financials.cashOnHand).toBeGreaterThan(0);
     expect(state.financials.cashOnHand).toBeLessThan(free.financials.cashOnHand);
     expect(getClientServiceCoverage(state)).toBeGreaterThan(0.9);
