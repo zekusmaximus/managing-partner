@@ -1,6 +1,6 @@
 # Phase 4 learning study kit · D1
 
-**Status: ready to facilitate; human sessions pending (0 of 3–5, including 0 of at least 2 on physical phones).** This is a small qualitative pilot, not a claim that the game teaches effectively. Use the separate [pretest](learning-study-pretest.md) and [posttest](learning-study-posttest.md) sheets verbatim. Keep the scoring key in this facilitator document out of participants' view.
+**Status: optional newcomer pilot ready to facilitate; human sessions pending (0 of 3–5, including 0 of at least 2 on physical phones).** The [personal learning protocol](solo-learning-plan.md) is the primary evaluation path for the likely sole user preparing for a managing-partner role. This kit remains a small qualitative usability and transfer pilot if other players are available, not a claim that the game teaches effectively. Use the separate [pretest](learning-study-pretest.md) and [posttest](learning-study-posttest.md) sheets verbatim. Keep the scoring key in this facilitator document out of participants' view.
 
 ## Frozen build and starting situation
 

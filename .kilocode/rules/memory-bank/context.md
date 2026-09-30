@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype with Stage 1 rules, Phase 2's authored three-round case, and Phase 3's short guided decisions and review implemented. Slice D adds exact fixture assertions, a three-branch five-seed case balance report, and a facilitator-ready pre/post transfer kit. The local `learning-study-d1` tag pins the verified study build. The case begins from a reconciled January firm with TechTrade Association's overdue receivable, schedules February conflict review and March external policy delay, and resolves the anchor's April renewal. Each round records a prediction and case decisions, then explains actual results. The April review summarizes choices and asks a fresh application question. Free play retains its opening; valid version 1–4 firm saves remain loadable, with old tutorial progress kept as legacy history. Human learning sessions remain pending; case completion and scripted model checks are not learning evidence.
+**Project Status**: Playable single-browser prototype with Stage 1 rules, Phase 2's authored three-round case, and Phase 3's short guided decisions and review implemented. Slice D adds exact fixture assertions, a three-branch five-seed case balance report, and a facilitator-ready pre/post transfer kit. The `learning-study-d1` tag pins the verified study build. The likely sole learner is preparing for a managing-partner role in about 3–5 years, so `docs/solo-learning-plan.md` now makes their baseline, immediate and delayed first-answer transfer, and longer decision practice the primary evaluation; the newcomer kit is optional. The case begins from a reconciled January firm with TechTrade Association's overdue receivable, schedules February conflict review and March external policy delay, and resolves the anchor's April renewal. Each round records a prediction and case decisions, then explains actual results. The April review summarizes choices and asks a fresh application question. Free play retains its opening; valid version 1–4 firm saves remain loadable, with old tutorial progress kept as legacy history. Human learning answers remain pending; case completion and scripted model checks are not learning evidence.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -24,6 +24,7 @@ This is a business simulation game where players manage a government relations f
 - [x] Removed accidentally staged Claude worktree repository from Git tracking and ignored `.claude/worktrees/`
 - [x] Replaced new-player 34-step orientation with short case prompts, actual-result recaps, and a final teaching review while preserving old firm saves
 - [x] Prepared D1's exact January fixture, case-branch balance harness, and separate pre/post study kit; human sessions pending
+- [x] Adapted evaluation for the likely sole intended learner with a delayed transfer form and ongoing de-identified managing-partner decision journal; personal answers pending
 
 ## Current Structure
 
@@ -47,7 +48,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Run the frozen D1 kit with 3–5 newcomers, at least two on physical phones. Capture each first posttest answer before discussion, then report within-person reasoning counts and anonymized examples. Keep usability, enjoyment, agency, and reading burden separate. Scripted branches, case completion, and balance policies do not establish transferable learning. The tax balance remains deliberately simple.
+Run the intended learner's personal protocol on the frozen D1 build: current-state baseline, immediate posttest first answers, a fresh delayed check after 2–4 weeks, and de-identified decision practice every 4–8 weeks with quarterly review. Record previous exposure and confidence; preserve any existing personal save with a separate browser profile. The 3–5 newcomer/physical-phone kit remains optional for usability feedback. Keep usability, enjoyment, agency, and reading burden separate. Scripted branches, case completion, and balance policies do not establish transferable learning. The tax balance remains deliberately simple.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -200,6 +201,11 @@ Run the frozen D1 kit with 3–5 newcomers, at least two on physical phones. Cap
 - `docs/learning-study-kit.md` and separate participant-facing pre/post sheets provide consent, background, timing, facilitator help and observation logs, four 0–2 transfer probes, and a within-person analysis template. No new participants or posttest answers were available; 0 of 3–5 sessions and 0 of at least two physical-phone sessions are complete.
 - Production browser rehearsal used a separate `127.0.0.1` origin to preserve a pre-existing `localhost` save. Five routes at 390, 768, 1280, and 1440px had no document overflow on loaded views. Phone keyboard flow completed decline/renewal with reload and pause persistence; desktop keyboard flow completed paid pursuit/renewal and hold/defer/departure. No captured console warnings or errors. A final copy pass removed doubled punctuation in partner intervention status for names ending in a period.
 
+### Intended-learner evaluation pivot (2026-09-30)
+
+- The user expects to be the game's likely only player and may take a managing-partner position at their firm in 3–5 years. `docs/solo-learning-plan.md` is the primary protocol: baseline and immediate first-answer transfer using existing distinct forms, a further fresh delayed form after 2–4 weeks, then 4–8-week de-identified decision practice and quarterly review. Record confidence, previous game exposure, and prior GR/business experience; score with the same 0–2 causal rubric after answers are locked. A mentor may challenge de-identified reasoning after first-answer capture. The optional newcomer kit retains its 3–5-person/phone plan for usability questions.
+- The D1 tagged code and exact January fixture did not change during this documentation pivot. No human personal or newcomer observations were available. One learner's score changes can direct practice but cannot prove that the game caused professional readiness; technical and scripted checks remain separate.
+
 | Date | Changes |
 |------|---------|
 | Initial | Template created with base setup |
@@ -226,3 +232,4 @@ Run the frozen D1 kit with 3–5 newcomers, at least two on physical phones. Cap
 | 2026-09-29 | Implemented the separate three-round authored case from the reconciled January fixture through April renewal; prediction prompts, causal recaps, replacement onboarding, final teaching review, and human learning study remain pending |
 | 2026-09-30 | Implemented Phase 3 guided predictions, actual-result recaps, April review, and legacy tutorial compatibility; the Phase 4 human learning study remains pending |
 | 2026-09-30 | Prepared frozen D1 fixture, balance-branch harness, facilitator kit, and technical rehearsal on an isolated branch; human newcomer sessions remain pending |
+| 2026-09-30 | Adapted D1 evaluation for the likely sole intended learner: baseline, immediate and delayed transfer, decision journal, and optional newcomer usability kit; human answers pending |

@@ -1,5 +1,9 @@
 # New-player playtest and guided-case rehearsal
 
+## Intended learner and study priority (2026-09-30)
+
+The likely sole user expects to become managing partner in about 3–5 years. The [personal learning protocol](solo-learning-plan.md) now leads evaluation: current-state baseline, immediate first-answer transfer, a fresh delayed check, and a decision journal reviewed over time. Prior game exposure must be recorded. No personal answers or delayed observations have been collected. The newcomer study below remains optional for interface and reading-burden feedback; its 3–5-person recruitment target is not required before the intended learner can use the game. Neither case completion nor technical rehearsals prove learning or readiness.
+
 ## Phase 4 study handoff (2026-09-30)
 
 The [D1 facilitator kit](learning-study-kit.md), [pretest](learning-study-pretest.md), and [posttest](learning-study-posttest.md) are prepared for 3–5 newcomers, at least two on physical phones. The exact January fixture is asserted in tests; the verified local `learning-study-d1` tag pins the build. Use that same build and fixture for every participant. Record prior government-relations and business experience, actual game time, facilitator interventions, consent, and each **first posttest answer before discussion**. Score four transfer probes with the 0–2 causal rubric; keep usability, enjoyment, agency, and reading burden separate. No new human sessions or first-answer data were available during this implementation: **0 of 3–5 sessions complete; human learning outcomes pending**. The one earlier enjoyment/uncertainty report remains preliminary.
