@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 import { SessionStore } from '@/context/SessionContext';
 import { fundStaffRecovery, getStaffRecoveryQuote } from '@/lib/simulation/burnout';
-import { applyInboxChoice, getClientMeetingQuote, getInboxChoiceQuote, getPartnerInterventionStatus, scheduleClientMeeting, sumReceivables } from '@/lib/simulation/engine';
+import {
+  CASE_EVENT_IDS, CASE_LEGACY_PREDICTION, createAuthoredCaseSimulationState,
+  getCaseAdvanceBlocker, recordCasePrediction, recordCaseReflection,
+} from '@/lib/simulation/authoredCase';
+import { advanceSimulationMonth, applyInboxChoice, getClientMeetingQuote, getInboxChoiceQuote, getPartnerInterventionStatus, scheduleClientMeeting, sumReceivables } from '@/lib/simulation/engine';
 import {
   createFreshSession, LEGACY_TUTORIAL_STORAGE_KEY, loadSession, parseSession,
-  serializeSession, SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
+  serializeSession, SESSION_STORAGE_KEY, SESSION_VERSION, V4_SESSION_STORAGE_KEY,
+  PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY,
 } from './save';
 
 function memoryStorage() {
@@ -16,6 +21,15 @@ function memoryStorage() {
     removeItem: (key) => { values.delete(key); },
   };
 }
+
+const caseChoiceDeps = { random: () => 0.5, generateId: () => 'legacy-case-test-client' };
+const caseMonthDeps = { random: () => 0.5, generateAlerts: () => [], generateInboxMessages: () => [] };
+const asV4CaseSave = (simulation) => {
+  const prior = JSON.parse(serializeSession({ simulation, tutorial: createFreshSession().tutorial }));
+  prior.version = 4;
+  delete prior.simulation.authoredCase.guidance;
+  return JSON.stringify(prior);
+};
 
 function removeV3CashFields(entry) {
   const legacy = { ...entry };
@@ -138,6 +152,7 @@ describe('versioned game save', () => {
       expect(loaded).not.toBeNull();
       expect(loaded.tutorial.completedSteps).toEqual(['m1-dashboard-overview']);
       expect(loaded.tutorial.currentStepIndex).toBe(5);
+      expect(loaded.tutorial).toMatchObject({ status: 'skipped', showWelcomeModal: false, isPaused: false });
       expect(loaded.simulation.employees[0].efficacy).toBe(12);
       expect(loaded.simulation.arAging).toEqual(prior.simulation.arAging);
       expect(loaded.simulation.financials.cashOnHand).toBe(prior.simulation.financials.cashOnHand);
@@ -152,6 +167,131 @@ describe('versioned game save', () => {
       expect(parseSession(serializeSession(loaded))).not.toBeNull();
     });
   }
+
+  for (const version of [1, 2, 3, 4]) {
+    test(`V${version} malformed retired tutorial metadata does not discard a valid firm`, () => {
+      const prior = JSON.parse(serializeSession(createFreshSession()));
+      prior.version = version;
+      prior.simulation.month = 7;
+      prior.simulation.employees[0].efficacy = 41;
+      prior.tutorial = { status: 'in_progress', currentStepIndex: 'invalid',
+        currentPhase: 'month1', completedSteps: [42], showWelcomeModal: true,
+        isPaused: false, simulationMonthAtStart: 1, simulationYearAtStart: 2026 };
+      if (version < 4) removeV4TaxFields(prior);
+      if (version < 3) prior.simulation.financialHistory = prior.simulation.financialHistory.map(removeV3CashFields);
+      if (version === 1) delete prior.simulation.receivables;
+      const loaded = parseSession(JSON.stringify(prior));
+      expect(loaded).not.toBeNull();
+      expect(loaded.simulation.month).toBe(7);
+      expect(loaded.simulation.employees[0].efficacy).toBe(41);
+      expect(loaded.tutorial).toMatchObject({ status: 'skipped', showWelcomeModal: false });
+      expect(loaded.tutorial.completedSteps).toEqual([]);
+    });
+  }
+
+  test('structurally valid retired step identifiers remain inert even when no longer recognized', () => {
+    const prior = JSON.parse(serializeSession(createFreshSession()));
+    prior.version = 4;
+    prior.tutorial.status = 'in_progress';
+    prior.tutorial.currentStepIndex = 999;
+    prior.tutorial.completedSteps = ['removed-legacy-step'];
+    const loaded = parseSession(JSON.stringify(prior));
+    expect(loaded?.tutorial).toMatchObject({
+      status: 'skipped', showWelcomeModal: false, currentStepIndex: 999,
+      completedSteps: ['removed-legacy-step'],
+    });
+    expect(loaded?.simulation).toEqual(createFreshSession().simulation);
+  });
+
+  test('V4 active case migrates into guidance without mapping old tour progress to case lessons', () => {
+    const storage = memoryStorage();
+    const simulation = createAuthoredCaseSimulationState();
+    const prior = JSON.parse(serializeSession({ simulation, tutorial: createFreshSession().tutorial }));
+    prior.version = 4;
+    delete prior.simulation.authoredCase.guidance;
+    prior.tutorial.status = 'in_progress';
+    prior.tutorial.currentStepIndex = 5;
+    prior.tutorial.completedSteps = ['m1-dashboard-overview'];
+    prior.tutorial.showWelcomeModal = true;
+    storage.setItem(V4_SESSION_STORAGE_KEY, JSON.stringify(prior));
+
+    const store = new SessionStore(storage);
+    const loaded = store.getSnapshot().snapshot;
+    expect(loaded.simulation.authoredCase).toMatchObject({ status: 'active', renewalOutcome: null });
+    expect(loaded.simulation.financials.cashOnHand).toBe(simulation.financials.cashOnHand);
+    expect(loaded.simulation.inbox.find(message => message.id === 'case-2026-01-collection')?.requiresAction).toBe(true);
+    expect(loaded.simulation.authoredCase.guidance.predictions).toEqual([null, null, null]);
+    expect(loaded.simulation.authoredCase.guidance.reflections).toEqual([null, null, null]);
+    expect(loaded.simulation.authoredCase.guidance.decisions).toEqual([]);
+    expect(loaded.tutorial).toMatchObject({
+      status: 'skipped', showWelcomeModal: false, currentStepIndex: 5,
+      completedSteps: ['m1-dashboard-overview'],
+    });
+    store.initializeStorage();
+    expect(storage.getItem(V4_SESSION_STORAGE_KEY)).toBeNull();
+    const upgraded = JSON.parse(storage.getItem(SESSION_STORAGE_KEY));
+    expect(upgraded.version).toBe(SESSION_VERSION);
+    expect(parseSession(JSON.stringify(upgraded))?.simulation.authoredCase.guidance.predictions)
+      .toEqual([null, null, null]);
+  });
+
+  test('V4 case choices already made resume without retroactive predictions in each round', () => {
+    let january = recordCasePrediction(createAuthoredCaseSimulationState(), 'not-sure');
+    january = applyInboxChoice(january, CASE_EVENT_IDS.collection, 'hold-collection', caseChoiceDeps);
+    const januaryLoaded = parseSession(asV4CaseSave(january)).simulation;
+    expect(januaryLoaded.authoredCase.guidance.predictions).toEqual([CASE_LEGACY_PREDICTION, null, null]);
+    expect(getCaseAdvanceBlocker(januaryLoaded)).toContain('reflection');
+    expect(recordCasePrediction(januaryLoaded, 'cash-ar')).toBe(januaryLoaded);
+    expect(parseSession(serializeSession({ simulation: januaryLoaded, tutorial: createFreshSession().tutorial }))
+      .simulation.authoredCase.guidance.predictions[0]).toBe(CASE_LEGACY_PREDICTION);
+
+    const januaryReflected = recordCaseReflection(januaryLoaded, 'not-sure');
+    let february = advanceSimulationMonth(januaryReflected, caseMonthDeps);
+    expect(february.month).toBe(2);
+    february = recordCasePrediction(february, 'not-sure');
+    february = applyInboxChoice(february, CASE_EVENT_IDS.intakeReview, 'review', caseChoiceDeps);
+    const februaryLoaded = parseSession(asV4CaseSave(february)).simulation;
+    expect(februaryLoaded.authoredCase.guidance.predictions)
+      .toEqual([CASE_LEGACY_PREDICTION, CASE_LEGACY_PREDICTION, null]);
+    expect(getCaseAdvanceBlocker(februaryLoaded)).toContain('prospect');
+    expect(getInboxChoiceQuote(februaryLoaded, CASE_EVENT_IDS.prospect, 'decline').available).toBe(true);
+    const februaryDecided = applyInboxChoice(februaryLoaded, CASE_EVENT_IDS.prospect, 'decline', caseChoiceDeps);
+    expect(getCaseAdvanceBlocker(februaryDecided)).toContain('reflection');
+
+    let march = advanceSimulationMonth(recordCaseReflection(februaryDecided, 'not-sure'), caseMonthDeps);
+    expect(march.month).toBe(3);
+    march = recordCasePrediction(march, 'not-sure');
+    march = applyInboxChoice(march, CASE_EVENT_IDS.policy, 'defer', caseChoiceDeps);
+    const marchLoaded = parseSession(asV4CaseSave(march)).simulation;
+    expect(marchLoaded.authoredCase.guidance.predictions)
+      .toEqual([CASE_LEGACY_PREDICTION, CASE_LEGACY_PREDICTION, CASE_LEGACY_PREDICTION]);
+    expect(getCaseAdvanceBlocker(marchLoaded)).toContain('GlobalCorp complaint');
+    expect(getInboxChoiceQuote(marchLoaded, CASE_EVENT_IDS.complaint, 'ignore').available).toBe(true);
+    const marchDecided = applyInboxChoice(marchLoaded, CASE_EVENT_IDS.complaint, 'ignore', caseChoiceDeps);
+    const april = advanceSimulationMonth(recordCaseReflection(marchDecided, 'not-sure'), caseMonthDeps);
+    expect(april).toMatchObject({ month: 4, authoredCase: { status: 'completed' } });
+    expect(april.authoredCase.guidance.predictions)
+      .toEqual([CASE_LEGACY_PREDICTION, CASE_LEGACY_PREDICTION, CASE_LEGACY_PREDICTION]);
+  });
+
+  test('V5 validates recorded guidance while preserving valid prediction on reload', () => {
+    const snapshot = createFreshSession();
+    snapshot.simulation = recordCasePrediction(createAuthoredCaseSimulationState(), 'not-sure');
+    const restored = parseSession(serializeSession(snapshot));
+    expect(restored?.simulation.authoredCase.guidance.predictions).toEqual(['not-sure', null, null]);
+    const invalid = JSON.parse(serializeSession(snapshot));
+    invalid.simulation.authoredCase.guidance.predictions[0] = 'unknown-answer';
+    expect(parseSession(JSON.stringify(invalid))).toBeNull();
+    invalid.simulation.authoredCase.guidance.predictions[0] = 'not-sure';
+    invalid.simulation.authoredCase.guidance.decisions = [{ messageId: 'case-2026-01-collection',
+      choiceId: 'hold-collection', summary: 'Held', cashDelta: 'ten', arDelta: 0,
+      profitDelta: 0, satisfactionDelta: 0, clientDelta: 0, usedPartnerIntervention: false }];
+    expect(parseSession(JSON.stringify(invalid))).toBeNull();
+
+    const forgedLegacyMarker = JSON.parse(serializeSession(snapshot));
+    forgedLegacyMarker.simulation.authoredCase.guidance.predictions[0] = CASE_LEGACY_PREDICTION;
+    expect(parseSession(JSON.stringify(forgedLegacyMarker))).toBeNull();
+  });
 
   test('invalid shared intervention markers cannot silently reset the allowance', () => {
     const snapshot = JSON.parse(serializeSession(createFreshSession()));
@@ -250,6 +390,7 @@ describe('versioned game save', () => {
     expect(reloaded?.simulation.alerts[0].timestamp).toBeInstanceOf(Date);
 
     const priorV4 = JSON.parse(serializeSession(createFreshSession()));
+    priorV4.version = 4;
     delete priorV4.simulation.lastClientMeeting;
     expect(parseSession(JSON.stringify(priorV4))?.simulation.lastClientMeeting).toBeNull();
     priorV4.simulation.lastClientMeeting = { month: 13, year: 2026, clientId: 'client1' };
@@ -258,7 +399,7 @@ describe('versioned game save', () => {
 
   test('rejects wrong versions and malformed nested data', () => {
     const valid = JSON.parse(serializeSession(createFreshSession()));
-    expect(parseSession(JSON.stringify({ ...valid, version: 5 }))).toBeNull();
+    expect(parseSession(JSON.stringify({ ...valid, version: SESSION_VERSION + 1 }))).toBeNull();
     expect(parseSession(JSON.stringify({ ...valid, simulation: { ...valid.simulation, taxPosition: { principalDue: -1, penaltiesDue: 0 } } }))).toBeNull();
     expect(parseSession(JSON.stringify({ ...valid, tutorial: { ...valid.tutorial, simulationYearAtStart: 2019 } }))).toBeNull();
     expect(parseSession(JSON.stringify({ ...valid, simulation: { ...valid.simulation,
@@ -336,7 +477,7 @@ describe('versioned game save', () => {
     expect(loadSession(storage).status).toBe('loaded');
   });
 
-  test('migrates V2 cash differences as unclassified and retires its key after a V4 save', () => {
+  test('migrates V2 cash differences as unclassified and retires its key after a V5 save', () => {
     const storage = memoryStorage();
     const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));
     previous.version = 2;
@@ -363,7 +504,7 @@ describe('versioned game save', () => {
     store.initializeStorage();
     expect(storage.getItem(SECOND_SESSION_STORAGE_KEY)).toBeNull();
     const upgraded = JSON.parse(storage.getItem(SESSION_STORAGE_KEY));
-    expect(upgraded.version).toBe(4);
+    expect(upgraded.version).toBe(SESSION_VERSION);
     expect(parseSession(JSON.stringify(upgraded))?.simulation.financialHistory[1].cashMovements).toEqual([
       { kind: 'unclassified', amount: 5000 },
     ]);
@@ -407,6 +548,7 @@ describe('versioned game save', () => {
       .toEqual({ month: 1, year: 2026 });
 
     const priorV4 = JSON.parse(serializeSession(snapshot));
+    priorV4.version = 4;
     delete priorV4.simulation.lastManualCollection;
     expect(parseSession(JSON.stringify(priorV4))?.simulation.lastManualCollection).toBeNull();
 
@@ -435,7 +577,7 @@ describe('versioned game save', () => {
     });
   }
 
-  test('does not discard older saves when the V4 write fails', () => {
+  test('does not discard older saves when the V5 write fails', () => {
     const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));
     previous.version = 2;
     previous.simulation.financialHistory = previous.simulation.financialHistory.map(removeV3CashFields);
@@ -451,7 +593,7 @@ describe('versioned game save', () => {
     expect(store.getSnapshot().notice).toContain('storage is unavailable');
   });
 
-  test('a corrupt V4 save cannot silently restore a stale V2 save', () => {
+  test('a corrupt V5 save cannot silently restore a stale V2 save', () => {
     const storage = memoryStorage();
     storage.setItem(SESSION_STORAGE_KEY, '{corrupt');
     const previous = removeV4TaxFields(JSON.parse(serializeSession(createFreshSession())));

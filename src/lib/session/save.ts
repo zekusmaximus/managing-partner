@@ -1,16 +1,17 @@
-import { tutorialSteps } from '@/data/tutorialSteps';
 import { createInitialSimulationState } from '@/lib/simulation/initialState';
 import { getLastPartnerIntervention, sumReceivables } from '@/lib/simulation/engine';
 import { getCurrentInboxChoices } from '@/lib/simulation/inboxChoices';
+import { CASE_APPLICATION, CASE_LEGACY_PREDICTION, CASE_PREDICTIONS, CASE_REFLECTIONS, CASE_REQUIRED_EVENTS, createLegacyCaseGuidance } from '@/lib/simulation/authoredCase';
 import { createInitialTutorialState, type TutorialState } from './tutorialState';
 import type { SimulationState } from '@/types/simulation';
 
-export const SESSION_STORAGE_KEY = 'managing-partner-session-v4';
+export const SESSION_STORAGE_KEY = 'managing-partner-session-v5';
+export const V4_SESSION_STORAGE_KEY = 'managing-partner-session-v4';
 export const PREVIOUS_SESSION_STORAGE_KEY = 'managing-partner-session-v3';
 export const SECOND_SESSION_STORAGE_KEY = 'managing-partner-session-v2';
 export const FIRST_SESSION_STORAGE_KEY = 'managing-partner-session-v1';
 export const LEGACY_TUTORIAL_STORAGE_KEY = 'managing-partner-tutorial';
-export const SESSION_VERSION = 4;
+export const SESSION_VERSION = 5;
 
 export interface SessionSnapshot {
   simulation: SimulationState;
@@ -209,7 +210,7 @@ const simulationStateV2: Check = (value) => {
 const simulationStateV3: Check = (value) => simulationStateV2(value) && record(value) &&
   Array.isArray(value.financialHistory) && value.financialHistory.every(financialHistoryEntryV3);
 
-const authoredCase: Check = (value) => {
+const authoredCaseV4: Check = (value) => {
   if (!fields(value, {
     status: oneOf('active', 'completed', 'left'),
     renewalOutcome: (outcome) => outcome === null || oneOf('renewed', 'departed')(outcome),
@@ -234,9 +235,54 @@ const simulationStateV4: Check = (value) => simulationStateV3(value) && record(v
       record(value.lastPartnerIntervention) &&
       (value.lastPartnerIntervention.clientId === undefined || text(value.lastPartnerIntervention.clientId)) &&
       (value.lastPartnerIntervention.clientName === undefined || text(value.lastPartnerIntervention.clientName)))) &&
-  (value.authoredCase === undefined || value.authoredCase === null || authoredCase(value.authoredCase)) &&
+  (value.authoredCase === undefined || value.authoredCase === null || authoredCaseV4(value.authoredCase)) &&
   Array.isArray(value.financialHistory) && value.financialHistory.every((entry) =>
     fields(entry, { taxExpense: nonnegative, taxPenalty: nonnegative }));
+
+const caseSnapshot: Check = (value) => fields(value, {
+  cash: finite, ar: nonnegative, profit: finite, credit: nonnegative,
+  clients: nonnegative, staff: nonnegative,
+  anchorSatisfaction: (satisfaction) => satisfaction === null || percentage(satisfaction),
+});
+const caseRound: Check = oneOf('1', '2', '3');
+const caseGuidance: Check = (value) => {
+  if (!fields(value, {
+    paused: bool,
+    predictions: (choices) => Array.isArray(choices) && choices.length === 3 &&
+      choices.every((choice, index) => choice === null || choice === CASE_LEGACY_PREDICTION || CASE_PREDICTIONS[(index + 1) as 1 | 2 | 3]
+        .options.some(option => option.id === choice)),
+    reflections: (choices) => Array.isArray(choices) && choices.length === 3 &&
+      choices.every((choice, index) => choice === null || CASE_REFLECTIONS[(index + 1) as 1 | 2 | 3]
+        .options.some(option => option.id === choice)),
+    roundOpening: caseSnapshot,
+    decisions: arrayOf((decision) => fields(decision, {
+      messageId: text, choiceId: text, summary: text,
+      cashDelta: finite, arDelta: finite, profitDelta: finite,
+      satisfactionDelta: finite, clientDelta: finite, usedPartnerIntervention: bool,
+    })),
+    monthly: arrayOf((monthly) => fields(monthly, {
+      round: (round) => Number.isInteger(round) && caseRound(String(round)),
+      opening: caseSnapshot, closing: caseSnapshot, serviceCoverage: nonnegative,
+      collections: nonnegative, recurringCashExpenses: nonnegative,
+      automaticWriteOff: nonnegative, creditDraw: nonnegative, creditRepayment: nonnegative,
+    })),
+    application: (choice) => choice === null || CASE_APPLICATION.options.some(option => option.id === choice),
+  })) return false;
+  return true;
+};
+const simulationStateV5: Check = (value) => {
+  if (!simulationStateV4(value) || !record(value)) return false;
+  if (value.authoredCase === undefined || value.authoredCase === null) return true;
+  if (!record(value.authoredCase) || !caseGuidance(value.authoredCase.guidance)) return false;
+  const state = value as unknown as SimulationState;
+  const guidance = state.authoredCase!.guidance;
+  // The migration marker is valid only when a resolved case choice has no
+  // V5 action evidence. Fresh V5 decisions always record that evidence.
+  return guidance.predictions.every((prediction, index) => prediction !== CASE_LEGACY_PREDICTION ||
+    CASE_REQUIRED_EVENTS[(index + 1) as 1 | 2 | 3].some(id =>
+      state.inbox.some(message => message.id === id && !message.requiresAction && message.resolution) &&
+      !guidance.decisions.some(decision => decision.messageId === id)));
+};
 
 // Older saves only record each closing balance. Their unexplained difference
 // stays unclassified; it cannot safely be called a tax payment or LOC draw.
@@ -264,16 +310,14 @@ function migrateLegacyCashHistory(history: SimulationState['financialHistory']):
   });
 }
 
-const validStepIds = new Set(tutorialSteps.map((step) => step.id));
-const tutorialStateLegacy: Check = (value) => fields(value, {
+const retiredTutorialState: Check = (value) => fields(value, {
   status: oneOf('not_started', 'in_progress', 'completed', 'skipped'),
-  currentStepIndex: (index) => integer(index) && (index as number) >= 0 &&
-    (index as number) < tutorialSteps.length,
-  currentPhase: oneOf('welcome', 'month1', 'month2', 'month3', 'completed'),
-  completedSteps: arrayOf((id) => text(id) && validStepIds.has(id as string)),
+  currentStepIndex: (index) => integer(index) && (index as number) >= 0,
+  currentPhase: text,
+  completedSteps: arrayOf(text),
   showWelcomeModal: bool, isPaused: bool, simulationMonthAtStart: month,
 });
-const tutorialStateV4: Check = (value) => tutorialStateLegacy(value) && record(value) && year(value.simulationYearAtStart);
+const tutorialStateV5: Check = (value) => retiredTutorialState(value) && record(value) && year(value.simulationYearAtStart);
 
 export function createFreshSession(): SessionSnapshot {
   return {
@@ -289,33 +333,40 @@ export function serializeSession(snapshot: SessionSnapshot): string {
 export function parseSession(raw: string): SessionSnapshot | null {
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!record(parsed) || (parsed.version !== SESSION_VERSION && parsed.version !== 3 && parsed.version !== 2 && parsed.version !== 1) ||
+    if (!record(parsed) || (parsed.version !== SESSION_VERSION && parsed.version !== 4 && parsed.version !== 3 && parsed.version !== 2 && parsed.version !== 1) ||
       !(parsed.version === 1 ? simulationStateBase(parsed.simulation)
         : parsed.version === 2 ? simulationStateV2(parsed.simulation)
           : parsed.version === 3 ? simulationStateV3(parsed.simulation)
-            : simulationStateV4(parsed.simulation)) ||
-      !(parsed.version === SESSION_VERSION ? tutorialStateV4(parsed.tutorial) : tutorialStateLegacy(parsed.tutorial))) return null;
+            : parsed.version === 4 ? simulationStateV4(parsed.simulation)
+              : simulationStateV5(parsed.simulation)) ||
+      (parsed.version === SESSION_VERSION && !tutorialStateV5(parsed.tutorial))) return null;
 
     const simulation = parsed.simulation as unknown as SimulationState;
+    const legacyTutorial = retiredTutorialState(parsed.tutorial)
+      ? parsed.tutorial as unknown as TutorialState : createInitialTutorialState();
     const receivables = parsed.version === 1
       ? [{ clientId: null, clientName: 'Prior balance (unassigned)', paymentProfile: 'normal' as const, aging: { ...simulation.arAging } }]
       : simulation.receivables;
     return {
       simulation: {
         ...simulation,
-        lastManualCollection: parsed.version === SESSION_VERSION
+        lastManualCollection: (parsed.version as number) >= 4
           ? simulation.lastManualCollection ?? null : null,
-        lastClientMeeting: parsed.version === SESSION_VERSION
+        lastClientMeeting: (parsed.version as number) >= 4
           ? simulation.lastClientMeeting ?? null : null,
-        lastPartnerIntervention: parsed.version === SESSION_VERSION
+        lastPartnerIntervention: (parsed.version as number) >= 4
           ? getLastPartnerIntervention(simulation) : null,
         receivables,
         financialHistory: (parsed.version >= 3
           ? simulation.financialHistory : migrateLegacyCashHistory(simulation.financialHistory))
-          .map(entry => parsed.version === SESSION_VERSION ? entry : { ...entry, taxExpense: 0, taxPenalty: 0 }),
-        taxPosition: parsed.version === SESSION_VERSION
+          .map(entry => (parsed.version as number) >= 4 ? entry : { ...entry, taxExpense: 0, taxPenalty: 0 }),
+        taxPosition: (parsed.version as number) >= 4
           ? simulation.taxPosition : { principalDue: 0, penaltiesDue: 0 },
-        authoredCase: parsed.version === SESSION_VERSION ? simulation.authoredCase ?? null : null,
+        authoredCase: (parsed.version as number) >= 4 && simulation.authoredCase
+          ? parsed.version === 4
+            ? { ...simulation.authoredCase, guidance: createLegacyCaseGuidance(simulation) }
+            : simulation.authoredCase
+          : null,
         alerts: simulation.alerts.map((alert) => ({
           ...alert, timestamp: new Date(alert.timestamp),
         })),
@@ -323,7 +374,7 @@ export function parseSession(raw: string): SessionSnapshot | null {
           return {
             ...message, timestamp: new Date(message.timestamp),
             choices: getCurrentInboxChoices(message),
-            ...(parsed.version !== SESSION_VERSION && message.requiresAction && message.scenario.kind === 'tax-planning'
+            ...((parsed.version as number) < 4 && message.requiresAction && message.scenario.kind === 'tax-planning'
               ? { read: true, requiresAction: false,
                   resolution: { choiceId: 'expired', summary: 'This prior tax estimate expired during save migration because no payable balance was recorded. Future quarters use the new tax balance.' } }
               : {}),
@@ -333,9 +384,14 @@ export function parseSession(raw: string): SessionSnapshot | null {
       tutorial: parsed.version === SESSION_VERSION
         ? parsed.tutorial as TutorialState
         : {
-          ...(parsed.tutorial as TutorialState),
-          simulationYearAtStart: Math.max(2020, simulation.year -
-            (simulation.month < (parsed.tutorial as TutorialState).simulationMonthAtStart ? 1 : 0)),
+          ...legacyTutorial,
+          // Retired tour progress is retained as legacy data and stays inactive.
+          // Its step numbers are never interpreted as new case lessons.
+          status: 'skipped', showWelcomeModal: false, isPaused: false,
+          simulationYearAtStart: (parsed.version as number) >= 4 && record(parsed.tutorial) && year(parsed.tutorial.simulationYearAtStart)
+            ? parsed.tutorial.simulationYearAtStart as number
+            : Math.max(2020, simulation.year -
+              (simulation.month < legacyTutorial.simulationMonthAtStart ? 1 : 0)),
         },
     };
   } catch {
@@ -347,6 +403,7 @@ export function loadSession(storage: SessionStorage): LoadResult {
   let raw: string | null;
   try {
     raw = storage.getItem(SESSION_STORAGE_KEY);
+    if (raw === null) raw = storage.getItem(V4_SESSION_STORAGE_KEY);
     if (raw === null) raw = storage.getItem(PREVIOUS_SESSION_STORAGE_KEY);
     if (raw === null) raw = storage.getItem(SECOND_SESSION_STORAGE_KEY);
     if (raw === null) raw = storage.getItem(FIRST_SESSION_STORAGE_KEY);

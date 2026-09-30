@@ -16,7 +16,7 @@ import { advanceSimulationMonth, applyInboxChoice, collectOverdueReceivables, is
 import { fundStaffRecovery, type StaffRecoveryPlan } from '@/lib/simulation/burnout';
 import { getAlertConditionKey } from '@/lib/simulation/alerts';
 import { increaseEmployeeSalary } from '@/lib/simulation/salary';
-import { leaveAuthoredCase } from '@/lib/simulation/authoredCase';
+import { leaveAuthoredCase, recordCaseApplication, recordCasePrediction, recordCaseReflection, setCaseGuidancePaused } from '@/lib/simulation/authoredCase';
 
 // Re-export types for consumers
 export type { Employee, Client, Financials, FinancialHistoryEntry, Alert, InboxMessage, MessageChoice, SimulationState, OperatingCosts, Vendor, PartnerEconomics, BudgetItem, ARBuckets, LineOfCredit };
@@ -41,6 +41,10 @@ type SimulationContextType = {
   state: SimulationState;
   advanceMonth: () => boolean;
   leaveCase: () => void;
+  recordCasePrediction: (choice: string) => void;
+  recordCaseReflection: (choice: string) => void;
+  recordCaseApplication: (choice: string) => void;
+  setCaseGuidancePaused: (paused: boolean) => void;
   hireEmployee: (role: 'Lobbyist' | 'Attorney' | 'Support') => void;
   fireEmployee: (employeeId: string) => void;
   adjustSalary: (employeeId: string, newSalary: number) => void;
@@ -146,6 +150,22 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
 
   const leaveCase = useCallback(() => {
     setState(prevState => leaveAuthoredCase(prevState));
+  }, [setState]);
+
+  const chooseCasePrediction = useCallback((choice: string) => {
+    setState(prevState => recordCasePrediction(prevState, choice));
+  }, [setState]);
+
+  const chooseCaseReflection = useCallback((choice: string) => {
+    setState(prevState => recordCaseReflection(prevState, choice));
+  }, [setState]);
+
+  const chooseCaseApplication = useCallback((choice: string) => {
+    setState(prevState => recordCaseApplication(prevState, choice));
+  }, [setState]);
+
+  const pauseCaseGuidance = useCallback((paused: boolean) => {
+    setState(prevState => setCaseGuidancePaused(prevState, paused));
   }, [setState]);
 
   // ============= EMPLOYEE ACTIONS =============
@@ -312,6 +332,10 @@ export const SimulationProvider = ({ children }: { children: ReactNode }) => {
   return (
     <SimulationContext.Provider value={{
       state, advanceMonth, leaveCase,
+      recordCasePrediction: chooseCasePrediction,
+      recordCaseReflection: chooseCaseReflection,
+      recordCaseApplication: chooseCaseApplication,
+      setCaseGuidancePaused: pauseCaseGuidance,
       hireEmployee, fireEmployee, adjustSalary, fundStaffRecovery: fundStaffRecoveryAction, meetClient,
       markInboxMessageRead, handleInboxChoice, dismissAlert,
       addVendor, removeVendor, adjustOperatingCost,

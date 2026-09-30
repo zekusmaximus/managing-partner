@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert, Badge, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText,
   DialogTitle, Divider, Drawer, List, ListItem, ListItemButton, ListItemIcon,
@@ -10,9 +10,7 @@ import { Dashboard, AttachMoney, Groups, BusinessCenter, Inbox, RestartAlt } fro
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSimulation } from '@/context/SimulationContext';
-import { useTutorial } from '@/context/TutorialContext';
 import { useSession } from '@/context/SessionContext';
-import TutorialProgressBar from '@/components/tutorial/TutorialProgressBar';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: <Dashboard />, tutorialTarget: 'sidenav-dashboard' },
@@ -26,22 +24,34 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
   const pathname = usePathname();
   const router = useRouter();
   const { state } = useSimulation();
-  const { currentStep, nextStep, isTutorialActive } = useTutorial();
-  const { newGame, notice, dismissNotice } = useSession();
+  const { newGame, setTutorial, notice, dismissNotice } = useSession();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const unreadCount = state.inbox.filter(message => !message.read).length;
 
+  useEffect(() => {
+    const openNewGame = () => setConfirmOpen(true);
+    window.addEventListener('mp:open-new-game', openNewGame);
+    return () => window.removeEventListener('mp:open-new-game', openNewGame);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const frame = window.requestAnimationFrame(() =>
+      document.querySelector<HTMLAnchorElement>('nav[aria-label="Mobile navigation"] a')?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [mobileOpen]);
+
   const startNewGame = (mode: 'free' | 'case') => {
     newGame(mode);
+    if (mode === 'free') {
+      setTutorial(previous => ({ ...previous, status: 'skipped', showWelcomeModal: false }));
+    }
     setConfirmOpen(false);
     onClose();
     router.push('/');
   };
 
   const handleNavigate = (path: string) => {
-    if (currentStep?.requiresAction === 'navigate' && currentStep.actionTarget === path) {
-      nextStep();
-    }
     if (path === pathname) onClose();
   };
 
@@ -84,10 +94,20 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         })}
       </List>
       <Divider />
-      {state.authoredCase?.status !== 'active' && state.authoredCase?.status !== 'completed' &&
-        <TutorialProgressBar />}
       <Box sx={{ p: 2, mt: 'auto' }}>
-        <Button fullWidth variant="outlined" color="warning" startIcon={<RestartAlt />} onClick={() => setConfirmOpen(true)}>
+        <Button fullWidth variant="outlined" color="warning" startIcon={<RestartAlt />} onClick={(event) => {
+          event.currentTarget.blur();
+          if (mobile) {
+            document.querySelector<HTMLButtonElement>('button[aria-label="Open navigation menu"]')?.focus();
+            onClose();
+            window.setTimeout(() => {
+              if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+              setConfirmOpen(true);
+            }, 250);
+          } else {
+            setConfirmOpen(true);
+          }
+        }}>
           New Game
         </Button>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
@@ -112,19 +132,14 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         {navigation(false)}
       </Drawer>
       <Drawer
-        // A modal drawer hides the tutorial popover from assistive technology.
-        // During a lesson, use a fixed nonmodal drawer so both the highlighted
-        // link and tutorial controls remain available to keyboard users.
-        variant={isTutorialActive ? 'persistent' : 'temporary'}
+        variant="temporary"
         open={mobileOpen}
         onClose={onClose}
-        ModalProps={{ keepMounted: true }}
+        ModalProps={{ keepMounted: true, disableAutoFocus: true, disableEnforceFocus: true, disableRestoreFocus: true }}
         sx={{
           display: { xs: 'block', md: 'none' },
-          ...(isTutorialActive ? { position: 'fixed', top: 0, left: 0, width: 0, zIndex: 1300 } : {}),
           '& .MuiDrawer-paper': {
             width: 'min(280px, 88vw)', boxSizing: 'border-box', bgcolor: 'grey.50',
-            ...(isTutorialActive ? { position: 'fixed', top: 0, left: 0, height: '100dvh' } : {}),
           },
         }}
       >
@@ -134,8 +149,8 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         <DialogTitle id="new-game-title">Start a new game?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This replaces your current firm and tutorial progress on this device. Choose the authored
-            three-round case or start free play with the usual opening conditions.
+            This replaces your current firm on this device. Choose the guided January–March
+            case or start free play with the usual opening conditions.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ flexWrap: 'wrap', gap: 1, px: 3, pb: 2 }}>
@@ -144,14 +159,14 @@ export function SideNav({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
             variant="outlined"
             onClick={() => startNewGame('free')}
           >
-            Explore Freely
+            Explore freely
           </Button>
           <Button
             color="warning"
             variant="contained"
             onClick={() => startNewGame('case')}
           >
-            Start Authored Case
+            Start guided case
           </Button>
         </DialogActions>
       </Dialog>

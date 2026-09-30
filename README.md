@@ -4,9 +4,9 @@
 
 ## Overview
 
-**Managing Partner** is a business simulation game where players take on the role of a managing partner at a mid-size government relations firm in Washington, D.C. Make strategic decisions about finances, human resources, and client relationships. Players can start a bounded, authored three-round case or manage the original free-play firm. The existing interactive tutorial remains available while a shorter guided learning experience is developed.
+**Managing Partner** is a business simulation game where players take on the role of a managing partner at a mid-size government relations firm in Washington, D.C. Make strategic decisions about finances, human resources, and client relationships. New players can start a short guided January–March case or explore the original free-play firm. Each case round asks for a prediction, a management decision, and a reflection on the actual result; April closes with a teaching review.
 
-This is a playable prototype with a simplified financial model. Progress is saved in the current browser; a confirmed **New Game** action resets the simulation and tutorial together. Valid version 1–3 saves migrate to the current version 4 format on load.
+This is a playable prototype with a simplified financial model. Progress is saved in the current browser; a confirmed **New Game** action resets the simulation and guidance together. Valid version 1–4 saves migrate to the current version 5 format on load.
 
 ## Features
 
@@ -15,10 +15,10 @@ This is a playable prototype with a simplified financial model. Progress is save
 - **HR Management**: Manage pooled billable and support capacity, see how current coverage affects next-month burnout, increase committed salaries, and fund recovery that reduces fatigue without adding permanent skill
 - **Client Relations**: Monitor satisfaction, service coverage, contract timelines, renewals, churn, and revenue; allocate one shared monthly partner intervention to a paid recovery meeting or a personal collection call
 - **Inbox System**: Handle scenario-based decisions including compensation requests, vendor contracts, budget overruns, tax payments, and new business opportunities; pending decisions remain available and completed messages show the actual outcome
-- **Authored Case**: Play a separate January–March firm-management case, then see the anchor client's April renewal or departure; required decisions gate each month and persist across reloads
-- **Interactive Tutorial**: Existing 34-step orientation across 4 phases; completing it records pages and topics visited, not demonstrated mastery
+- **Guided Case**: Follow a brief orientation, make and review one prediction in each January–March round, then see TechTrade Association's April renewal or departure and a final application question. Predictions can be uncertain or wrong; required predictions and case choices gate advancement, and progress survives reloads.
+- **Free Play and Handoff**: Pause case guidance without losing case decisions, or explicitly leave the case and keep managing the same firm. Existing firms continue in free play; starting a fresh case uses confirmed New Game.
 - **Help System**: Searchable glossary with 55+ industry terms, contextual help tooltips on every metric, and a floating help button
-- **Local Save**: Simulation decisions, receivables, cash activity, inbox outcomes, and tutorial progress resume together after a reload
+- **Local Save**: Simulation decisions, receivables, cash activity, inbox outcomes, and case progress resume together after a reload; valid version 1–4 firm saves remain loadable
 
 ## Tech Stack
 
@@ -74,7 +74,7 @@ src/
 │   ├── layout/
 │   │   ├── AppShell.tsx          # Shared header, sidebar, and mobile drawer
 │   │   ├── TopNav.tsx            # Top navigation with alerts & inbox count
-│   │   └── SideNav.tsx           # Navigation, tutorial progress, and New Game
+│   │   └── SideNav.tsx           # Navigation, case entry, and New Game
 │   ├── finances/
 │   │   ├── PLStatement.tsx       # Income statement
 │   │   ├── BudgetTracker.tsx     # Quarterly budget tracking
@@ -83,11 +83,8 @@ src/
 │   │   └── PartnerEconomicsView.tsx  # Partner draws & distributions
 │   ├── hr/
 │   │   └── StaffingEconomics.tsx # Total cost of workforce analysis
-│   ├── tutorial/
-│   │   ├── WelcomeModal.tsx      # First-time user onboarding
-│   │   ├── TutorialOverlay.tsx   # Spotlight overlay for guided steps
-│   │   ├── TutorialProgressBar.tsx   # Sidebar progress indicator
-│   │   └── LearningObjectivesCard.tsx # Learning objectives display
+│   ├── tutorial/                 # WelcomeModal for guided-case or free-play entry
+│   ├── case/                     # In-page guided progress, recaps, and April review
 │   └── help/
 │       ├── HelpFab.tsx           # Floating help button
 │       ├── GlossaryDrawer.tsx    # Searchable glossary drawer
@@ -100,8 +97,8 @@ src/
 │   ├── simulation/               # Pure transitions, authored case, and shared financial metrics
 │   └── session/                  # Save loading, validation, and defaults
 ├── data/
-│   ├── tutorialSteps.ts          # 34 tutorial steps across 4 phases
-│   ├── learningObjectives.ts     # 13 learning objectives
+│   ├── tutorialSteps.ts          # Retired tour reference content, not mounted
+│   ├── learningObjectives.ts     # Legacy topic descriptions, not an assessment
 │   ├── glossaryTerms.ts          # 55+ industry glossary terms
 │   └── contextualHelp.ts         # Help text for each metric
 └── types/
@@ -134,7 +131,9 @@ The case begins in January 2026 with $45,000 cash, an undrawn $100,000 credit li
 - **March:** A committee delays TechTrade's policy issue independently of the firm's earlier choices. Decide how to respond while a different existing client also raises a complaint; personal responses compete for the monthly partner intervention, while delegation and deferral remain explicit paths.
 - **April:** The existing service and satisfaction rules resolve TechTrade's renewal. The case reaches a terminal state whether the prospect signed, the client renewed, or the firm was managed poorly; the current firm can continue afterward.
 
-Each round requires explicit case choices before advancing, including hold or defer when appropriate. Case events have stable identifiers and resume from the local save without being regenerated as duplicate prompts. This is a fixed authored situation using the ordinary simulation transitions, not a general story engine. Prediction prompts, causal recaps, replacement onboarding, and a final teaching review are planned for the next slice.
+Each round requires a recorded prediction, explicit case choices, and a reflection before advancing, including hold or defer when appropriate. A wrong prediction or “I’m not sure” remains a valid answer. Guidance shows actual cash, receivable, profit, service, credit, and attention effects separately from external events and uncertain signing or renewal. Case events have stable identifiers and resume from the local save without being regenerated as duplicate prompts. This is a fixed authored situation using the ordinary simulation transitions, not a general story engine.
+
+Pausing guidance hides teaching prompts while the case schedule and firm remain intact. **Leave case and continue freely** ends the case schedule and keeps the current firm; unfinished case-only decisions are recorded as held without invented financial effects. April's **Case completed** review summarizes the three decisions, TechTrade's outcome, and one new application question. Completing or leaving the case does not reset the firm. Continuing play and starting a fresh New Game remain separate actions.
 
 ### Financial Model
 
@@ -165,22 +164,17 @@ Each round requires explicit case choices before advancing, including hold or de
 
 Run `bun run scripts/balance-report.ts` for a seeded 24-month simulation across five seeds and scripted decision policies, including a cash-pressure policy that uses staff recovery. The JSON report includes cash and credit use, profit, service, churn and renewals, burnout and efficacy, reputation, and pending decisions. Use `--months=12` to shorten the run. Policies respect shared attention and delegate when personal handling is unavailable. The [service balance check](docs/service-balance-simulation.md) records model results, not human learning evidence. Removing random burnout rolls changes subsequent random sequences; whole-run differences are not controlled estimates of any one rule’s effect.
 
-Stage 1 implements slice A, **Rules and truthful copy**, and Phase 2 implements slice B, **Authored three-round case**, in the [learning-improvement plan](docs/learning-improvement-plan.md). Replacement guidance, prediction prompts, causal recaps, the final teaching review, and the new learning-focused study remain later slices. The [playtest instructions](docs/new-player-playtest.md) include case rehearsal checks but no claim that the case improves learning. Tutorial step IDs and progress are preserved. Version 1–4 saves remain supported; an existing monthly meeting becomes the equivalent spent partner intervention, with no invented historical calls or restored efficacy.
+Stages 1–3 implement slices A–C in the [learning-improvement plan](docs/learning-improvement-plan.md): truthful rules, the authored case, and guided decisions with an April review. The [playtest notes](docs/new-player-playtest.md) describe technical rehearsal. The learning-focused study in slice D has not been run; completing the case is not evidence of demonstrated mastery. Valid version 1–4 firm saves remain supported. Retired tutorial progress is kept as legacy progress without assigning old step numbers to new case lessons; a saved meeting still counts as a spent partner intervention for that month.
 
 Reputation summarizes client satisfaction and staff efficacy; it does not alter acquisition or recruitment. Attorney and lobbyist capacity is pooled without specialist matching or distinct legal capabilities. Numerical margin, reserves, staffing, and valuation targets are simulation assumptions. Client concentration concerns fee exposure and shared issues, not organization types alone; shared issue exposure is not calculated by this version.
 
 This is an educational game model, not a full accounting ledger or a model of real tax obligations. The cash projection is a simple run-rate estimate rather than a forecast of future decisions or collections.
 
-### Tutorial System
+### Guided Experience
 
-A 34-step interactive tutorial spanning 4 phases:
+The short orientation introduces the partner role, the three-month objective, and where to find the current decision. January practices cash versus profit, February practices scope, conflict review, and capacity, and March practices service and attention under an external policy delay. Each round has one brief prediction and reflection, with feedback drawn from actual game outcomes. April reviews the decisions and asks the player to apply a principle to a fresh situation. The six intended lessons are practice goals, not a score or a claim of measured learning.
 
-1. **Welcome**: GR industry introduction and game mechanics overview
-2. **Month 1 — Getting Your Bearings**: Dashboard, finances, team, and HR fundamentals
-3. **Month 2 — Client Management & Decision-Making**: Client types, satisfaction, and inbox decisions
-4. **Month 3 — Strategic Thinking**: Trend analysis, resource allocation, reputation, and hiring decisions
-
-Introduces 13 learning topics from GR basics to firm management. Visiting these topics is not evidence of mastery or transferable learning. Game and tutorial progress are saved together in this browser; saves do not sync across devices.
+The former 34-step, 13-topic tutorial is retired for new players. Its saved progress is treated as legacy history, without converting old steps into unrelated case lessons. Game and guidance progress are saved together in this browser; saves do not sync across devices.
 
 ## Available Scripts
 
@@ -191,7 +185,7 @@ Introduces 13 learning topics from GR basics to firm management. Visiting these 
 | `bun run start` | Start production server |
 | `bun run lint` | Run ESLint |
 | `bun run typecheck` | Run TypeScript type checking |
-| `bun test` | Run focused simulation, scenario, tutorial, and save-state tests |
+| `bun test` | Run focused simulation, guided-case, scenario, and save-state tests |
 | `bun run scripts/balance-report.ts` | Print the seeded 12–24 month balance simulation report |
 
 ## Contributing
