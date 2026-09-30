@@ -97,12 +97,19 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Add an April **Case completed** review with the three actual decision summaries, TechTrade Association's outcome, and a fresh application question. Allow the same firm to continue afterward.
 - [x] Make pause and explicit leave-case handoffs distinct, preserve the firm, and stop future case events on leave. Keep valid version 1–4 firm saves and retired tutorial history without assigning old steps to new lessons.
 
+## Phase 4 / Delivery Slice D Study Preparation
+
+- [x] Freeze exact January guided-case amounts in assertions and prepare the `learning-study-d1` build tag on the isolated `codex/phase-4-learning-study` branch.
+- [x] Re-run the 24-month free-play balance report and add a three-branch, five-seed January–April case harness with cash, credit, service, burnout, efficacy, renewal, and pending-decision results.
+- [x] Prepare participant and consent script, distinct pre/post transfer questions, 0–2 causal rubric, phone-session plan, intervention and observation logs, and within-person analysis template.
+- [ ] Conduct 3–5 first-time human sessions, including at least two on physical phones; capture each first posttest answer before discussion. No new participants or observations were available for this slice.
+
 ## Next Work
 
 - [x] Complete Stage 1, slice A in `docs/learning-improvement-plan.md`: workload and fatigue rules, shared partner attention, complaint alternatives, salary commitments, truthful copy, save compatibility, focused tests, seeded balance report, and browser checks. Numerical workload bands remain fictional game assumptions; no tuning adjustment was needed.
 - [x] Build the authored three-round GR case and its intake/policy scenarios (delivery slice B).
 - [x] Replace the existing orientation with prediction prompts, causal recaps, and a final teaching review (delivery slice C), preserving valid version 1–4 firm saves.
-- [ ] Freeze the learning-focused playtest kit, then observe first-time players with distinct pre/post transfer questions (delivery slice D). The updated `docs/new-player-playtest.md` supports Phase 2 case rehearsal, not a new learning claim.
+- [ ] Analyze the D1 pilot's within-person reasoning counts and anonymized examples after real sessions. Keep usability, enjoyment, agency, and reading burden separate; technical completion is not learning evidence.
 - [ ] Revisit the $3,000 pursuit price and service balance after player observations; the initial price is a game design choice, not a measured real-world cost.
 - [ ] Deferred beyond this playtest package: decide whether the simplified month-opening tax estimate needs a deeper accounting model.
 - [ ] Deferred beyond this playtest package: add a documented save export/import or account sync only if play across browsers or devices becomes a requirement.

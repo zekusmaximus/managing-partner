@@ -1,6 +1,24 @@
 # Client service balance check
 
-These are **deterministic scripted simulations, not new-player playtest results or forecasts**. The harness starts from the January 2026 opening state and advances 24 months across seeds `7, 23, 41, 89, 127`. Each value below is the mean of five runs, rounded as shown. The opening January snapshot is excluded from cumulative profit and event counts.
+These are **deterministic scripted simulations, not new-player playtest results or forecasts**. The long-run harness starts from the free-play January 2026 opening state and advances 24 months across seeds `7, 23, 41, 89, 127`. Each value below is the mean of five runs, rounded as shown. The opening January snapshot is excluded from cumulative profit and event counts. The Phase 4 rerun on September 30 reproduced the Stage 1 table below; no gameplay rules changed in slice D.
+
+## Phase 4 guided-case branch report · January–April
+
+`bun run scripts/case-branch-report.ts` starts every branch from the same authored January fixture and runs five seeded trials for each scripted choice policy. It fails if a choice is unavailable, a required decision blocks advancement, or AR/cash/profit fail reconciliation. It records the ordinary engine's signing and renewal draws, monthly credit, service, staff fatigue/capability, and remaining decisions. The script does not simulate human timing, exploration, or reasoning.
+
+| Five-seed result | Decline and serve | Pursue and prioritize | Hold and defer |
+| --- | ---: | ---: | ---: |
+| Reviewed prospect signed | 0/5 | 2/5 | 0/5 |
+| Anchor renewed / departed | 4 / 1 | 5 / 0 | 3 / 2 |
+| Pursuit expense in each run | $0 | $3,000 | $0 |
+| Major partner interventions in each run | 1 | 2, in different months | 0 |
+| Mean April cash / peak credit drawn | $72,338 / $67,481 | $70,059 / $69,281 | $75,778 / $72,881 |
+| Mean February–April profit | $45,926 | $55,135 | $42,741 |
+| Mean ending effective service slots | 8.1 | 8.1 | 8.1 |
+| Mean ending burnout / efficacy | 15.0 / 81.0 | 19.8 / 81.0 | 15.0 / 81.0 |
+| Pending case / other decisions in April | 0 / 0 | 0 / 0 | 0 / 0 |
+
+The decline branch makes a January demand, declines the reviewed prospect, delegates the policy update, and spends the March partner intervention on the other client's complaint. The pursuit branch makes a personal collection call, pays for aggressive pursuit, personally handles the policy delay, and delegates the complaint. The hold branch holds collection and the reviewed prospect after intake review, then defers both March responses. Every branch reaches April. The pursuit fee is paid whether or not signing succeeds; a successful signing adds workload. All branches draw credit in February, so the cash balance includes borrowing and must not be described as operating income or collection success. Differences across these policies are **not** controlled treatment effects: decisions change later cash, client rosters, and random draw consumption. The five trial outcomes do not measure real-world renewal rates.
 
 ## Stage 1 rules and truthful copy — 24-month, five-seed run
 
@@ -27,13 +45,13 @@ Run `bun run scripts/balance-report.ts` to reproduce the current full JSON repor
 
 ## Phase 2 authored-case fixture and branch checks
 
-The authored case uses a separate January 2026 opening fixture; the five-seed, 24-month table above continues to describe the original free-play opening and scripted policies. The case starts from the ordinary firm initialization, then sets cash to $45,000, records an $18,000 TechTrade Association receivable in the 61–90 day bucket, and shortens that client's contract to three months. The existing $15,000 unassigned current receivable remains. Opening AR is therefore $33,000, with $18,000 explicitly named and overdue. Opening reported profit is $16,589, service coverage is approximately 100.7%, and the $100,000 line of credit is undrawn. Cash and the January opening history agree; this is an opening P&L run-rate snapshot, not a paid month of recurring costs.
+The authored case uses a separate January 2026 opening fixture; the five-seed, 24-month table above continues to describe the original free-play opening and scripted policies. The case starts from the ordinary firm initialization, then sets cash to $45,000, records an $18,000 TechTrade Association receivable in the 61–90 day bucket, and shortens that client's contract to three months. The existing $15,000 unassigned current receivable remains. Opening AR is therefore $33,000, with $18,000 explicitly named and overdue. Opening billed revenue is $111,000, expenses $94,411, reported profit $16,589, estimated tax payable $5,530, service coverage approximately 100.7%, and the $100,000 line of credit is undrawn. Cash and the January opening history agree; this is an opening P&L run-rate snapshot, not a paid month of recurring costs. Exact-value assertions protect this fixture for the D1 study.
 
 These amounts create a profitable firm with limited spendable cash and an actionable old invoice. The case is intended to allow a collection-oriented path and a cautious cash-preservation path. Automatic credit draws and repayments remain part of the ordinary monthly transition; a draw is financing, not collected revenue or profit.
 
 Focused case checks cover different questions from the 24-month aggregate: January collection or closing collection efforts must reconcile cash, AR, and profit; February's decline or hold creates no client; the conflicting original mandate cannot be signed; a reviewed narrower pursuit pays its stated cost even when signing fails and adds workload only on success. March's external committee delay must occur regardless of the prospect result, while the partner's response and another client's complaint compete for the shared intervention. April must use the ordinary service/satisfaction renewal transition, with both renewal and departure able to reach the terminal case state. Zero-staff and poor-management paths test that progression does not depend on a favorable random draw.
 
-These are model and branch checks, not observed player choices, time-on-task measurements, or evidence that the case teaches the intended concepts. The prediction prompts, causal review, and new learning study remain later work.
+These are model and branch checks, not observed player choices, time-on-task measurements, or evidence that the case teaches the intended concepts. Prediction prompts and causal review are implemented; the [D1 learning study](learning-study-kit.md) still needs participants.
 
 ## Revised service rule
 

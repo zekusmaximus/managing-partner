@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype with Stage 1 rules, Phase 2's authored three-round case, and Phase 3's short guided decisions and review implemented. Staffing workload affects service and burnout, major personal partner responses share one monthly intervention allowance, and salary increases create recurring commitments. The case begins from a reconciled January firm with TechTrade Association's overdue receivable, schedules February conflict review and March external policy delay, and resolves the anchor's April renewal. Each round records a prediction and case decisions, then explains actual results. The April review summarizes choices and asks a fresh application question. Free play retains its opening; valid version 1–4 firm saves remain loadable, with old tutorial progress kept as legacy history. The new-player notes are preliminary; Phase 4's learning study remains pending.
+**Project Status**: Playable single-browser prototype with Stage 1 rules, Phase 2's authored three-round case, and Phase 3's short guided decisions and review implemented. Slice D adds exact fixture assertions, a three-branch five-seed case balance report, and a facilitator-ready pre/post transfer kit. The local `learning-study-d1` tag pins the verified study build. The case begins from a reconciled January firm with TechTrade Association's overdue receivable, schedules February conflict review and March external policy delay, and resolves the anchor's April renewal. Each round records a prediction and case decisions, then explains actual results. The April review summarizes choices and asks a fresh application question. Free play retains its opening; valid version 1–4 firm saves remain loadable, with old tutorial progress kept as legacy history. Human learning sessions remain pending; case completion and scripted model checks are not learning evidence.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -23,6 +23,7 @@ This is a business simulation game where players manage a government relations f
 - [x] Fixed tutorial welcome modal hydration warning by replacing nested heading tags inside `DialogTitle` with a valid `div > h2 + p` structure
 - [x] Removed accidentally staged Claude worktree repository from Git tracking and ignored `.claude/worktrees/`
 - [x] Replaced new-player 34-step orientation with short case prompts, actual-result recaps, and a final teaching review while preserving old firm saves
+- [x] Prepared D1's exact January fixture, case-branch balance harness, and separate pre/post study kit; human sessions pending
 
 ## Current Structure
 
@@ -46,7 +47,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Keep the simplified game model internally consistent and verify that every guided recap agrees with the transition and ledger. Phase 3's guided case is implemented; the Phase 4 learning-focused pilot must test comprehension with new players. Scripted branches, case completion, and balance policies do not establish transferable learning. The tax balance remains deliberately simple.
+Run the frozen D1 kit with 3–5 newcomers, at least two on physical phones. Capture each first posttest answer before discussion, then report within-person reasoning counts and anonymized examples. Keep usability, enjoyment, agency, and reading burden separate. Scripted branches, case completion, and balance policies do not establish transferable learning. The tax balance remains deliberately simple.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -191,6 +192,14 @@ Keep the simplified game model internally consistent and verify that every guide
 - A final four-width disposable-browser rerun after recap and legacy-save edits completed the case at 390, 768, 1280, and 1440px. Each January–April step had document width equal to viewport width; all runs reached month 4 with five recorded case decisions, three monthly result records, three predictions and reflections, and a fresh application answer. TechTrade renewed at 390/1280px and departed at 768/1440px. No console warning, error, or page error was captured. A separate 390px pause/reload/leave run preserved January, $45,000 cash, and the recorded prediction while paused; leaving held the pending case-only decision, kept cash at $45,000, and free play advanced the same firm to February with no warning. These are technical checks, not learning results.
 - A version 4 in-progress case migration infers only from resolved, stable-ID required case Inbox items. If a round already has one, its prediction is marked `legacy-unavailable` and is not retroactively requested; rounds without a resolved required item still require a prediction. Remaining decisions and a reflection are still required. The marker survives a version 5 reload, and retired tutorial progress does not supply case answers. Focused migration tests passed (77 tests, 0 failures).
 
+### Phase 4 / D1 technical study preparation (2026-09-30)
+
+- Main was clean at `794a1f6`, the Phase 3 PR #13 merge. Work is isolated on `codex/phase-4-learning-study`; no existing save, merge, or deployment was changed. The D1 local tag pins the final verified commit.
+- Exact assertions hold the case opening at $45,000 cash, $33,000 AR, $111,000 revenue, $94,411 expenses, $16,589 profit, $5,530 estimated tax payable, eight clients, five employees, and undrawn $100,000 credit. The opening remains distinct from free play.
+- The new case branch harness uses the ordinary transitions for decline/serve, paid pursuit/prioritization, and hold/defer across seeds 7, 23, 41, 89, 127. All 15 runs reach April with no pending case decisions; signing and renewal vary, February credit draws remain explicit, and cash/AR/profit reconcile. The existing 24-month five-seed free-play report was rerun and matched the prior summary. These are model results.
+- `docs/learning-study-kit.md` and separate participant-facing pre/post sheets provide consent, background, timing, facilitator help and observation logs, four 0–2 transfer probes, and a within-person analysis template. No new participants or posttest answers were available; 0 of 3–5 sessions and 0 of at least two physical-phone sessions are complete.
+- Production browser rehearsal used a separate `127.0.0.1` origin to preserve a pre-existing `localhost` save. Five routes at 390, 768, 1280, and 1440px had no document overflow on loaded views. Phone keyboard flow completed decline/renewal with reload and pause persistence; desktop keyboard flow completed paid pursuit/renewal and hold/defer/departure. No captured console warnings or errors. A final copy pass removed doubled punctuation in partner intervention status for names ending in a period.
+
 | Date | Changes |
 |------|---------|
 | Initial | Template created with base setup |
@@ -216,3 +225,4 @@ Keep the simplified game model internally consistent and verify that every guide
 | 2026-09-28 | Created a detailed staged implementation plan for the next learning playtest build; updated TODO and memory only, with implementation still pending |
 | 2026-09-29 | Implemented the separate three-round authored case from the reconciled January fixture through April renewal; prediction prompts, causal recaps, replacement onboarding, final teaching review, and human learning study remain pending |
 | 2026-09-30 | Implemented Phase 3 guided predictions, actual-result recaps, April review, and legacy tutorial compatibility; the Phase 4 human learning study remains pending |
+| 2026-09-30 | Prepared frozen D1 fixture, balance-branch harness, facilitator kit, and technical rehearsal on an isolated branch; human newcomer sessions remain pending |
