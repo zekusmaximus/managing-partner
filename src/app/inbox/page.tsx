@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Typography, Grid, Card, CardHeader, Button, List, ListItem, ListItemText, ListItemIcon, ListItemButton, Chip, Divider } from '@mui/material';
 import { Email, CheckCircle, CircleOutlined, PriorityHigh } from '@mui/icons-material';
 import { useSimulation } from '@/context/SimulationContext';
@@ -14,6 +14,19 @@ export default function Inbox() {
   const { state, markInboxMessageRead, handleInboxChoice } = useSimulation();
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const selectedMessage = state.inbox.find(message => message.id === selectedMessageId) ?? null;
+
+  useEffect(() => {
+    const selectLinkedMessage = () => {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      const message = state.inbox.find(item => item.id === id);
+      if (!message) return;
+      setSelectedMessageId(id);
+      if (!message.read) markInboxMessageRead(id);
+    };
+    selectLinkedMessage();
+    window.addEventListener('hashchange', selectLinkedMessage);
+    return () => window.removeEventListener('hashchange', selectLinkedMessage);
+  }, [state.inbox, markInboxMessageRead]);
 
   const unreadCount = state.inbox.filter(m => !m.read).length;
   const actionRequired = state.inbox.filter(m => m.requiresAction).length;

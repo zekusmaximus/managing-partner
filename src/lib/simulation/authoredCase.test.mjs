@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { CASE_EVENT_IDS, createAuthoredCaseSimulationState, getCaseAdvanceBlocker, leaveAuthoredCase } from './authoredCase';
+import {
+  CASE_EVENT_IDS, createAuthoredCaseSimulationState, getCaseAdvanceBlocker,
+  getCaseRequiredDecisionBlocker, leaveAuthoredCase, recordCaseApplication,
+  recordCasePrediction, recordCaseReflection, setCaseGuidancePaused,
+} from './authoredCase';
 import { createInitialSimulationState } from './initialState';
-import { advanceSimulationMonth, applyInboxChoice, getInboxChoiceQuote, sumReceivables } from './engine';
+import { advanceSimulationMonth, applyInboxChoice, getClientMeetingQuote, getInboxChoiceQuote, recordCashMovement, scheduleClientMeeting, sumReceivables } from './engine';
 import { getClientServiceCoverage } from './clientService';
 import { parseSession, serializeSession } from '../session/save';
 import { createInitialTutorialState } from '../session/tutorialState';
@@ -16,7 +20,11 @@ const advance = (state, random = 0.5) => advanceSimulationMonth(state, monthDeps
 const event = (state, key) => state.inbox.find(message => message.id === CASE_EVENT_IDS[key]);
 const choose = (state, key, choice, random = 0.5) => {
   expect(event(state, key)?.requiresAction).toBe(true);
-  return applyInboxChoice(state, CASE_EVENT_IDS[key], choice, actionDeps(random));
+  const round = state.month;
+  const predicted = recordCasePrediction(state, 'not-sure');
+  const decided = applyInboxChoice(predicted, CASE_EVENT_IDS[key], choice, actionDeps(random));
+  return round >= 1 && round <= 3 && !getCaseRequiredDecisionBlocker(decided)
+    ? recordCaseReflection(decided, 'not-sure') : decided;
 };
 const startFebruary = (collection = 'hold-collection') =>
   advance(choose(createAuthoredCaseSimulationState(), 'collection', collection));
@@ -77,7 +85,7 @@ describe('authored opening and January collections', () => {
   test('collection tactics reconcile cash, AR, profit, client relationship, and attention', () => {
     for (const choice of ['demand-letter', 'personal-call', 'write-off-ar']) {
       const state = createAuthoredCaseSimulationState();
-      const quote = getInboxChoiceQuote(state, CASE_EVENT_IDS.collection, choice);
+      const quote = getInboxChoiceQuote(recordCasePrediction(state, 'not-sure'), CASE_EVENT_IDS.collection, choice);
       const next = choose(state, 'collection', choice);
       const cashChange = next.financials.cashOnHand - state.financials.cashOnHand;
       const arChange = next.arAging.sixtyDay - state.arAging.sixtyDay;
@@ -247,6 +255,18 @@ describe('March policy delay, shared attention, and April renewal', () => {
     expect(april.month).toBe(4);
     assertReconciled(april);
   });
+
+  test('insufficient cash blocks both personal meetings but explicit alternatives reach April', () => {
+    const march = startMarch();
+    const noCash = recordCashMovement(march, { kind: 'unclassified', amount: -march.financials.cashOnHand });
+    expect(noCash.financials.cashOnHand).toBe(0);
+    expect(getInboxChoiceQuote(noCash, CASE_EVENT_IDS.policy, 'personal').available).toBe(false);
+    expect(getInboxChoiceQuote(noCash, CASE_EVENT_IDS.complaint, 'address').available).toBe(false);
+    const april = finishMarch(noCash, 'defer', 'ignore', 0.99);
+    expect(april.month).toBe(4);
+    expect(april.authoredCase.status).toBe('completed');
+    assertReconciled(april);
+  });
 });
 
 describe('resumption and idempotence', () => {
@@ -291,5 +311,154 @@ describe('resumption and idempotence', () => {
     for (const id of Object.values(CASE_EVENT_IDS)) {
       expect(further.inbox.filter(message => message.id === id).length).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('guided decisions and teaching evidence', () => {
+  test('a prediction is required before the case decision; a wrong prediction and reflection still advance', () => {
+    const january = createAuthoredCaseSimulationState();
+    expect(getCaseAdvanceBlocker(january)).toContain('prediction');
+    expect(getInboxChoiceQuote(january, CASE_EVENT_IDS.collection, 'hold-collection').available).toBe(false);
+    expect(applyInboxChoice(january, CASE_EVENT_IDS.collection, 'hold-collection', actionDeps(0.5))).toBe(january);
+    expect(recordCasePrediction(january, 'invented')).toBe(january);
+    expect(recordCaseReflection(january, 'not-sure')).toBe(january);
+
+    const predicted = recordCasePrediction(january, 'profit');
+    expect(predicted.authoredCase.guidance.predictions).toEqual(['profit', null, null]);
+    expect(recordCasePrediction(predicted, 'cash-ar')).toBe(predicted);
+    const decided = applyInboxChoice(predicted, CASE_EVENT_IDS.collection, 'hold-collection', actionDeps(0.5));
+    expect(decided.authoredCase.guidance.decisions).toMatchObject([{
+      messageId: CASE_EVENT_IDS.collection, choiceId: 'hold-collection',
+      cashDelta: 0, arDelta: 0, profitDelta: 0,
+    }]);
+    expect(getCaseAdvanceBlocker(decided)).toContain('reflection');
+    expect(advance(decided)).toBe(decided);
+    expect(recordCaseReflection(decided, 'invented')).toBe(decided);
+
+    const reflected = recordCaseReflection(decided, 'all-income');
+    expect(reflected.authoredCase.guidance.reflections[0]).toBe('all-income');
+    const february = advance(reflected);
+    expect(february.month).toBe(2);
+    expect(february.authoredCase.guidance.predictions[1]).toBeNull();
+    expect(advance(february)).toBe(february);
+  });
+
+  test('all January paths record exact immediate effects and monthly credit separately', () => {
+    for (const choice of ['demand-letter', 'personal-call', 'write-off-ar', 'hold-collection']) {
+      const opening = createAuthoredCaseSimulationState();
+      const decided = choose(opening, 'collection', choice);
+      const evidence = decided.authoredCase.guidance.decisions[0];
+      expect(evidence.choiceId).toBe(choice);
+      expect(evidence.cashDelta).toBe(decided.financials.cashOnHand - opening.financials.cashOnHand);
+      expect(evidence.arDelta).toBe(sumReceivables(decided.receivables).sixtyDay - sumReceivables(opening.receivables).sixtyDay);
+      expect(evidence.profitDelta).toBe(decided.financials.netProfit - opening.financials.netProfit);
+      expect(evidence.usedPartnerIntervention).toBe(choice === 'personal-call');
+      const february = advance(decided);
+      const month = february.authoredCase.guidance.monthly[0];
+      const entry = february.financialHistory.at(-1);
+      expect(month.round).toBe(1);
+      expect(month.opening.cash).toBe(45000);
+      expect(month.closing.cash).toBe(february.financials.cashOnHand);
+      expect(month.collections).toBe(entry.collections);
+      expect(month.recurringCashExpenses).toBe(entry.recurringCashExpensesPaid);
+      expect(month.creditDraw).toBe(entry.cashMovements
+        .filter(movement => movement.kind === 'loc-draw')
+        .reduce((total, movement) => total + movement.amount, 0));
+      expect(month.creditRepayment).toBe(Math.max(0, -entry.cashMovements
+        .filter(movement => movement.kind === 'loc-repayment')
+        .reduce((total, movement) => total + movement.amount, 0)));
+    }
+  });
+
+  for (const [choice, roll] of [
+    ['decline', 0.5], ['hold', 0.5], ['initial-contact', 0],
+    ['initial-contact', 0.99], ['pursue', 0], ['pursue', 0.99],
+  ]) test(`February ${choice} with roll ${roll} records the actual prospect outcome`, () => {
+    const reviewed = choose(startFebruary(), 'intakeReview', 'review');
+    const decided = choose(reviewed, 'prospect', choice, roll);
+    const evidence = decided.authoredCase.guidance.decisions.at(-1);
+    expect(evidence).toMatchObject({ messageId: CASE_EVENT_IDS.prospect, choiceId: choice });
+    expect(evidence.cashDelta).toBe(decided.financials.cashOnHand - reviewed.financials.cashOnHand);
+    expect(evidence.profitDelta).toBe(decided.financials.netProfit - reviewed.financials.netProfit);
+    expect(evidence.clientDelta).toBe(decided.clients.length - reviewed.clients.length);
+    expect(evidence.summary).toBe(event(decided, 'prospect').resolution.summary);
+    expect(decided.authoredCase.guidance.decisions.filter(item => item.messageId === CASE_EVENT_IDS.prospect)).toHaveLength(1);
+    expect(advance(decided).month).toBe(3);
+  });
+
+  for (const [policy, complaint] of [
+    ['personal', 'assign'], ['personal', 'ignore'],
+    ['delegate', 'address'], ['delegate', 'assign'], ['delegate', 'ignore'],
+    ['defer', 'address'], ['defer', 'assign'], ['defer', 'ignore'],
+  ]) test(`March ${policy} and ${complaint} reaches the April review`, () => {
+    const march = startMarch();
+    const decided = choose(choose(march, 'policy', policy), 'complaint', complaint);
+    expect(decided.authoredCase.guidance.decisions.filter(item =>
+      item.messageId === CASE_EVENT_IDS.policy || item.messageId === CASE_EVENT_IDS.complaint)).toHaveLength(2);
+    expect(decided.authoredCase.guidance.reflections[2]).toBe('not-sure');
+    const april = advance(decided, 0.99);
+    expect(april.authoredCase.status).toBe('completed');
+    expect(april.authoredCase.guidance.monthly.map(month => month.round)).toEqual([1, 2, 3]);
+    expect(april.authoredCase.guidance.decisions).toHaveLength(5);
+    expect(april.authoredCase.guidance.monthly[2].closing.anchorSatisfaction)
+      .toBe(april.authoredCase.renewal.satisfaction === null ? null :
+        april.clients.find(client => client.id === 'client1')?.satisfaction ?? null);
+  });
+
+  test('Clients route meeting requires the March prediction and records the complaint once', () => {
+    const march = startMarch();
+    expect(getClientMeetingQuote(march, 'client2').available).toBe(false);
+    expect(scheduleClientMeeting(march, 'client2')).toBe(march);
+    const predicted = recordCasePrediction(march, 'date-moves');
+    const met = scheduleClientMeeting(predicted, 'client2');
+    expect(event(met, 'complaint')).toMatchObject({ requiresAction: false,
+      resolution: { choiceId: 'address' } });
+    expect(met.authoredCase.guidance.decisions.filter(decision =>
+      decision.messageId === CASE_EVENT_IDS.complaint)).toMatchObject([{
+        choiceId: 'address', profitDelta: -1000, usedPartnerIntervention: true,
+      }]);
+    expect(scheduleClientMeeting(met, 'client2')).toBe(met);
+    expect(applyInboxChoice(met, CASE_EVENT_IDS.complaint, 'address', actionDeps(0.5))).toBe(met);
+    const policy = choose(met, 'policy', 'delegate');
+    expect(policy.authoredCase.guidance.reflections[2]).toBe('not-sure');
+    expect(advance(policy).month).toBe(4);
+  });
+
+  test('renewal and departure both permit an ungraded fresh application answer', () => {
+    const decided = choose(choose(startMarch(), 'policy', 'defer'), 'complaint', 'ignore');
+    expect(recordCaseApplication(decided, 'not-sure')).toBe(decided);
+    for (const [roll, outcome, answer] of [
+      [0, 'renewed', 'cash-only'], [0.99, 'departed', 'not-sure'],
+    ]) {
+      const april = advance(decided, roll);
+      expect(april.authoredCase.renewalOutcome).toBe(outcome);
+      expect(april.authoredCase.guidance.monthly).toHaveLength(3);
+      const answered = recordCaseApplication(april, answer);
+      expect(answered.authoredCase.guidance.application).toBe(answer);
+      expect(recordCaseApplication(answered, 'scope-capacity')).toBe(answered);
+      expect(advance(answered).month).toBe(5);
+      expect(advance(answered).authoredCase.guidance.application).toBe(answer);
+    }
+  });
+
+  test('pause and reload preserve guidance and firm; leave keeps the firm but ends case scheduling', () => {
+    const predicted = recordCasePrediction(createAuthoredCaseSimulationState(), 'not-sure');
+    const paused = setCaseGuidancePaused(predicted, true);
+    expect(paused.authoredCase.guidance.paused).toBe(true);
+    const loaded = parseSession(serializeSession({ simulation: paused, tutorial: createInitialTutorialState() }));
+    expect(loaded.simulation.authoredCase.guidance).toEqual(paused.authoredCase.guidance);
+    const decided = choose(loaded.simulation, 'collection', 'hold-collection');
+    expect(decided.authoredCase.guidance.paused).toBe(true);
+    const february = advance(decided);
+    expect(february.month).toBe(2);
+    expect(february.authoredCase.guidance.paused).toBe(true);
+    const resumed = setCaseGuidancePaused(february, false);
+    expect(resumed.authoredCase.guidance.paused).toBe(false);
+    const left = leaveAuthoredCase(resumed);
+    expect(left.authoredCase.status).toBe('left');
+    expect(left.financials).toEqual(resumed.financials);
+    expect(left.clients).toEqual(resumed.clients);
+    expect(event(left, 'intakeReview').resolution.choiceId).toBe('held-on-exit');
+    expect(advance(left).inbox.some(message => message.id === CASE_EVENT_IDS.policy)).toBe(false);
   });
 });

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Box, Typography, Tabs, Tab, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { useTutorial } from '@/context/TutorialContext';
 import PLStatement from '@/components/finances/PLStatement';
 import BudgetTracker from '@/components/finances/BudgetTracker';
 import ARManager from '@/components/finances/ARManager';
@@ -10,9 +9,7 @@ import CashFlowView from '@/components/finances/CashFlowView';
 import PartnerEconomicsView from '@/components/finances/PartnerEconomicsView';
 
 export default function Finances() {
-  const { currentStep } = useTutorial();
   const [activeTab, setActiveTab] = useState(0);
-  const displayedTab = currentStep?.id === 'm1-accounts-receivable' ? 2 : activeTab;
 
   useEffect(() => {
     const selectLinkedTab = () => {
@@ -48,7 +45,7 @@ export default function Finances() {
               <InputLabel id="financial-report-label">Financial report</InputLabel>
               <Select
                 labelId="financial-report-label"
-                value={displayedTab}
+                value={activeTab}
                 label="Financial report"
                 fullWidth
                 onChange={(event) => selectTab(Number(event.target.value))}
@@ -57,7 +54,7 @@ export default function Finances() {
               </Select>
             </FormControl>
             <Tabs
-              value={displayedTab}
+              value={activeTab}
               onChange={(_, nextTab: number) => selectTab(nextTab)}
               variant="scrollable"
               scrollButtons="auto"
@@ -68,11 +65,11 @@ export default function Finances() {
             </Tabs>
           </Box>
 
-          {displayedTab === 0 && <PLStatement />}
-          {displayedTab === 1 && <BudgetTracker />}
-          {displayedTab === 2 && <ARManager />}
-          {displayedTab === 3 && <CashFlowView />}
-          {displayedTab === 4 && <PartnerEconomicsView />}
+          {activeTab === 0 && <PLStatement />}
+          {activeTab === 1 && <BudgetTracker />}
+          {activeTab === 2 && <ARManager />}
+          {activeTab === 3 && <CashFlowView />}
+          {activeTab === 4 && <PartnerEconomicsView />}
         </Box>
   );
 }

@@ -2,7 +2,7 @@ import type { Alert, ARBuckets, BudgetItem, CashMovement, Client, Financials, Fi
 import { AGGRESSIVE_CLIENT_PURSUIT_COST, AR_COLLECTION_RATES, CLIENT_MEETING_COLLECTION_CAP, CLIENT_MEETING_COLLECTION_RATE, CLIENT_MEETING_COST, CLIENT_MEETING_SATISFACTION_GAIN, ESTIMATED_TAX_RATE, HIRING_COST, QUARTERLY_TAX_LATE_RATE, getEmployeeTotalCost, getOperatingCostsTotal, getLOCMonthlyInterest } from '@/types/simulation';
 import { getClientServiceCapacity, getClientServiceCoverage, getWorkloadBurnoutTrend } from './clientService';
 import { getCurrentInboxChoices } from './inboxChoices';
-import { CASE_ANCHOR_ID, CASE_EVENT_IDS, createCaseComplaintMessage, createCaseIntakeReviewMessage, createCasePolicyMessage, createCaseProspectMessage, getCaseAdvanceBlocker } from './authoredCase';
+import { CASE_ANCHOR_ID, CASE_EVENT_IDS, createCaseComplaintMessage, createCaseIntakeReviewMessage, createCasePolicyMessage, createCaseProspectMessage, getCaseAdvanceBlocker, getCaseRound, getCaseSnapshot } from './authoredCase';
 
 export interface EngineDeps {
   random: () => number;
@@ -146,6 +146,10 @@ export const getClientMeetingQuote = (state: SimulationState, clientId: string):
     message.scenario.kind === 'client-feedback' && message.scenario.clientId === clientId &&
     message.resolution?.month === state.month && message.resolution.year === state.year);
   const activeComplaint = hasPendingComplaint(state, clientId);
+  const caseComplaintPending = state.inbox.some(message => message.id === CASE_EVENT_IDS.complaint &&
+    message.requiresAction && message.scenario.kind === 'client-feedback' && message.scenario.clientId === clientId);
+  const casePredictionNeeded = caseComplaintPending && getCaseRound(state) === 3 &&
+    !state.authoredCase!.guidance.predictions[2];
   const intervention = getPartnerInterventionStatus(state);
   if (client && client.contractMonthsRemaining <= 3) eligibleReasons.push('Contract ends within three months');
   if (client && activeComplaint) eligibleReasons.push('Client has an unresolved complaint');
@@ -154,6 +158,7 @@ export const getClientMeetingQuote = (state: SimulationState, clientId: string):
   if (client && overdueAmount > 0) eligibleReasons.push('Client has invoices over 30 days old');
   const satisfactionGain = client ? Math.min(CLIENT_MEETING_SATISFACTION_GAIN, 100 - client.satisfaction) : 0;
   const disabledReason = !client ? 'This client is no longer active.'
+    : casePredictionNeeded ? 'Record the March prediction in the case guide before this required complaint response.'
     : eligibleReasons.length === 0 ? (complaintHandledThisMonth
       ? 'This complaint was already handled this month. A separate renewal or overdue-payment issue is required for another meeting.'
       : 'No complaint, renewal, service, satisfaction, or overdue-payment risk requires a meeting.')
@@ -219,7 +224,8 @@ export const scheduleClientMeeting = (state: SimulationState, clientId: string):
       : message),
     alerts: [meetingAlert, ...expensed.alerts].slice(0, 10),
   }, expensed.financials.cashOnHand + collected, collected);
-  return updated;
+  return resolvesComplaint && state.inbox.some(message => message.id === CASE_EVENT_IDS.complaint && message.requiresAction)
+    ? withCaseDecisionEvidence(state, updated, CASE_EVENT_IDS.complaint, 'address') : updated;
 };
 
 const collectAtRate = (balance: number, rate: number): number =>
@@ -564,11 +570,35 @@ export const advanceSimulationMonth = (prevState: SimulationState, deps: EngineD
         budget: recordedBudget,
         inbox: expireTaxDecisions(prevState.inbox),
         authoredCase: caseActive && newYear === 2026 && newMonth === 4 && anchorRenewal
-          ? { status: 'completed', renewalOutcome: anchorRenewal.outcome,
+          ? { ...prevState.authoredCase!, status: 'completed', renewalOutcome: anchorRenewal.outcome,
               renewal: { serviceCoverage, satisfaction: anchorRenewal.satisfaction,
                 chance: anchorRenewal.chance } }
           : prevState.authoredCase,
       };
+
+      if (caseActive && getCaseRound(prevState)) {
+        const guidance = prevState.authoredCase!.guidance;
+        const creditDraw = cashMovements.filter(movement => movement.kind === 'loc-draw')
+          .reduce((sum, movement) => sum + movement.amount, 0);
+        const creditRepayment = Math.max(0, -cashMovements.filter(movement => movement.kind === 'loc-repayment')
+          .reduce((sum, movement) => sum + movement.amount, 0));
+        const closing = getCaseSnapshot(nextState);
+        nextState.authoredCase = { ...nextState.authoredCase!, guidance: {
+          ...guidance,
+          roundOpening: closing,
+          monthly: [...guidance.monthly, {
+            round: prevState.month as 1 | 2 | 3,
+            opening: guidance.roundOpening,
+            closing,
+            serviceCoverage,
+            collections: totalCollections,
+            recurringCashExpenses: cashExpenses,
+            automaticWriteOff: autoWriteOff,
+            creditDraw,
+            creditRepayment,
+          }],
+        } };
+      }
 
       const newAlerts = deps.generateAlerts(nextState);
       // During the case, discretionary prompts give way to its authored events.
@@ -632,6 +662,11 @@ export const getInboxChoiceQuote = (state: SimulationState, messageId: string, c
   const choice = message && getCurrentInboxChoices(message).find(item => item.id === choiceId);
   let disabledReason: string | null = !message || !message.requiresAction
     ? 'This decision is no longer pending.' : !choice ? 'This choice is no longer available.' : null;
+  if (!disabledReason && message && Object.values(CASE_EVENT_IDS).includes(message.id as typeof CASE_EVENT_IDS[keyof typeof CASE_EVENT_IDS])) {
+    const round = getCaseRound(state);
+    if (round && !state.authoredCase!.guidance.predictions[round - 1])
+      disabledReason = 'Record this round’s prediction in the case guide first. “I’m not sure” is a valid answer.';
+  }
   let effect = choice?.effect ?? '';
   let cost = 0;
   let satisfactionChange = 0;
@@ -728,12 +763,47 @@ export const getInboxChoiceQuote = (state: SimulationState, messageId: string, c
     collectionEstimate, usesPartnerIntervention };
 };
 
+const caseDecisionIds = new Set<string>(Object.values(CASE_EVENT_IDS));
+
+function withCaseDecisionEvidence(
+  before: SimulationState, after: SimulationState, messageId: string, choiceId: string,
+): SimulationState {
+  if (before === after || before.authoredCase?.status !== 'active' || !caseDecisionIds.has(messageId)) return after;
+  const guidance = after.authoredCase?.guidance;
+  if (!guidance || guidance.decisions.some(decision => decision.messageId === messageId)) return after;
+  const message = after.inbox.find(item => item.id === messageId);
+  if (!message?.resolution) return after;
+  const scenario = message.scenario;
+  const clientId = scenario.kind === 'collections-problem' || scenario.kind === 'client-feedback' ||
+    scenario.kind === 'case-policy-delay' ? scenario.clientId : undefined;
+  const satisfaction = (state: SimulationState) => clientId
+    ? state.clients.find(client => client.id === clientId)?.satisfaction ?? null : null;
+  const opening = getCaseSnapshot(before);
+  const closing = getCaseSnapshot(after);
+  const priorSatisfaction = satisfaction(before);
+  const nextSatisfaction = satisfaction(after);
+  return { ...after, authoredCase: { ...after.authoredCase!, guidance: { ...guidance,
+    decisions: [...guidance.decisions, {
+      messageId, choiceId, summary: message.resolution.summary,
+      cashDelta: closing.cash - opening.cash,
+      arDelta: closing.ar - opening.ar,
+      profitDelta: closing.profit - opening.profit,
+      satisfactionDelta: priorSatisfaction === null || nextSatisfaction === null
+        ? 0 : nextSatisfaction - priorSatisfaction,
+      clientDelta: closing.clients - opening.clients,
+      usedPartnerIntervention: after.lastPartnerIntervention !== before.lastPartnerIntervention &&
+        after.lastPartnerIntervention?.month === before.month &&
+        after.lastPartnerIntervention?.year === before.year,
+    }],
+  } } };
+}
+
 export const applyInboxChoice = (state: SimulationState, messageId: string, choiceId: string, deps: ChoiceDeps): SimulationState => {
   const message = state.inbox.find(item => item.id === messageId);
   if (!message || !getInboxChoiceQuote(state, messageId, choiceId).available) return state;
   // Both entry points use this exact transition: no second complaint reward.
   if (message.scenario.kind === 'client-feedback' && choiceId === 'address') {
-    return scheduleClientMeeting(state, message.scenario.clientId);
+    return withCaseDecisionEvidence(state, scheduleClientMeeting(state, message.scenario.clientId), messageId, choiceId);
   }
   if (message.scenario.kind === 'case-policy-delay' && choiceId === 'personal') {
     const policyClientId = message.scenario.clientId;
@@ -743,11 +813,12 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
     const cashChange = met.financials.cashOnHand - state.financials.cashOnHand;
     const arChange = met.arAging.current + met.arAging.thirtyDay + met.arAging.sixtyDay + met.arAging.ninetyPlus -
       (state.arAging.current + state.arAging.thirtyDay + state.arAging.sixtyDay + state.arAging.ninetyPlus);
-    const summary = `Partner led TechTrade's recovery meeting. Satisfaction is ${satisfaction}%; cash ${cashChange >= 0 ? '+' : ''}$${cashChange.toLocaleString()}, AR ${arChange >= 0 ? '+' : ''}$${arChange.toLocaleString()}, profit -$${CLIENT_MEETING_COST.toLocaleString()}. The earlier committee-calendar scan and issue-status memo were delivered; the new committee date remains uncertain. The recommended next step is monitoring the revised notice and briefing TechTrade on options. Committee timing did not change.`;
-    return { ...met, inbox: met.inbox.map(item => item.id === messageId
+    const signedCurrency = (amount: number) => `${amount > 0 ? '+' : amount < 0 ? '-' : ''}$${Math.abs(amount).toLocaleString()}`;
+    const summary = `Partner led TechTrade's recovery meeting. Satisfaction is ${satisfaction}%; cash ${signedCurrency(cashChange)}, AR ${signedCurrency(arChange)}, profit -$${CLIENT_MEETING_COST.toLocaleString()}. The earlier committee-calendar scan and issue-status memo were delivered; the new committee date remains uncertain. The recommended next step is monitoring the revised notice and briefing TechTrade on options. Committee timing did not change.`;
+    return withCaseDecisionEvidence(state, { ...met, inbox: met.inbox.map(item => item.id === messageId
       ? { ...item, read: true, requiresAction: false,
           resolution: { choiceId, summary, month: state.month, year: state.year } }
-      : item) };
+      : item) }, messageId, choiceId);
   }
 
   let next: SimulationState = { ...state };
@@ -987,5 +1058,5 @@ export const applyInboxChoice = (state: SimulationState, messageId: string, choi
     ? { ...item, choices: getCurrentInboxChoices(item), read: true, requiresAction: false,
         resolution: { choiceId, summary: resolutionSummary, month: state.month, year: state.year } }
     : item)];
-  return next;
+  return withCaseDecisionEvidence(state, next, messageId, choiceId);
 };

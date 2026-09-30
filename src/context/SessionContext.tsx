@@ -6,7 +6,7 @@ import type { SimulationState } from '@/types/simulation';
 import type { TutorialState } from '@/lib/session/tutorialState';
 import { createAuthoredCaseSimulationState } from '@/lib/simulation/authoredCase';
 import {
-  createFreshSession, FIRST_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, LEGACY_TUTORIAL_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, loadSession,
+  createFreshSession, FIRST_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, LEGACY_TUTORIAL_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, V4_SESSION_STORAGE_KEY, loadSession,
   saveSession, type SessionSnapshot, type SessionStorage,
 } from '@/lib/session/save';
 
@@ -90,7 +90,7 @@ export class SessionStore {
       // A blocked storage API is reported by the write below.
     }
     if (saveSession(this.storage, this.view.snapshot)) {
-      for (const oldKey of [PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY]) {
+      for (const oldKey of [V4_SESSION_STORAGE_KEY, PREVIOUS_SESSION_STORAGE_KEY, SECOND_SESSION_STORAGE_KEY, FIRST_SESSION_STORAGE_KEY]) {
         try {
           this.storage.removeItem(oldKey);
         } catch {

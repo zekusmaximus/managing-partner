@@ -4,10 +4,8 @@ import React, { ReactNode } from "react";
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { SimulationProvider } from "@/context/SimulationContext";
 import { SessionProvider } from "@/context/SessionContext";
-import { TutorialProvider } from "@/context/TutorialContext";
 import { AppShell } from "@/components/layout/AppShell";
 import WelcomeModal from "@/components/tutorial/WelcomeModal";
-import TutorialOverlay from "@/components/tutorial/TutorialOverlay";
 import HelpFab from "@/components/help/HelpFab";
 
 const theme = createTheme({
@@ -50,12 +48,9 @@ export function Providers({ children }: { children: ReactNode }) {
       <CssBaseline />
       <SessionProvider>
         <SimulationProvider>
-          <TutorialProvider>
-            <AppShell>{children}</AppShell>
-            <WelcomeModal />
-            <TutorialOverlay />
-            <HelpFab />
-          </TutorialProvider>
+          <AppShell>{children}</AppShell>
+          <WelcomeModal />
+          <HelpFab />
         </SimulationProvider>
       </SessionProvider>
     </ThemeProvider>

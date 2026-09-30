@@ -253,11 +253,58 @@ export interface PartnerIntervention {
   clientName?: string;
 }
 
-// The authored case keeps only lifecycle and the actual renewal input/outcome.
-// Required decisions and their summaries live in stable-ID inbox messages.
+export type CaseRound = 1 | 2 | 3;
+
+export interface CaseSnapshot {
+  cash: number;
+  ar: number;
+  profit: number;
+  credit: number;
+  clients: number;
+  staff: number;
+  anchorSatisfaction: number | null;
+}
+
+export interface CaseDecisionEvidence {
+  messageId: string;
+  choiceId: string;
+  summary: string;
+  cashDelta: number;
+  arDelta: number;
+  profitDelta: number;
+  satisfactionDelta: number;
+  clientDelta: number;
+  usedPartnerIntervention: boolean;
+}
+
+export interface CaseMonthlyEvidence {
+  round: CaseRound;
+  opening: CaseSnapshot;
+  closing: CaseSnapshot;
+  serviceCoverage: number;
+  collections: number;
+  recurringCashExpenses: number;
+  automaticWriteOff: number;
+  creditDraw: number;
+  creditRepayment: number;
+}
+
+export interface CaseGuidance {
+  paused: boolean;
+  predictions: [string | null, string | null, string | null];
+  reflections: [string | null, string | null, string | null];
+  roundOpening: CaseSnapshot;
+  decisions: CaseDecisionEvidence[];
+  monthly: CaseMonthlyEvidence[];
+  application: string | null;
+}
+
+// Case decisions remain in stable-ID inbox messages. These records capture the
+// teaching response and the actual deltas at the time each transition occurs.
 export interface AuthoredCaseState {
   status: 'active' | 'completed' | 'left';
   renewalOutcome: 'renewed' | 'departed' | null;
+  guidance: CaseGuidance;
   renewal?: {
     serviceCoverage: number;
     satisfaction: number;

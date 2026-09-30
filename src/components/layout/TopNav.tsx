@@ -5,7 +5,6 @@ import { AppBar, Toolbar, Typography, Button, Box, Badge, IconButton, Tooltip, S
 import { Email, Menu, Notifications } from '@mui/icons-material';
 import Link from 'next/link';
 import { useSimulation } from '@/context/SimulationContext';
-import { useTutorial } from '@/context/TutorialContext';
 import { selectCurrentAlerts } from '@/lib/simulation/alerts';
 import { getCaseAdvanceBlocker } from '@/lib/simulation/authoredCase';
 import CaseStatusPanel from '@/components/case/CaseStatusPanel';
@@ -17,7 +16,6 @@ const monthNames = [
 
 export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { state, advanceMonth } = useSimulation();
-  const { onMonthAdvanced } = useTutorial();
   const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const unreadCount = state.inbox.filter(message => !message.read).length;
   const alertCount = selectCurrentAlerts(state).length;
@@ -25,7 +23,6 @@ export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
   const handleAdvanceMonth = () => {
     if (advanceMonth()) {
       setBlockedReason(null);
-      onMonthAdvanced();
     } else {
       setBlockedReason(getCaseAdvanceBlocker(state) ?? 'Finish the current decision before advancing.');
     }
@@ -39,7 +36,7 @@ export function TopNav({ onOpenMenu }: { onOpenMenu: () => void }) {
           color="inherit"
           edge="start"
           aria-label="Open navigation menu"
-          onClick={onOpenMenu}
+          onClick={(event) => { event.currentTarget.blur(); onOpenMenu(); }}
           sx={{ display: { md: 'none' }, mr: 0.5 }}
         >
           <Menu />

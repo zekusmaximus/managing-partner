@@ -2,7 +2,7 @@
 
 ## Current State
 
-Managing Partner is a playable single-browser prototype. The dashboard, five-tab finances view, HR, clients, inbox, 34-step tutorial, and help glossary are implemented. Stage 1 of the learning-improvement plan corrected workload and shared-attention rules. Phase 2 adds a separate authored case with three decision-gated rounds and an April terminal state. There is no account, backend, or cross-device sync. One playtester’s learning uncertainty remains a preliminary observation; the case has no new human learning evidence.
+Managing Partner is a playable single-browser prototype with a dashboard, five-tab finances view, HR, clients, inbox, and help glossary. Stage 1 corrected workload and shared-attention rules; Phase 2 added the authored three-round case; Phase 3 replaces new-player orientation with short guided predictions, actual-result recaps, and an April teaching review. The former 34-step tutorial remains only as legacy save history. There is no account, backend, or cross-device sync. One playtester’s learning uncertainty remains a preliminary observation; the guided case has no new human learning evidence.
 
 The earlier 15–20% completion estimate and checklist described work that has since been built. Progress toward a finished game cannot be stated as a precise percentage without defining the intended feature set.
 
@@ -89,11 +89,19 @@ The earlier 15–20% completion estimate and checklist described work that has s
 - [x] Require explicit case choices before each advance, allow valid hold/defer paths, and preserve one case schedule through reloads and rapid actions. Use the confirmed New Game/reset flow to start the case.
 - [x] Keep the original conflicting scope unsignable, ordinary intake review free of partner-attention cost, and pursuit expense and possible service demand visible even if signing fails.
 
+## Completed Guided Decisions and Review (Phase 3)
+
+- [x] Replace the 34-step new-player tour with brief case orientation and one prediction and reflection per January–March round. Accept wrong answers and “I’m not sure” without grading or blocking later choices.
+- [x] Require a recorded prediction, the round's case decisions, and a reflection before the shared Advance Month transition proceeds; keep pending-decision guidance visible, reloadable, and resistant to repeated clicks.
+- [x] Show immediate and monthly actual-result feedback that separates player actions, service effects, collections and recurring costs, credit movement, external policy timing, and uncertain signing or renewal.
+- [x] Add an April **Case completed** review with the three actual decision summaries, TechTrade Association's outcome, and a fresh application question. Allow the same firm to continue afterward.
+- [x] Make pause and explicit leave-case handoffs distinct, preserve the firm, and stop future case events on leave. Keep valid version 1–4 firm saves and retired tutorial history without assigning old steps to new lessons.
+
 ## Next Work
 
 - [x] Complete Stage 1, slice A in `docs/learning-improvement-plan.md`: workload and fatigue rules, shared partner attention, complaint alternatives, salary commitments, truthful copy, save compatibility, focused tests, seeded balance report, and browser checks. Numerical workload bands remain fictional game assumptions; no tuning adjustment was needed.
 - [x] Build the authored three-round GR case and its intake/policy scenarios (delivery slice B).
-- [ ] Replace the existing orientation with prediction prompts, causal recaps, and a final teaching review (delivery slice C). Preserve existing save compatibility during that transition.
+- [x] Replace the existing orientation with prediction prompts, causal recaps, and a final teaching review (delivery slice C), preserving valid version 1–4 firm saves.
 - [ ] Freeze the learning-focused playtest kit, then observe first-time players with distinct pre/post transfer questions (delivery slice D). The updated `docs/new-player-playtest.md` supports Phase 2 case rehearsal, not a new learning claim.
 - [ ] Revisit the $3,000 pursuit price and service balance after player observations; the initial price is a game design choice, not a measured real-world cost.
 - [ ] Deferred beyond this playtest package: decide whether the simplified month-opening tax estimate needs a deeper accounting model.
@@ -101,4 +109,4 @@ The earlier 15–20% completion estimate and checklist described work that has s
 
 ## Quality Gate
 
-Run `bun test`, `bun typecheck`, `bun lint`, and `bun run build` before committing. Walk through all five routes and the tutorial at 390, 768, 1280, and 1440px, including keyboard navigation.
+Run `bun test`, `bun typecheck`, `bun lint`, and `bun run build` before committing. Walk through all five routes and the guided case at 390, 768, 1280, and 1440px, including keyboard navigation, reloads, overflow, and console checks. These technical gates do not replace the Phase 4 learning study.

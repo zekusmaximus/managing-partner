@@ -2,7 +2,7 @@
 
 ## Current State
 
-**Project Status**: Playable single-browser prototype with Stage 1 rules and Phase 2's separate authored three-round case implemented. Staffing workload affects service and burnout, major personal partner responses share one monthly intervention allowance, and salary increases create recurring commitments. The case begins from a reconciled January firm with TechTrade Association's overdue receivable, schedules a February conflict review and narrower-scope prospect choice, then a March external policy delay and competing complaint before the April renewal. Case choices gate month advancement and persist with the firm. Free-play opening conditions remain unchanged. Valid version 1–3 saves migrate to version 4, and older version 4 saves remain valid. The existing new-player notes are preliminary; more sessions are needed to validate comprehension.
+**Project Status**: Playable single-browser prototype with Stage 1 rules, Phase 2's authored three-round case, and Phase 3's short guided decisions and review implemented. Staffing workload affects service and burnout, major personal partner responses share one monthly intervention allowance, and salary increases create recurring commitments. The case begins from a reconciled January firm with TechTrade Association's overdue receivable, schedules February conflict review and March external policy delay, and resolves the anchor's April renewal. Each round records a prediction and case decisions, then explains actual results. The April review summarizes choices and asks a fresh application question. Free play retains its opening; valid version 1–4 firm saves remain loadable, with old tutorial progress kept as legacy history. The new-player notes are preliminary; Phase 4's learning study remains pending.
 
 This is a business simulation game where players manage a government relations firm. The application features:
 - Dashboard with financial charts (Recharts)
@@ -22,6 +22,7 @@ This is a business simulation game where players manage a government relations f
 - [x] Fixed Next.js build failures by moving Dashboard out of `src/pages`, adding client providers, and resolving server/client boundary issues
 - [x] Fixed tutorial welcome modal hydration warning by replacing nested heading tags inside `DialogTitle` with a valid `div > h2 + p` structure
 - [x] Removed accidentally staged Claude worktree repository from Git tracking and ignored `.claude/worktrees/`
+- [x] Replaced new-player 34-step orientation with short case prompts, actual-result recaps, and a final teaching review while preserving old firm saves
 
 ## Current Structure
 
@@ -45,7 +46,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Current Focus
 
-Keep the simplified game model internally consistent and make decision consequences clear. Phase 3 will add prediction prompts, causal recaps, replacement onboarding, and the final teaching review to the authored case. The later learning-focused pilot must validate comprehension; scripted case branches and balance policies alone do not establish player behavior. The tax balance remains deliberately simple.
+Keep the simplified game model internally consistent and verify that every guided recap agrees with the transition and ledger. Phase 3's guided case is implemented; the Phase 4 learning-focused pilot must test comprehension with new players. Scripted branches, case completion, and balance policies do not establish transferable learning. The tax balance remains deliberately simple.
 
 ## Stabilization Snapshot (2026-09-25)
 
@@ -158,7 +159,7 @@ Keep the simplified game model internally consistent and make decision consequen
 - Added `docs/learning-improvement-plan.md` at the user's request and linked it from TODO. No application code or simulation rules have changed.
 - The proposed package is a 20–30 minute, three-round guided case anchored to an existing client due to renew after three advances, credible workload/burnout and shared senior-intervention costs, and authored client-conflict/intake plus policy-setback decisions. Decline, hold, failed-pursuit, and departure paths all reach an ending.
 - Proposed delivery slices: A rules/copy, B authored case, C guided decisions/review, D compatibility/verification/study kit. Numerical workload and response effects are initial tuning proposals, not measured real-world constants or approved implementation outcomes.
-- The plan calls out legacy tutorial-ID validation as a save-loss risk during replacement; preserving existing saves and meeting cooldowns is required maintenance. Save features and deeper tax accounting remain out of scope.
+- Retired tutorial IDs are preserved as legacy progress rather than mapped to new lessons. Preserving valid firm saves and meeting cooldowns is required maintenance. Save features and deeper tax accounting remain out of scope.
 - The next pilot separates 20–30 minutes of game time from pre/post interview time, scores transfer explanations, records enjoyment separately, and keeps small-sample learning claims provisional. The plan includes exact acceptance criteria, branch checks, technical gates, and scoped documentation updates.
 
 ## Session History
@@ -179,6 +180,16 @@ Keep the simplified game model internally consistent and make decision consequen
 - Stable authored event IDs and minimal `SimulationState.authoredCase` progress resume the same round without duplicating prompts. Case decisions gate the shared month transition, including valid hold/defer paths. The case starts only through confirmed New Game; an existing firm is never silently replaced. Financial and service transitions, automatic credit behavior, mandatory obligations, Stage 1 attention guards, and version 1–4 save compatibility remain in place.
 - The existing 34-step tutorial remains for compatibility. Prediction prompts, causal recaps, replacement onboarding, the final teaching review, and the learning-focused human study belong to later slices. Case branch tests and scripted model checks do not establish learning effectiveness.
 - Final Phase 2 verification: 158 Bun tests (9,921 assertions), typecheck, lint, and production build pass. Keyboard case runs at 390px and 1280px covered decline/departure and paid pursuit/renewal, shared attention, reload, and rapid advance; all five routes had no document overflow or browser console warning/error at those widths. These are technical checks, not observed player learning.
+
+### Phase 3 guided-decisions implementation (2026-09-30)
+
+- Delivery slice C replaces the mandatory 34-step new-player tour with brief orientation and one short prediction and reflection in each authored round. “I’m not sure” and wrong predictions are valid inputs; the round's prediction, case decisions, and reflection are recorded before month advancement.
+- Immediate and monthly recaps use actual case outcomes and distinguish actions, service changes, collection and recurring cash effects, credit activity, external policy timing, and uncertain signing or renewal. April provides three decision summaries, the anchor outcome, and a fresh application question under the label **Case completed**, without a mastery claim.
+- Pausing guidance preserves the case schedule and firm. Explicitly leaving the case records unfinished case-only work as held without invented financial effects, stops future case events, and continues the same firm in free play. Valid version 1–4 firm saves survive retired tutorial progress without assigning old steps to unrelated lessons.
+- The Phase 4 playtest kit and human learning study remain pending; the revised Phase 3 rehearsal is a technical check, not evidence of learning effectiveness.
+- Technical browser rehearsal checked all five routes at 390, 768, 1280, and 1440px with no document overflow or captured route-navigation console errors/warnings. The January guide fit an 850px phone viewport and showed all three prediction controls at each width. Phone keyboard navigation recorded an uncertain prediction and reached the authored Inbox choice; a separate desktop run completed all rounds and April review with an uncertain 69% departure outcome. Initial 390px mobile New Game and case-heading `aria-hidden` focus warnings were corrected; Tab/Enter menu → New Game → Cancel and a repeated confirmed case start both produced no warning, error, or page error. These checks do not measure learning.
+- A final four-width disposable-browser rerun after recap and legacy-save edits completed the case at 390, 768, 1280, and 1440px. Each January–April step had document width equal to viewport width; all runs reached month 4 with five recorded case decisions, three monthly result records, three predictions and reflections, and a fresh application answer. TechTrade renewed at 390/1280px and departed at 768/1440px. No console warning, error, or page error was captured. A separate 390px pause/reload/leave run preserved January, $45,000 cash, and the recorded prediction while paused; leaving held the pending case-only decision, kept cash at $45,000, and free play advanced the same firm to February with no warning. These are technical checks, not learning results.
+- A version 4 in-progress case migration infers only from resolved, stable-ID required case Inbox items. If a round already has one, its prediction is marked `legacy-unavailable` and is not retroactively requested; rounds without a resolved required item still require a prediction. Remaining decisions and a reflection are still required. The marker survives a version 5 reload, and retired tutorial progress does not supply case answers. Focused migration tests passed (77 tests, 0 failures).
 
 | Date | Changes |
 |------|---------|
@@ -204,3 +215,4 @@ Keep the simplified game model internally consistent and make decision consequen
 | 2026-09-28 | Researched managing-partner responsibilities and assessed learning on merged main at dbdacf6; recorded proposed priorities and transfer questions, with no code changes |
 | 2026-09-28 | Created a detailed staged implementation plan for the next learning playtest build; updated TODO and memory only, with implementation still pending |
 | 2026-09-29 | Implemented the separate three-round authored case from the reconciled January fixture through April renewal; prediction prompts, causal recaps, replacement onboarding, final teaching review, and human learning study remain pending |
+| 2026-09-30 | Implemented Phase 3 guided predictions, actual-result recaps, April review, and legacy tutorial compatibility; the Phase 4 human learning study remains pending |

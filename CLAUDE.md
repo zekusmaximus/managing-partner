@@ -7,12 +7,13 @@ Guidance for AI assistants (Claude Code and others) working in this repository.
 **Managing Partner** is a single-player, browser-based **business simulation game**. The
 player is the managing partner of a mid-size government relations (GR) / lobbying firm in
 Washington, D.C., and makes monthly decisions about finances, staff, clients, and inbox
-events to grow the firm's reputation and profitability. It doubles as an educational tool,
-with a 34-step interactive tutorial and a searchable industry glossary.
+events to manage its cash, service, and client commitments. It doubles as an educational tool,
+with a short January–March guided case, an April teaching review, and a searchable industry glossary.
 
 There is **no backend, no database, and no API layer**. The game runs in client-side
-React state. One versioned browser-local save holds the simulation and tutorial together;
-valid version 1–3 saves migrate to version 4. There are no accounts or cross-device saves.
+React state. One version 5 browser-local save holds the simulation, case guidance, and retired
+tutorial history together; valid version 1–4 firm saves migrate to version 5. There are no
+accounts or cross-device saves.
 
 ## Tech Stack
 
@@ -53,7 +54,7 @@ repo were TypeScript/Next.js server-client-boundary issues caught by these check
 src/
 ├── app/                       # Next.js App Router (routes + root wiring)
 │   ├── layout.tsx             # Root layout, fonts, metadata, wraps <Providers>
-│   ├── providers.tsx          # "use client" — theme, session/simulation/tutorial providers, shell, overlays
+│   ├── providers.tsx          # "use client" — theme, session/simulation providers, shell, welcome/help
 │   ├── globals.css            # Tailwind import + global styles
 │   ├── page.tsx               # Route "/"  → Dashboard
 │   ├── finances/page.tsx      # Route "/finances" → 5-tab financial view
@@ -65,18 +66,18 @@ src/
 │   ├── layout/                # AppShell, TopNav, SideNav
 │   ├── finances/              # PLStatement, BudgetTracker, ARManager, CashFlowView, PartnerEconomicsView
 │   ├── hr/StaffingEconomics.tsx
-│   ├── tutorial/              # WelcomeModal, TutorialOverlay, TutorialProgressBar, LearningObjectivesCard
+│   ├── tutorial/              # WelcomeModal for guided-case or free-play entry
+│   ├── case/                  # CaseStatusPanel: in-page guide, recaps, April review
 │   └── help/                  # HelpFab, GlossaryDrawer, HelpTooltip
 ├── context/
 │   ├── SessionContext.tsx     # One browser-local snapshot + New Game
 │   ├── SimulationContext.tsx  # Component-facing game actions
-│   └── TutorialContext.tsx    # Tutorial flow; state stored by SessionContext
 ├── lib/
 │   ├── simulation/           # Pure month transitions, inbox decisions, scenarios, metrics
 │   └── session/              # Versioned save validation, migration, tutorial defaults
 ├── data/                      # Static content (no logic)
-│   ├── tutorialSteps.ts       # 34 steps across 4 phases
-│   ├── learningObjectives.ts  # 13 objectives + TutorialPhase type
+│   ├── tutorialSteps.ts       # Retired tour reference content, not mounted
+│   ├── learningObjectives.ts  # Legacy topic descriptions, not a mastery assessment
 │   ├── glossaryTerms.ts       # 55+ GR industry terms
 │   └── contextualHelp.ts      # Help text keyed per metric
 └── types/
@@ -88,14 +89,16 @@ The `@/*` path alias maps to `src/*` (see `tsconfig.json`). Always import with `
 ## Architecture & Key Conventions
 
 ### 1. SessionContext owns the saved state
-`src/context/SessionContext.tsx` owns one snapshot with `SimulationState` and tutorial state.
-It loads after client hydration, saves both together, and resets both with New Game.
+`src/context/SessionContext.tsx` owns one snapshot with `SimulationState` and legacy tutorial
+state. Active case guidance is part of `SimulationState.authoredCase`. The session loads after
+client hydration, saves the firm and guidance together, and resets them through confirmed New Game.
 `src/lib/session/save.ts` validates the data, restores dates, and migrates version 1 pooled
 receivables as explicitly unassigned balances. Version 1 and 2 cash histories retain unknown
 opening cash on the oldest retained entry and unclassified residual movements in later months.
-Valid version 1–3 saves migrate to version 4 with zero opening tax balance; unresolved legacy
-tax prompts expire because those saves recorded no tax payable. Keep simulation and tutorial
-state in the same snapshot.
+Valid version 1–4 firm saves migrate to version 5. Earlier saves gain zero opening tax balance;
+unresolved legacy tax prompts expire because those saves recorded no tax payable. Retired tutorial
+indices remain inactive legacy history and are never assigned to new case lessons. Validate the
+firm independently so an old tutorial record cannot invalidate an otherwise valid firm save.
 
 `SimulationContext` exposes gameplay actions through `useSimulation()`. Month advancement,
 inbox decisions, receivable operations, and financial selectors live in testable functions
@@ -122,10 +125,9 @@ Conventions when extending it:
   costs are recorded in the month they occur.
 - Staff recovery is a once-per-month, cash-funded action with its cooldown encoded by a
   `staff-recovery` movement in the current month's history. It adds a one-time P&L cost
-  and Payroll budget actual; the version 4 save schema accepts the additional movement
-  kind without a new required field or version migration. The full plan covers up to 12
-  eligible staff at $1,500 each (-25 burnout, up to +5 efficacy). The targeted plan
-  covers up to two at $500 each (-15 burnout, up to +3 efficacy), or one when only
+  and Payroll budget actual. The full plan covers up to 12
+  eligible staff at $1,500 each (-25 burnout). The targeted plan
+  covers up to two at $500 each (-15 burnout), or one when only
   one is eligible or $500–$999 cash is available. Both plans share the monthly cooldown.
 - Expiring client contracts resolve into churn or a positive new 12-month term.
   Contract outcome alerts use simulation-month dates; former-client receivables keep aging
@@ -163,26 +165,25 @@ came from missing client boundaries.
 
 ### 4. Global app wiring
 `src/app/providers.tsx` (client) composes MUI `ThemeProvider` + `CssBaseline`, then
-`SessionProvider` → `SimulationProvider` → `TutorialProvider`, wraps content in `AppShell`,
-and mounts the always-on overlays (`WelcomeModal`, `TutorialOverlay`, `HelpFab`).
+`SessionProvider` → `SimulationProvider`, wraps content in `AppShell`,
+and mounts `WelcomeModal` and `HelpFab`.
 
 ### 5. Page layout pattern
 `AppShell` renders the full-width header above the desktop sidebar. At smaller widths,
 `SideNav` becomes a temporary drawer. The shell owns navigation, the date, and the single
 Advance Month control; new pages provide content only and add their route to `SideNav`.
 
-### 6. Tutorial system
-- `TutorialContext` manages flow (status, current step/phase, completion %, pause/resume).
-  `SessionContext` saves tutorial progress with the simulation; the old tutorial-only key
-  is discarded.
-- Tutorial content is data, not code: edit `src/data/tutorialSteps.ts`. Each step targets a
-  page and a CSS `targetSelector` (or `center`), and may require a `navigate` /
-  `advance_month` action. Steps reference `learningObjectiveIds` from
-  `src/data/learningObjectives.ts`.
-- The `TutorialOverlay` spotlights elements by selector — if you change DOM structure that a
-  step targets, update the step's `targetSelector`. Tutorial progress stores both the month and
-  year at start so a resumed or restarted tutorial does not advance an already-passed month
-  checkpoint again. Spotlight keyboard focus stays within the tutorial and permitted target.
+### 6. Guided case and legacy tutorial state
+- The authored case stores compact predictions, decisions, reflections, and actual-result evidence
+  in `SimulationState.authoredCase`. The shared month transition requires the current prediction,
+  case decisions, and reflection before advancing; uncertain or wrong answers remain valid.
+- New players choose **Start guided case** or **Explore freely**. Case start uses confirmed New Game;
+  loading an existing firm resumes it. Pausing guidance keeps its schedule. Explicitly leaving
+  records unfinished case-only choices as held and continues the same firm in free play.
+- `src/data/tutorialSteps.ts` and `src/data/learningObjectives.ts` are retired reference content;
+  save validation handles legacy progress structurally without importing the old steps. Do not
+  use old step indices as new guided-case progress. The old tutorial-only storage key is
+  discarded after the versioned firm save loads.
 
 ### 7. Help & glossary
 Searchable glossary lives in `src/data/glossaryTerms.ts`; per-metric help text in

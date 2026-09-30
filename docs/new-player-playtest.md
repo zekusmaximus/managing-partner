@@ -1,8 +1,8 @@
-# New-player playtest: service, retention, cash, and navigation
+# New-player playtest and guided-case rehearsal
 
-## Phase 2 rehearsal status (2026-09-29)
+## Phase 3 build status (2026-09-30)
 
-Stage 1 changed the rules and explanations; Phase 2 adds the separate authored three-round case. The intended future introductory game is 20–30 minutes, but prediction prompts, causal recaps, replacement onboarding, the final teaching review, and the learning-focused pre/post study remain pending in the [learning-improvement plan](learning-improvement-plan.md). This existing 30–35 minute script remains a usability/rehearsal protocol. Do not present its results, tutorial completion, or scripted balance runs as evidence of transferable learning. One player’s report of enjoying the game while being unsure what they learned is one preliminary observation.
+Stages 1–3 now provide the revised rules, separate authored case, brief onboarding, one prediction and reflection per round, actual-result recaps, and an April teaching review. The intended case play duration is 20–30 minutes. The learning-focused pre/post transfer study in slice D of the [learning-improvement plan](learning-improvement-plan.md) remains pending. This document records technical rehearsal and the prior usability protocol; neither, case completion, nor scripted balance runs demonstrate transferable learning. One player’s report of enjoying the game while being unsure what they learned remains one preliminary observation.
 
 Use a disposable browser profile for rehearsals, preserving any existing player save. Keep the same build across participants. To start the authored case, use the confirmed **New Game** reset; loading an existing firm must resume that firm. The checklist below still tests the Stage 1 rules without teaching them before the participant tries them:
 
@@ -13,11 +13,33 @@ Use a disposable browser profile for rehearsals, preserving any existing player 
 - Use **Write off and close collection efforts** terminology. Ask about AR, cash, profit, and future collection in this game; separately check that the player does not infer that an accounting write-off alone always cancels a real debt.
 - Ask whether reputation changes acquisition/recruitment, whether organization type alone diversifies exposure, and whether attorney/lobbyist titles change specialist capability in the game. Correct interpretations are summary-only reputation, fee/shared-issue exposure, and pooled billable capacity. Numerical benchmarks are simulation targets.
 
-Record these observations separately from any future transfer assessment. The current tutorial retains its original step IDs and sequence for save compatibility.
+Record these observations separately from any future transfer assessment. The old 34-step tutorial is retired for new players. Existing saved step IDs are treated only as legacy progress; they do not become new guided-case lessons.
 
-## Authored-case rehearsal (Phase 2)
+## Phase 3 guided-case technical rehearsal
 
-Use this path to check case mechanics and wording before recruiting a learning-study cohort. Keep the existing free-play facilitator script below for the earlier service, cash, and navigation checks. Record the build, browser width, selected choices, actual signing and renewal outcomes, and any facilitator help. Rehearse at phone and desktop widths with keyboard controls; inspect each round after a reload as well as during uninterrupted play.
+Use an isolated browser save. At 390, 768, 1280, and 1440px, visit the dashboard, Finances, HR, Clients, and Inbox; check horizontal overflow and browser console warnings or errors. Complete the case with keyboard controls at a phone and desktop width. Confirm focus stays usable around prompts and that each round's current decision remains reachable on a phone.
+
+At each round, try advancing before the prediction, before every required case decision, and before the reflection. The app should explain what remains and point to it. Submit a wrong prediction and “I’m not sure” in separate runs; neither should prevent progress. Reload before and after a choice, then activate Advance Month rapidly; only one month should pass and the next round should retain its own prediction. Pause guidance and reload to check that the case schedule and firm remain; separately leave the case to check that unfinished case-only work is held without invented effects and normal free play resumes.
+
+Rehearse decline and hold in February, failed paid pursuit, personal and delegated or deferred March responses, and both April renewal and departure. Inspect immediate and month-end cards against the actual cash, AR, profit, service, credit, attention, and client changes. The committee delay must remain an external event; a signing or renewal should remain an uncertain outcome. Check that the April review uses the three actual decisions, gives a fresh application question, and allows continuation with the same firm. Starting another case must still use the confirmed New Game reset. Test a valid old firm save with retired tutorial progress; it must load as the original firm without a spurious new lesson.
+
+Record the build, width, input method, branch, signing/renewal result, elapsed time, any facilitator help, any discrepancy between recap and ledger, and any clipped or inaccessible control. This is implementation evidence. The later learning pilot needs distinct pre/post questions and participant observations before any claim about learning.
+
+Technical rehearsal on September 30, 2026, against the local Phase 3 development build: a separate browser session visited all five routes at 390, 768, 1280, and 1440px (850px high). Every route rendered a visible main area and had document width equal to viewport width; route navigation produced no captured console warning, error, or page error. At 390px, Tab and Enter opened the mobile menu and reached Finances. Its report selector opened by keyboard, ArrowDown selected Budget, and the year-to-date toggle activated. At 390 and 1280px, Advance Month activated by Tab and Enter; desktop sidebar navigation reached Finances.
+
+The January guide displayed its question and all three choices at each tested width without document overflow. Its panel was 522px high at 390, 324px at 768, and 251px at 1280 and 1440; the phone card fit within the 850px viewport. At 390px, keyboard input recorded “I’m not sure,” followed the targeted Inbox link, and reached the authored collection decision. A separate desktop case run used January hold with uncertain prediction/reflection, February paid pursuit with signing, March personal policy response and delegated complaint, and April departure at a displayed 69% renewal chance. That run completed the review and had no console error. These are technical observations, not new-player timing or learning evidence.
+
+The first mobile run exposed Chromium `aria-hidden` focus warnings during the navigation drawer and case-heading transition. After focus corrections, a 390px keyboard retest used Tab and Enter to open the menu, open New Game, and cancel; the dialog closed with no captured warning, error, or page error. Repeating the confirmed New Game → Start guided case transition also produced none. These results cover the corrected transitions in the local development build.
+
+A final disposable-browser rerun after the recap and legacy-save edits completed the entire guided case separately at 390, 768, 1280, and 1440px. At every width, January's prediction and result, February's prediction and result, March's prediction and result, and the April review had document width equal to viewport width. Each run reached April with **Case completed**, five recorded case decisions, three monthly result records, three predictions, three reflections, and an answer to the fresh application question. TechTrade renewed at 390 and 1280px and departed at 768 and 1440px. The four full runs captured no console warning, error, or page error. This verifies the exercised flows and layouts, not human learning or a guaranteed outcome.
+
+A separate 390px pause/reload/leave check preserved the January month, $45,000 cash, and recorded prediction while guidance was paused through a reload. Leaving the case marked its pending case-only decision held, retained $45,000 cash, and let the same firm advance freely to February. That check captured no console warning, error, or page error.
+
+Compatibility check: a version 4 save with an active case may already contain a resolved required case decision from a round that predated prediction prompts. On migration, a round with at least one such resolved stable-ID case item receives a persisted `legacy-unavailable` prediction marker; the player is not asked to invent a prediction after seeing the result. Rounds without a resolved required item still ask for a prediction. Remaining decisions and the reflection remain required. Retired tutorial progress is not used to infer case answers. The focused migration tests passed (77 tests, 0 failures); this is save behavior, not learning evidence.
+
+## Authored-case rehearsal (Phase 2 baseline)
+
+This records the Phase 2 case-mechanics baseline before guided prompts were added. Keep the existing free-play facilitator script below for the earlier service, cash, and navigation checks. Record the build, browser width, selected choices, actual signing and renewal outcomes, and any facilitator help. Rehearse at phone and desktop widths with keyboard controls; inspect each round after a reload as well as during uninterrupted play.
 
 1. **Opening and January.** Start the case through confirmed New Game. Check that cash is constrained but positive, reported profit is positive, TechTrade Association has a named overdue receivable, coverage is near its limit, and the anchor contract has three months left. Compare a collection demand, personal call, and closing collection efforts. Ask where cash, AR, profit, credit activity, and the partner-intervention status can be seen. A collection of an old invoice must not appear as new fee revenue.
 2. **February intake.** Read the prospect's original opposing request and the review finding. Verify that the original scope cannot be signed and the ordinary review consumes no partner intervention. Rehearse decline, hold for clarification, and the reviewed narrower monitoring assignment. For pursuit, inspect the fee, up-front cost, signing chance, current/projected coverage, and possible hiring cost. A failed signing must still show its pursuit expense and no added client workload; hold must not leave a required action open forever.
@@ -34,9 +56,11 @@ The user shared early notes without a participant count: overdue-collection and 
 
 ## Goal and participants
 
-Observe 3–5 people who have not used Managing Partner. Run individual 30–35 minute sessions; include at least two phone-width sessions. These are qualitative usability sessions, not a statistically representative balance study. Start each participant with a fresh game and record the app commit, device width, and whether they chose the tutorial. Do not explain the service, collections, meeting, or pursuit rules before the tasks.
+The following is the earlier free-play usability protocol, retained for reference. It is not the Phase 4 transfer-learning study, which still needs a frozen build, distinct pre/post questions, and participant observations.
 
-Use the same build for every participant. Before each session, choose **New Game** and confirm the reset; this clears the one browser-local save and tutorial progress. If participants use separate devices, start each device with a fresh game. Share anonymized notes from the table below after the sessions for analysis and the next iteration.
+For that earlier protocol, observe 3–5 people who have not used Managing Partner. Run individual 30–35 minute sessions; include at least two phone-width sessions. These are qualitative usability sessions, not a statistically representative balance study. Start each participant with a fresh free-play game and record the app commit and device width. Do not explain the service, collections, meeting, or pursuit rules before the tasks.
+
+Use the same build for every participant. Before each session, choose **New Game** and confirm the reset; this clears the one browser-local save and guidance progress. If participants use separate devices, start each device with a fresh game. Share anonymized notes from the table below after the sessions for analysis and the next iteration.
 
 ## Facilitator script
 
@@ -53,7 +77,7 @@ The facilitator may pause or stop if the participant is stuck, but should record
 
 | Item | Notes |
 | --- | --- |
-| Participant ID, date, viewport, tutorial used, app commit | |
+| Participant ID, date, viewport, game mode, app commit | |
 | First action and reason | |
 | Staffing choice, including billable/support mix; predicted and observed service/retention result | |
 | Could explain manual collections limit? How discovered? | |
