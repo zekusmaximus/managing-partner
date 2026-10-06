@@ -12,6 +12,7 @@ This is a business simulation game where players manage a government relations f
 
 ## Recently Completed
 
+- [x] Verified local startup instructions on 2026-10-06: run `bun run dev` from the project root and open `http://localhost:3000`; Bun 1.3.11 and Node v22.18 are available in this workspace.
 - [x] Fixed react-router-dom import (changed to Next.js Link)
 - [x] Fixed SimulationContext setState implementation
 - [x] Created missing pages (finances, hr, clients, inbox)
@@ -205,6 +206,7 @@ Run the intended learner's personal protocol on the frozen D1 build: current-sta
 
 - The user expects to be the game's likely only player and may take a managing-partner position at their firm in 3–5 years. `docs/solo-learning-plan.md` is the primary protocol: baseline and immediate first-answer transfer using existing distinct forms, a further fresh delayed form after 2–4 weeks, then 4–8-week de-identified decision practice and quarterly review. Record confidence, previous game exposure, and prior GR/business experience; score with the same 0–2 causal rubric after answers are locked. A mentor may challenge de-identified reasoning after first-answer capture. The optional newcomer kit retains its 3–5-person/phone plan for usability questions.
 - The D1 tagged code and exact January fixture did not change during this documentation pivot. No human personal or newcomer observations were available. One learner's score changes can direct practice but cannot prove that the game caused professional readiness; technical and scripted checks remain separate.
+- A print-ready 20-page US Letter booklet is at `output/pdf/Managing-Partner-Personal-Learning-Booklet.pdf`. It reproduces the four pretest, four immediate posttest, and four delayed prompts verbatim, with writing space, case and experience logs, two stop pages, and a post-answer scoring page. The answer key is omitted to protect first answers; no personal observations were added.
 
 | Date | Changes |
 |------|---------|
